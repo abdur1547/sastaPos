@@ -10,14 +10,23 @@ config:
   edition: 3
 
 streams:
-  global:
-    # auto_subscribe streams are synced to every connected client automatically.
+  # Each device/user authenticates with a JWT carrying a `store_id` claim (set by the
+  # backend at login). Since auth parameters come from the signed JWT, clients cannot
+  # tamper with this to see another store's data.
+  store_data:
     auto_subscribe: true
     queries:
-      # Replace these with SELECT statements over your own tables.
-      # Every table referenced here must also be included in the Postgres
-      # `powersync` publication (see README.md "Postgres setup" section).
-      - SELECT * FROM your_table_name
+      # Table names match Spring Boot's default snake_case physical naming for the
+      # `Product`, `Sale` and `SaleItem` JPA entities. Every table referenced here must
+      # also be included in the Postgres `powersync` publication (see README.md
+      # "Postgres setup" section), and must match the client-side schema in
+      # frontend/app/lib/powersync/AppSchema.ts.
+      - SELECT * FROM products WHERE store_id = auth.parameter('store_id')
+      - SELECT * FROM sales WHERE store_id = auth.parameter('store_id')
+      # sale_items has no store_id column directly, so scope it via its parent sale.
+      - |
+        SELECT sale_items.* FROM sale_items
+        WHERE sale_id IN (SELECT id FROM sales WHERE store_id = auth.parameter('store_id'))
 
   # Example of a per-user stream (not auto-subscribed): uncomment and adapt
   # once you have JWTs including a user id claim.
