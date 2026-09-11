@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: ${JDBC_DATABASE_URL:jdbc:postgresql://localhost:5432/sastaPos}
+    url: ${JDBC_DATABASE_URL:jdbc:postgresql://localhost:5433/sastaPos}
     username: ${JDBC_DATABASE_USERNAME:postgres}
     password: ${JDBC_DATABASE_PASSWORD:<<YOUR_PASSWORD>>}
     hikari:
@@ -19,7 +19,8 @@ spring:
           new_generator_mappings: true
   docker:
     compose:
-      lifecycle-management: start-only
+      # Postgres is started manually via the root-level docker-compose.yml (shared with PowerSync).
+      enabled: false
 error:
   handling:
     http-status-in-json-response: true
