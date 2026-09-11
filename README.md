@@ -35,8 +35,8 @@ Tauri desktop application
 │   ├── app/        Next.js App Router pages and layout
 │   └── src-tauri/  Rust source and Tauri configuration
 ├── backend/        Spring Boot API and PostgreSQL configuration
-│   ├── main/java/  Application and domain modules
-│   └── main/resources/
+│   ├── src/main/java/  Application and domain modules
+│   └── src/main/resources/
 └── README.md       Project overview and navigation
 ```
 
