@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://unpkg.com/@powersync/service-sync-rules@latest/schema/sync_rules.json
+#
+# Defines WHAT data gets synced to clients, and how it's partitioned into buckets.
+# Docs: https://docs.powersync.com/sync/streams/overview
+#
+# NOTE: changes to this file are not hot-reloaded - restart the powersync
+# container after editing it.
+
+config:
+  edition: 3
+
+streams:
+  global:
+    # auto_subscribe streams are synced to every connected client automatically.
+    auto_subscribe: true
+    queries:
+      # Replace these with SELECT statements over your own tables.
+      # Every table referenced here must also be included in the Postgres
+      # `powersync` publication (see README.md "Postgres setup" section).
+      - SELECT * FROM your_table_name
+
+  # Example of a per-user stream (not auto-subscribed): uncomment and adapt
+  # once you have JWTs including a user id claim.
+  # user_data:
+  #   auto_subscribe: false
+  #   queries:
+  #     - SELECT * FROM orders WHERE user_id = subscription.parameters() ->> 'user_id'
