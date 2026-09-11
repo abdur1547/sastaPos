@@ -1,0 +1,32 @@
+name: Build & Deploy to Heroku
+on:
+  push:
+    branches: [ main ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      DEPLOYER_VERSION: 4.0.14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Temurin JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: gradle
+      - name: Build JAR
+        run: ./mvnw package
+      - name: Install Heroku CLI
+        run: curl https://cli-assets.heroku.com/install.sh | sh
+      - name: Download Heroku JVM Application Deployer
+        run: |
+          curl -L -o heroku-jvm-deployer.jar \
+            https://github.com/heroku/heroku-jvm-application-deployer/releases/download/v${DEPLOYER_VERSION}/heroku-jvm-application-deployer-${DEPLOYER_VERSION}.jar
+      - name: Deploy JAR to Heroku
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+        run: |
+          JAR_FILE=$(ls target/*SNAPSHOT.jar | head -n1)
+          java -jar heroku-jvm-deployer.jar --app="${HEROKU_APP_NAME}" "$JAR_FILE"
