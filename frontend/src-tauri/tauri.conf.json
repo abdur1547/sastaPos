@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "desktop_app",
+  "productName": "Sasta POS",
   "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "identifier": "com.sastapos.desktop-app",
   "build": {
     "frontendDist": "../out",
     "devUrl": "http://localhost:3000",
@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "Sasta POS",
-        "width": 800,
-        "height": 600,
+        "width": 1200,
+        "height": 900,
         "resizable": true,
         "fullscreen": false
       }
