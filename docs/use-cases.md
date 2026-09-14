@@ -1,13 +1,182 @@
 # Use cases:
 
+## Authentication
+
+> These endpoints are the planned authentication contract. The current backend does not yet implement Spring Security, password hashing, JWT issuance, or a dedicated `/api/auth` resource. The existing `/api/users` resource is administrative CRUD and must not be used as the public signup/login API.
+
 ## 1. Signup
-- user send name, email, password to backend
-- backend creates a user with name, email, password_hash from password, role defaults to CASHIER, status to ACTIVE, store_id will be null 
-- backend creates JWT and sends back to user
+
+### Request (`POST /api/auth/signup`)
+```json
+{
+  "name": "string, required",
+  "email": "string, required, valid email format",
+  "password": "string, required"
+}
+```
+
+### Validations
+1. `name` must not be blank.
+2. `email` must be a valid email address and must be normalized consistently (trimmed and case-insensitive for uniqueness).
+3. `email` must be globally unique; an existing email returns `409 Conflict`.
+4. `password` must satisfy the configured password policy. The policy must be enforced by the backend and must never be returned in an API response.
+
+### Write steps
+1. Hash `password` with the configured adaptive password-hashing algorithm; never store or log the plaintext password.
+2. Create the user with:
+   - `name` from the request.
+   - normalized `email`.
+   - `passwordHash` from the password hash.
+   - `role = CASHIER`.
+   - `status = ACTIVE`.
+   - `store = null` until the user creates or is assigned to a store.
+3. Issue an access JWT for the newly created user.
+
+### Response (`201 Created`)
+```json
+{
+  "accessToken": "jwt",
+  "tokenType": "Bearer",
+  "expiresIn": "integer seconds",
+  "user": {
+    "id": "uuid",
+    "name": "string",
+    "email": "string",
+    "role": "CASHIER",
+    "status": "ACTIVE",
+    "storeId": null
+  }
+}
+```
+
+The response must never include `password` or `passwordHash`.
 
 ## 2. Login
-- user send email and password to backend
-- backend confirms and if valid send back JWT else not authorized
+
+### Request (`POST /api/auth/login`)
+```json
+{
+  "email": "string, required",
+  "password": "string, required"
+}
+```
+
+### Validations and authentication
+1. Normalize the email using the same rules as signup.
+2. Find the user by normalized email and verify the password against the stored password hash.
+3. Users with `status = IN_ACTIVE` cannot log in and receive `401 Unauthorized`.
+4. Invalid email/password combinations return the same `401 Unauthorized` response so that the API does not reveal whether an email exists.
+5. On successful login, update `lastLoginAt` and issue an access JWT.
+
+### Response (`200 OK`)
+Use the same response shape as signup, with the authenticated user's current `id`, `name`, `email`, `role`, `status`, and `storeId`.
+
+## 2a. Get current authenticated user
+
+### Request (`GET /api/auth/me`)
+- Requires `Authorization: Bearer <accessToken>`.
+- The backend identifies the user from the JWT subject; the client must not provide a user ID.
+
+### Response (`200 OK`)
+Return the authenticated user's safe profile using the `user` object from the signup/login response. Never return `password` or `passwordHash`.
+
+### Authorization failures
+- Missing, malformed, expired, or invalid token: `401 Unauthorized`.
+- User exists but is `IN_ACTIVE`: `401 Unauthorized` and the request must not proceed.
+
+## 2b. Logout
+
+### Request (`POST /api/auth/logout`)
+- Requires `Authorization: Bearer <accessToken>`.
+- The client must discard the access token after a successful response.
+
+### Response (`204 No Content`)
+Because access JWTs are stateless, logout is client-side token removal unless server-side token revocation or refresh-token storage is introduced. A future revocation design must define token identifiers, expiration handling, and revocation storage before this endpoint is made stateful.
+
+## 2c. Change password (require auth)
+
+### Request (`POST /api/auth/change-password`)
+```json
+{
+  "currentPassword": "string, required",
+  "newPassword": "string, required"
+}
+```
+
+### Validations
+1. The access token must identify an `ACTIVE` user.
+2. `currentPassword` must match the stored password hash.
+3. `newPassword` must satisfy the configured password policy and must not be the same as the current password.
+4. Invalid current credentials return `401 Unauthorized`; password policy violations return `400 Bad Request`.
+
+### Write steps
+1. Hash `newPassword` with the configured adaptive password-hashing algorithm.
+2. Replace the stored password hash.
+3. Invalidate existing sessions or refresh tokens for the user, if session/token revocation is enabled.
+
+### Response (`204 No Content`)
+The response must not include the password, password hash, or a newly generated password.
+
+## 2d. Request password reset
+
+### Request (`POST /api/auth/password-reset/request`)
+```json
+{
+  "email": "string, required"
+}
+```
+
+### Behavior
+1. Normalize the email using the same rules as signup and login.
+2. If an active account exists, generate a cryptographically random reset token with a short expiry, for example 15 minutes.
+3. Store only a hash of the reset token with the user, expiry timestamp, and a used/revoked flag. Never store the raw token.
+4. Send the raw token in a password-reset link through the configured email provider. The token must be sent only out of band and must never appear in API logs.
+5. Invalidate any previous unused reset tokens for the same user.
+
+### Response (`202 Accepted`)
+Always return the same response whether or not the email belongs to an account, for example:
+```json
+{
+  "message": "If an account exists for this email, password reset instructions have been sent."
+}
+```
+
+This prevents account enumeration. The endpoint must be rate-limited per email and per source address.
+
+## 2e. Complete password reset
+
+### Request (`POST /api/auth/password-reset/complete`)
+```json
+{
+  "token": "string, required",
+  "newPassword": "string, required"
+}
+```
+
+### Validations
+1. The token must match a stored token hash, must not be expired, and must not already be used or revoked.
+2. `newPassword` must satisfy the configured password policy.
+3. Invalid, expired, used, or revoked tokens return `400 Bad Request` without revealing which condition failed.
+
+### Write steps
+1. Hash `newPassword` with the configured adaptive password-hashing algorithm.
+2. Replace the user's stored password hash.
+3. Mark the reset token as used in the same transaction; a reset token is single-use even if the request is retried.
+4. Revoke all other unused reset tokens for the user.
+5. Invalidate existing sessions or refresh tokens for the user, if session/token revocation is enabled.
+
+### Response (`204 No Content`)
+The response must not include the password, password hash, reset token, or JWT. The user must log in again after a successful reset.
+
+### Required persistence
+The reset flow requires a password-reset-token record containing at least:
+- a token ID and user reference;
+- a hash of the raw reset token;
+- an expiry timestamp;
+- used/revoked state and timestamps;
+- creation timestamp.
+
+The email/SMS provider and message template can be selected independently, but the API must preserve the same non-enumerating response and token rules regardless of provider.
 
 ## 3. Create store (require auth)
 - user send name, ntn, address (everything else is set to default)
