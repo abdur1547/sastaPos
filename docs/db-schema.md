@@ -33,7 +33,10 @@
 - barCode string, default to null
 - pctCode string, can't be null, unique per store
 - description text, default to null
+- unitPrice NUMERIC(18,2), can't be null, default to 0.0 (current selling price, used as `product.currentUnitPrice` when creating sales)
 - stockQuantity NUMERIC(18,2), default to 0.0
+- status enum (ACTIVE, IN_ACTIVE), default to ACTIVE (store can hide a product instead of deleting it)
+- createdAt datetime, can't be null, default to current date time
 
 - have one unit_of_measure, -> unit_of_measure_id UUID, can't be null
 - can have many tax_categories, a product can have many texes on it

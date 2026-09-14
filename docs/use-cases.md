@@ -17,10 +17,103 @@
 - set user role to owner
 
 ## 4. Add Products to store
-- user send name string (required), sku string optional, barCode string optional, pctCode string (required), description string optional, stockQuantity NUMERIC(18,2) optional, unit_of_measure required (it will be a drop down in UI)
+- user send name string (required), sku string optional, barCode string optional, pctCode string (required), description string optional, unitPrice NUMERIC(18,2) required, stockQuantity NUMERIC(18,2) optional, unit_of_measure required (it will be a drop down in UI), tax_category_ids optional list
 - get store from logedin user
-- backend creates a Product(name, sku, barCode, pctCode, description, stockQuantity, unit_of_measure, store)
+- backend creates a Product(name, sku, barCode, pctCode, description, unitPrice, stockQuantity, unit_of_measure, tax_categories, store, status = ACTIVE)
 - if stockQuantity > 0, backend creats a stock_movements with type = ADJUSTMENT_IN, product
+
+## 4a. Update Product (require auth)
+
+### Request (PATCH /api/products/{id})
+```json
+{
+  "name": "string, optional",
+  "sku": "string, optional",
+  "barCode": "string, optional",
+  "pctCode": "string, optional",
+  "description": "string, optional",
+  "unitPrice": "decimal, optional",
+  "unit_of_measure_id": "uuid, optional",
+  "tax_category_ids": "uuid[], optional",
+  "status": "ACTIVE | IN_ACTIVE, optional"
+}
+```
+- `stockQuantity` is never editable through this endpoint — stock only changes via `stock_movements` (use case 4's initial `ADJUSTMENT_IN`, a sale, or a future stock-adjustment use case). This keeps `stock_movements` the single source of truth for stock changes.
+- Product must belong to the current store, else 404/403.
+- `sku`/`pctCode`/`barCode` uniqueness rules from the products table still apply on change.
+- `status = IN_ACTIVE` hides the product from POS/sale screens (see use case 5 pre-conditions: only `ACTIVE` products can be added to a new sale) but keeps it fully intact for historical sales/reports.
+- Response: the updated `product`.
+
+## 4b. Delete Product (require auth)
+
+### Design decision: hard delete only when the product has no sale history, otherwise soft-delete
+A `product` can be referenced by `sale_items` (non-nullable FK) and `stock_movements`. If any `sale_items` row references the product — whether that sale is `COMPLETED`, `IN_PROGRESS`, or `VOIDED` — hard-deleting it would break that historical record. So:
+
+- If the product has **zero** `sale_items` ever created against it (never sold, regardless of draft/void status): hard delete is allowed — the row and its `stock_movements` (only ever `ADJUSTMENT_IN`/`ADJUSTMENT_OUT` in this case, never `SALE`) are removed.
+- If the product has **at least one** `sale_item` (even if every sale referencing it is `VOIDED`): hard delete is rejected; `DELETE /api/products/{id}` instead performs a soft-delete by setting `status = IN_ACTIVE` only (no other fields touched). This preserves the audit trail on past sales while still removing it from active use.
+
+### Request (DELETE /api/products/{id})
+No body required.
+
+### Validations
+1. Product must exist and belong to the current store, else 404/403.
+
+### Response
+- `204 No Content` on hard delete.
+- `200 OK` with the updated `product` (now `status = IN_ACTIVE`) when a soft-delete was performed instead, along with a message indicating the product had sale history and was deactivated rather than removed.
+
+## 4c. Get all products (require auth) — list with filters
+
+All filters are optional and combinable (AND-ed together). Results are always scoped to the authenticated user's `store`.
+
+### Query parameters
+- `search`: free-text match across `name`, `sku`, `barCode`, `pctCode`.
+- `status`: `ACTIVE` | `IN_ACTIVE` (defaults to `ACTIVE` only, so deactivated products don't clutter normal listings unless explicitly requested).
+- `unitOfMeasureId`: exact match.
+- `taxCategoryId`: products linked to this tax category.
+- `minStock`, `maxStock`: range on `stockQuantity`.
+- `minPrice`, `maxPrice`: range on `unitPrice`.
+- `page`, `size`: pagination (0-indexed page, default size e.g. 20, max size capped e.g. 100).
+- `sortBy`: one of `name`, `stockQuantity`, `unitPrice`, `createdAt` (default `name`).
+- `sortDir`: `asc` | `desc` (default `asc`).
+
+### Validations
+1. `minStock <= maxStock` if both provided.
+2. `minPrice <= maxPrice` if both provided.
+3. Unknown enum values for `status` are rejected with 400, not silently ignored.
+4. `size` is capped server-side regardless of what the client requests.
+
+### Response
+- Paginated envelope: `{ content: Product[], page, size, totalElements, totalPages }`.
+
+## 4d. Add Stock Movement (require auth) — manual stock adjustments
+
+Covers stock changes that don't come from a sale: receiving new stock (`STOCK_IN`), or correcting stock counts (`ADJUSTMENT_IN`/`ADJUSTMENT_OUT`, e.g. stocktake corrections, damage/loss, returns to supplier). `SALE` movements are never created through this endpoint — they're only ever created by use case 5 (create sale) and reversed by use case 7 (void sale).
+
+### Request (POST /api/products/{id}/stock-movements)
+```json
+{
+  "type": "STOCK_IN | ADJUSTMENT_IN | ADJUSTMENT_OUT",
+  "quantity": "decimal, required, must be > 0",
+  "description": "string, required for all three types (e.g. 'Received PO#1234', 'Stocktake correction', 'Damaged goods write-off')"
+}
+```
+
+### Validations
+1. Product must exist, belong to the current store, else 404/403.
+2. `type` must be one of `STOCK_IN`, `ADJUSTMENT_IN`, `ADJUSTMENT_OUT` — `SALE` is rejected with 400 (only created internally by the sale flow).
+3. `quantity > 0`; if `product.unit_of_measure.allowsFraction == false` then `quantity` must be a whole number.
+4. `description` is required and must not be blank for all three types — reject with 400 if missing/empty.
+5. For `ADJUSTMENT_OUT`: `product.stockQuantity >= quantity`, else reject with insufficient-stock error (stock can't go negative).
+
+### Write steps
+1. `quantityBefore = product.stockQuantity`.
+2. `quantityAfter = quantityBefore + quantity` for `STOCK_IN`/`ADJUSTMENT_IN`, or `quantityBefore - quantity` for `ADJUSTMENT_OUT`.
+3. Create `StockMovement`: `type`, `quantity`, `quantityBefore`, `quantityAfter`, `description`, `product`, `store`, `sale = null`, `sale_item = null`.
+4. Update `product.stockQuantity = quantityAfter`.
+
+### Response
+- Return the created `stock_movement` and the updated `product` (with new `stockQuantity`).
 
 ## 5. Create sale (require auth)
 
@@ -54,14 +147,14 @@
 ### Pre-conditions / lookups
 - Resolve `store` from the authenticated user.
 - Resolve `store_settings` for the store (for `defaultTaxInclusive`, `invoicePrefix`, `nextInvoiceNumber`).
-- Resolve all `product`s referenced in `sale_items`, must belong to the same store, else 404/403.
+- Resolve all `product`s referenced in `sale_items`, must belong to the same store and have `status = ACTIVE`, else 404/403.
 - If `customer_id` present, resolve `customer`, must belong to the same store, else 404/403.
 
 ### Validations (reject whole request if any fails, no partial writes)
 1. `sale_items` must not be empty; `sale_items.length == total_items`.
 2. Every `product_id` in `sale_items` must exist and be unique (no duplicate product in same sale).
 3. For each sale_item: `quantity > 0`; if `product.unit_of_measure.allowsFraction == false` then `quantity` must be a whole number.
-4. For each sale_item: `product.currentUnitPrice * quantity == item_total` (rounded to 2 decimals, small epsilon allowed).
+4. For each sale_item: `product.unitPrice * quantity == item_total` (rounded to 2 decimals, small epsilon allowed).
 5. `sale_type == CREDIT` requires `customer_id` to be present; `sale_type == DEBIT` does not require it.
 6. `discount >= 0` and `discount <= subtotal` (computed subtotal, see below).
 7. `total_price == (sum of all sale_item.item_total) - discount` (i.e. matches backend-computed `taxableAmount` / `totalAmount`, see calculation section). Comparison done at 2-decimal precision (round both sides to 2 decimals before comparing).
