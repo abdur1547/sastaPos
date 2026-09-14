@@ -88,7 +88,7 @@ All filters are optional and combinable (AND-ed together). Results are always sc
 
 ## 4d. Add Stock Movement (require auth) — manual stock adjustments
 
-Covers stock changes that don't come from a sale: receiving new stock (`STOCK_IN`), or correcting stock counts (`ADJUSTMENT_IN`/`ADJUSTMENT_OUT`, e.g. stocktake corrections, damage/loss, returns to supplier). `SALE` movements are never created through this endpoint — they're only ever created by use case 5 (create sale) and reversed by use case 7 (void sale).
+Covers stock changes that don't come from a sale: receiving new stock (`STOCK_IN`), or correcting stock counts (`ADJUSTMENT_IN`/`ADJUSTMENT_OUT`, e.g. stocktake corrections, damage/loss, returns to supplier). `SALE` movements are never created through this endpoint — they're only ever created by use case 5 (create sale) and reversed by use case 5b (void sale).
 
 ### Request (POST /api/products/{id}/stock-movements)
 ```json
@@ -199,19 +199,19 @@ Covers stock changes that don't come from a sale: receiving new stock (`STOCK_IN
 - Tax-inclusive pricing concept removed entirely: taxes are always exclusive/added on top; tax-free products simply use `taxRate = 0.0`. `store_settings.defaultTaxInclusive` and `sale_item.taxInclusive` removed from schema.
 - `DEBIT` sales with a `customer_id` do create a `LedgerEntry` (both the SALE debit and PAYMENT credits) for full history, even though net `remaining = 0`.
 - Float comparisons in validations 4, 7, 8, 9 are done at 2-decimal precision (round before comparing).
-- `sale_type` is now persisted directly as `sales.saleType` (see db-schema.md) instead of being derived, since a `DEBIT` sale can still carry a `customer_id` and this value is needed for filtering/reporting in use case 8.
+- `sale_type` is now persisted directly as `sales.saleType` (see db-schema.md) instead of being derived, since a `DEBIT` sale can still carry a `customer_id` and this value is needed for filtering/reporting in use case 5c.
 
-## 6. Update sale (require auth)
+## 5a. Update sale (require auth)
 
 ### Design decision: no in-place financial edits — void + recreate instead
 A `sale` fans out into `sale_items`, `stock_movements`, `payments`, and (for customers) `ledger_entries`. Allowing an in-place update of items/quantities/discounts would require diffing old vs new line items and re-deriving stock and ledger deltas for every possible change (quantity up, quantity down, item added, item removed, discount changed, sale_type changed, customer changed, etc.). This is complex, easy to get wrong, and leaves no clear trail of "what actually happened" for accounting/audits.
 
-**Recommendation:** treat only a `COMPLETED` sale as financially immutable. A `COMPLETED` sale already has real `stock_movements`/`ledger_entries` committed against it, so editing its items/amounts in place would require diffing and reversing those side effects — same complexity problem as a void, but without the clear "this was cancelled" audit signal. An `IN_PROGRESS` (draft) sale has **no side effects committed yet** (no stock deducted, no ledger entries, per use case 5 step 3/5 which only run at `COMPLETED`), so it is safe to fully edit like a regular in-flight order.
+**Recommendation:** treat only a `COMPLETED` sale as financially immutable. A `COMPLETED` sale already has real `stock_movements`/`ledger_entries` committed against it, so editing its items/amounts in place would require diffing and reversing those side effects — same complexity problem as a void, but without the clear "this was cancelled" audit signal. An `IN_PROGRESS` (draft) sale has **no side effects committed yet** (no stock deducted, no ledger entries, per use case 5 steps 3/5 which only run at `COMPLETED`), so it is safe to fully edit like a regular in-flight order.
 
 - **`saleStatus == IN_PROGRESS` (draft)**: fully editable. `sale_items` (add/remove/change quantity), `discount`, `payments`, `customer_id`, and `sale_type` can all be replaced wholesale (same shape as the create request in use case 5). No stock-availability check is required while saving a draft (see decision below) — stock is only checked when the draft is finalized to `COMPLETED`, at which point the full use case 5 validation/write pipeline runs (stock check, invoice number generation, stock_movements, payments, ledger_entries).
-- **`saleStatus == COMPLETED`**: financially immutable. Anything that affects money or stock (`sale_items`, `discount`, `payments`, `customer` on a CREDIT sale, `sale_type`) is corrected by **voiding the sale (see use case 7) and creating a brand-new sale** with the correct data. The new sale gets its own `invoiceNumber`; the old one stays on record as `VOIDED`, referencing the void reason (and, once the correction is made, the new invoice number can be included in that reason/description for traceability).
+- **`saleStatus == COMPLETED`**: financially immutable. Anything that affects money or stock (`sale_items`, `discount`, `payments`, `customer` on a CREDIT sale, `sale_type`) is corrected by **voiding the sale (see use case 5b) and creating a brand-new sale** with the correct data. The new sale gets its own `invoiceNumber`; the old one stays on record as `VOIDED`, referencing the void reason (and, once the correction is made, the new invoice number can be included in that reason/description for traceability).
   - Only non-financial metadata may be updated directly, with no stock/ledger side effects: `sale.description`/internal note (if added to schema), and `payments[].referenceNumber` / `payments[].description` (typo/reference fixes only, never `amount` or `method`).
-- **`saleStatus == VOIDED`**: fully read-only, no updates allowed (use case 7 output is final).
+- **`saleStatus == VOIDED`**: fully read-only, no updates allowed (use case 5b output is final).
 
 ### Request (PUT /api/sales/{id}) — while IN_PROGRESS
 Same body shape as the create request in use case 5 (full replace of `sale_type`, `customer_id`, `discount`, `sale_items`, `payments`), plus an optional `saleStatus: "COMPLETED"` to finalize it in the same call.
@@ -232,7 +232,7 @@ Same body shape as the create request in use case 5 (full replace of `sale_type`
 3. If the sale is `IN_PROGRESS`: no stock-availability check on plain save; if the request also asks to transition to `COMPLETED`, run the full use case 5 create-time validations (including stock check) before committing.
 4. If the sale is `COMPLETED`: only `payments[].referenceNumber`/`payments[].description`/`sale.description` may change. Any attempt to change `sale_items`, `discount`, `payments[].amount`, `payments[].method`, `customer_id`, or `sale_type` is rejected with a clear error pointing to "void and recreate".
 
-## 7. Void (delete) sale (require auth)
+## 5b. Void (delete) sale (require auth)
 
 ### Design decision: soft-delete + reversing entries, never hard-delete or mutate history
 Hard-deleting a `sale` row (and cascading to `sale_items`/`payments`/`stock_movements`/`ledger_entries`) destroys the audit trail, breaks the monotonic `invoiceNumber` sequence, and can silently corrupt historical reports (e.g. a report already run for last month would no longer reproduce). Mutating existing `stock_movements`/`ledger_entries` in place is equally bad — those are meant to be an append-only ledger.
@@ -264,7 +264,7 @@ Hard-deleting a `sale` row (and cascading to `sale_items`/`payments`/`stock_move
 ### Response
 - Return the voided `sale` (including `voidReason`, `voidedAt`, `voidedBy`) plus the generated reversing `stock_movements`/`ledger_entries`, and updated `customer.accountBalance` if applicable.
 
-## 8. Get all sales (require auth) — list with filters
+## 5c. Get all sales (require auth) — list with filters
 
 All filters are optional and combinable (AND-ed together). Results are always scoped to the authenticated user's `store`.
 
