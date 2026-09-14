@@ -1,0 +1,73 @@
+# yaml-language-server: $schema=https://unpkg.com/@powersync/service-schema@latest/json-schema/powersync-config.json
+#
+# PowerSync self-hosted service configuration.
+# Docs: https://docs.powersync.com/self-hosting/installation/powersync-service-setup
+#
+# `!env NAME` substitutes the value of environment variable NAME (must start with PS_).
+
+_type: self-hosted
+
+telemetry:
+  # Set to true to opt out of anonymized usage metrics.
+  # https://docs.powersync.com/self-hosting/telemetry
+  disable_telemetry_sharing: false
+
+# ---------------------------------------------------------------------------
+# Source database replication (your existing Postgres)
+# ---------------------------------------------------------------------------
+replication:
+  connections:
+    - type: postgresql
+      uri: !env PS_DATA_SOURCE_URI
+
+      # 'verify-full' (default), 'verify-ca' or 'disable'.
+      # 'disable' is fine for local/private networks, not for public ones.
+      sslmode: disable
+
+      # cacert: !env PS_PG_CA_CERT
+      # client_certificate: !env PS_PG_CLIENT_CERT
+      # client_private_key: !env PS_PG_CLIENT_PRIVATE_KEY
+
+# ---------------------------------------------------------------------------
+# Sync bucket storage (PowerSync's internal replication/sync state)
+# ---------------------------------------------------------------------------
+storage:
+  type: postgresql
+  uri: !env PS_STORAGE_SOURCE_URI
+  sslmode: disable
+
+# Port the API/sync server listens on
+port: !env PS_PORT
+
+sync_config:
+  path: sync-config.yaml
+
+# ---------------------------------------------------------------------------
+# Client (end user) authentication
+# ---------------------------------------------------------------------------
+client_auth:
+  # JWKS endpoint of whatever issues your app's JWTs (your backend, Supabase,
+  # Auth0, Firebase, etc). PowerSync only validates tokens, it never issues them.
+  jwks_uri: !env PS_JWKS_URL
+
+  # Optional static key set instead of a JWKS URL - useful when self-signing
+  # tokens with a fixed keypair generated via the repo's `key-generator` tool.
+  # jwks:
+  #   keys:
+  #     - kty: 'RSA'
+  #       n: !env PS_JWK_N
+  #       e: !env PS_JWK_E
+  #       alg: 'RS256'
+  #       kid: !env PS_JWK_KID
+
+  audience: ["powersync-dev", "powersync"]
+
+api:
+  tokens:
+    # Used to authenticate calls to PowerSync's own admin/API routes.
+    - !env PS_API_TOKEN
+
+system:
+  logging:
+    level: info # 'silly', 'debug', 'verbose', 'http', 'info', 'warn', 'error'
+    format: text # 'json' or 'text'

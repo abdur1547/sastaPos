@@ -7,9 +7,6 @@ spring:
       connection-timeout: 30000
       maximum-pool-size: 10
 
-  profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
-
   jpa:
     hibernate:
       ddl-auto: update
