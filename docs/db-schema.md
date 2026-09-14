@@ -51,6 +51,7 @@
 
 ### 5. sales
 - invoiceNumber string, can't be null
+- saleType enum (DEBIT, CREDIT), can't be null
 - subtotal NUMERIC(18,2), can't be null
 - discountAmount NUMERIC(18,2), can't be null, default to 0.0
 - taxableAmount NUMERIC(18,2), can't be null
@@ -61,6 +62,9 @@
 - saleStatus enum (COMPLETED, IN_PROGRESS, VOIDED), default to COMPLETED (IN_PROGRESS when this sale is saved as draft)
 - totalPaid NUMERIC(18,2), can't be null (buyer paid on the spot, debit sale)
 - remaining NUMERIC(18,2), can't be null, default to 0.0, (if buyer buy at credit, how much buyer will pay in fututre)
+- voidReason text, can be null, default to null, required (validated at application level) when saleStatus is set to VOIDED
+- voidedAt datetime, can be null, default to null, set when saleStatus is set to VOIDED
+- voidedBy UUID, can be null, default to null, references the user who voided the sale
 
 - can have one customer, optional for DEBIT sales, required for CREIDT sales
 - have one user, staff member whoe performed this sale
