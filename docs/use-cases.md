@@ -691,3 +691,65 @@ No query-time filtering of voided rows is needed to keep `accountBalance` correc
 ### Response
 - Return the voided `ledger_entry` (with `voidReason`, `voidedAt`, `voidedBy`), the generated reversing `ledger_entry`, and the updated `customer` (with new `accountBalance`).
 - Each `sale` in the list includes summary fields only (`invoiceNumber`, `soldAt`, `saleType`, `saleStatus`, `totalAmount`, `totalPaid`, `remaining`, `customer.name` if present) — full `sale_items`/`payments` detail is only returned by the single-sale `GET /api/sales/{id}` endpoint (use case handled by existing `getSale`).
+
+## 7. Sales report (require auth)
+
+Generates a printable/exportable report of a store's sales over a date range, in CSV or PDF format, with combinable filters so the report can be narrowed to a single day, a specific customer, a specific product, etc.
+
+### Request (`GET /api/reports/sales-report`)
+
+Query parameters:
+- `from_date`: `YYYY-MM-DD`, required — start of the date range (inclusive), compared against `sale.soldAt` in the store's `timezone`.
+- `to_date`: `YYYY-MM-DD`, required — end of the date range (inclusive). For a single-day report, send the same value for `from_date` and `to_date`.
+- `format`: `CSV | PDF`, required.
+- `customerId`: `uuid`, optional — only sales for this customer.
+- `userId`: `uuid`, optional — only sales made by this cashier/staff member.
+- `saleType`: `DEBIT | CREDIT`, optional.
+- `productId`: `uuid`, optional — only sales that contain at least one `sale_item` for this product (joins `sale_items`).
+- `paymentMethod`: `CASH | BANK | CREDIT`, optional — only sales having at least one payment with this method.
+- `minTotalAmount`, `maxTotalAmount`: decimal, optional — range on `sale.totalAmount`.
+- `invoiceNumber`: string, optional — exact or partial/`contains` match.
+
+All filters are optional except `from_date`, `to_date`, and `format`, and are AND-ed together when combined (same filtering semantics as use case 5c).
+
+### Pre-conditions / lookups
+- Resolve `store` from the authenticated user (`404` if the user has no store yet).
+- Resolve all `sale`s for the store where `saleStatus == COMPLETED`, `soldAt` falls within `[from_date, to_date]` (in the store's `timezone`), and every supplied filter matches, ordered by `soldAt asc`.
+- For each such sale, resolve its `sale_items` (each already snapshots `productName`, `sku`, `unitPrice`, `taxRate`, `taxableAmount`, `lineTotal` at sale time, so the report reads historical values straight off `sale_items` and never recomputes from the current `product`).
+
+### Validations
+1. `from_date` and `to_date` must be valid calendar dates, and `from_date <= to_date` (`400 Bad Request` otherwise).
+2. `format` must be `CSV` or `PDF` (`400 Bad Request` for any other value).
+3. Authenticated user must have a store (`404 Not Found` otherwise). Any role (`OWNER` or `CASHIER`) may request the report.
+4. `minTotalAmount <= maxTotalAmount` if both provided; unknown enum values for `saleType`/`paymentMethod` are rejected with `400`, not silently ignored (same rules as use case 5c).
+5. No sales matching the date range/filters is not an error — the report is still generated with an empty sales table and all totals at `0.00`.
+
+### Report layout
+
+**Header (store info + report metadata), always at the top:**
+- Store `name`, `ntn`, `address`.
+- Report name: `"Sales Report"`.
+- Report date range: `from_date` to `to_date` (the days whose transactions are included).
+- Printing date: current server date/time at generation.
+
+**Applied filters section, shown only if at least one optional filter was supplied:**
+- One line per filter that was actually sent in the request (e.g. `Customer: <name>`, `Cashier: <name>`, `Sale type: CREDIT`, `Product: <name>`, `Payment method: BANK`, `Total amount: <min> - <max>`, `Invoice number: <value>`).
+- Omitted entirely (no heading, no empty section) when no optional filter is applied, to keep a plain date-range report clean.
+
+**Sales table**, one block per sale, each block:
+- Sale summary row: `#` (1-based row index across sales in the report), `invoiceNumber`, `customer name` (blank if no customer attached).
+- One indented sub-row per `sale_item` belonging to that sale, columns: `pctCode`, `product name`, `quantity`, `unit price` (`sale_item.unitPrice`), `total price` (`sale_item.taxableAmount`, i.e. `unitPrice * quantity` before tax), `tax rate` (`sale_item.taxRate`, shown as a percentage), `tax amount` (`sale_item.taxableAmount * sale_item.taxRate`), `line total` (`sale_item.lineTotal`).
+- No sub-total line per sale — the sale's own `sales.taxableAmount`/`sales.taxAmount`/`sales.totalAmount` columns are not repeated per block, only the grand totals below matter for this report.
+
+**Grand totals row/section, after the last sale block:**
+- `total items`: sum of `sale_item.quantity` count (number of line items, not quantity units) across all included sales.
+- `total taxable amount`: sum of `sale_item.taxableAmount` across all included sales.
+- `total discount`: sum of `sale.discountAmount` across all included sales.
+- `total tax`: sum of `sale_item.taxAmount` across all included sales (must equal sum of `sale.taxAmount`).
+- `grand total`: sum of `sale.totalAmount` across all included sales.
+
+### Response
+- `200 OK` with the file as the response body.
+- `Content-Type`: `text/csv` for `format=CSV`, `application/pdf` for `format=PDF`.
+- `Content-Disposition: attachment; filename="sales-report-<from_date>_to_<to_date>.csv|pdf"`.
+- No JSON envelope — the report file is the entire response body.
