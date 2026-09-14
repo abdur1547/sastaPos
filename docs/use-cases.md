@@ -179,11 +179,100 @@ The reset flow requires a password-reset-token record containing at least:
 The email/SMS provider and message template can be selected independently, but the API must preserve the same non-enumerating response and token rules regardless of provider.
 
 ## 3. Create store (require auth)
-- user send name, ntn, address (everything else is set to default)
-- backend create default store_setting
-- backend creates a store wiht name, address, currencyCode = "PKR", timezone = "Asia/Karachi", status = ACTIVE, store_setting
-- set store id to user i.e. user.store_id = store.id
-- set user role to owner
+
+Since each user can belong to only one store, the store resource is always addressed as `/api/store` (singular, no `{id}`) and resolved from the authenticated user — there is no list/index endpoint.
+
+### Request (`POST /api/store`)
+```json
+{
+  "name": "string, required",
+  "ntn": "string, required, globally unique",
+  "address": "string, optional",
+  "currencyCode": "string, optional, defaults to \"PKR\" if not sent",
+  "timezone": "string, optional, defaults to \"Asia/Karachi\" if not sent"
+}
+```
+`status` is never accepted from the client on create — it always starts as `ACTIVE`.
+
+### Validations
+1. `name` must not be blank.
+2. `ntn` must not be blank and must be globally unique; an existing `ntn` returns `409 Conflict`.
+3. The authenticated user must not already have a store (`user.storeId != null`) — reject with `409 Conflict` (a user creates at most one store; use case 3d covers deactivating it, there is no delete-and-recreate flow).
+
+### Write steps
+1. Create a default `store_settings` row: `invoicePrefix = ""`, `invoiceNumberStart = 1`, `nextInvoiceNumber = 1`, `receiptFooter = ""`.
+2. Create the `store`: `name`, `ntn`, `address` (null if not sent), `currencyCode` (request value, else default `"PKR"`), `timezone` (request value, else default `"Asia/Karachi"`), `status = ACTIVE`, linked to the `store_settings` from step 1.
+3. Set `user.storeId = store.id`.
+4. Set `user.role = OWNER`.
+
+### Response (`201 Created`)
+Return the created `store` (including nested `store_settings`) and the updated `user` profile (`role = OWNER`, `storeId` set).
+
+## 3a. Get current store (require auth)
+
+### Request (`GET /api/store`)
+- Resolve `store` from `user.storeId`.
+- `404 Not Found` if the authenticated user has no store yet (hasn't completed use case 3).
+
+### Response (`200 OK`)
+Return the `store` with its nested `store_settings`.
+
+## 3b. Update store (require auth, OWNER only)
+
+### Request (`PATCH /api/store`)
+```json
+{
+  "name": "string, optional",
+  "ntn": "string, optional",
+  "address": "string, optional",
+  "currencyCode": "string, optional",
+  "timezone": "string, optional",
+  "status": "ACTIVE | IN_ACTIVE, optional"
+}
+```
+
+### Validations
+1. Authenticated user must have a store (`404` if not) and must have `role = OWNER` (`403 Forbidden` otherwise — `CASHIER`s cannot update store profile).
+2. `name`, if provided, must not be blank.
+3. `ntn`, if changed, must remain globally unique — conflict returns `409 Conflict`.
+4. `status`, if provided, must be a known enum value (`400 Bad Request` otherwise). Setting `status = IN_ACTIVE` here has the same effect as use case 3d (deactivate); setting `status = ACTIVE` reactivates a previously deactivated store.
+
+### Response (`200 OK`)
+Return the updated `store` (with nested `store_settings`).
+
+## 3c. Update store settings (require auth, OWNER only)
+
+### Request (`PATCH /api/store/settings`)
+```json
+{
+  "invoicePrefix": "string, optional",
+  "invoiceNumberStart": "integer, optional",
+  "receiptFooter": "string, optional"
+}
+```
+- `nextInvoiceNumber` is never accepted from the client — it is strictly system-managed (auto-incremented by use case 5 on each sale) to guarantee the invoice number sequence never skips or repeats.
+
+### Validations
+1. Authenticated user must have a store (`404` if not) and must have `role = OWNER` (`403 Forbidden` otherwise).
+2. `invoiceNumberStart`, if provided, must be a positive integer, and is only editable while the store has **zero** sales ever created (`SALE` history would make retroactively moving the counter ambiguous) — reject with `409 Conflict` if the store already has at least one `sale`. When accepted, also reset `nextInvoiceNumber = invoiceNumberStart`.
+
+### Response (`200 OK`)
+Return the updated `store_settings`.
+
+## 3d. Deactivate store (require auth, OWNER only)
+
+### Design decision: soft-delete only, no hard delete
+A `store` is referenced by `users`, `products`, `customers`, `sales`, and `stock_movements` — hard-deleting it would destroy all historical/financial records for the business. There is no scenario where a store with any activity can be safely removed, so only a soft-delete (`status = IN_ACTIVE`) is supported; reactivation is done via use case 3b (`PATCH /api/store` with `status = ACTIVE`).
+
+### Request (`DELETE /api/store`)
+No body required. This is a convenience alias for `PATCH /api/store` with `{ "status": "IN_ACTIVE" }`.
+
+### Validations
+1. Authenticated user must have a store (`404` if not) and must have `role = OWNER` (`403 Forbidden` otherwise).
+2. Store must not already be `IN_ACTIVE` (`409 Conflict` if already deactivated).
+
+### Response (`200 OK`)
+Return the updated `store` with `status = IN_ACTIVE`.
 
 ## 4. Add Products to store
 - user send name string (required), sku string optional, barCode string optional, pctCode string (required), description string optional, unitPrice NUMERIC(18,2) required, stockQuantity NUMERIC(18,2) optional, unit_of_measure required (it will be a drop down in UI), tax_category_ids optional list
