@@ -292,4 +292,144 @@ All filters are optional and combinable (AND-ed together). Results are always sc
 
 ### Response
 - Paginated envelope: `{ content: Sale[], page, size, totalElements, totalPages }`.
+
+## 6. Create customer (require auth)
+
+### Request (POST /api/customers)
+```json
+{
+  "name": "string, required, unique per store",
+  "phoneNumber": "string, optional, unique globally",
+  "ntn": "string, optional"
+}
+```
+
+### Validations
+1. `name` required, not blank, unique within the current store.
+2. `phoneNumber`, if provided, unique globally across all stores.
+
+### Write steps
+- Resolve `store` from the authenticated user.
+- Create `Customer`: `name`, `phoneNumber`, `ntn`, `accountBalance = 0.0`, `status = ACTIVE`, `store`.
+
+### Response
+- Return the created `customer`.
+
+## 6a. Update customer (require auth)
+
+### Request (PATCH /api/customers/{id})
+```json
+{
+  "name": "string, optional",
+  "phoneNumber": "string, optional",
+  "ntn": "string, optional",
+  "status": "ACTIVE | IN_ACTIVE, optional"
+}
+```
+
+- `accountBalance` is never editable through this endpoint — it only ever changes as a side effect of sales (use case 5), voids (use case 5b), and payments (use case 6d), keeping `ledger_entries` the single source of truth.
+- `status` can be set back to `ACTIVE` here to reactivate a customer previously deactivated via delete (use case 6b), or set to `IN_ACTIVE` directly (equivalent to the soft-delete outcome of 6b, without needing the balance/sales checks — since no side effects are being reversed, just visibility toggled). Reactivating never touches `accountBalance`.
+
+### Validations
+1. Customer must exist and belong to the current store, else 404/403.
+2. `name`, if changed, stays unique within the store; `phoneNumber`, if changed, stays unique globally.
+3. Unknown `status` values rejected with 400.
+
+### Response
+- Return the updated `customer`.
+
+## 6b. Delete customer (require auth)
+
+### Design decision: hard delete only when fully clean, otherwise soft-delete via status
+A `customer` can be referenced by `sales` (nullable FK, but present whenever a sale is linked to them) and `ledger_entries` (non-nullable FK). If either exists, or the customer carries any non-zero `accountBalance`, hard-deleting would either destroy historical/financial records or silently write off money owed. So:
+
+- If `accountBalance == 0` **and** the customer has **zero** `sales` ever created against them **and** **zero** `ledger_entries`: hard delete is allowed — the row is removed.
+- Otherwise, if `accountBalance == 0` (regardless of whether `sales`/`ledger_entries` exist): hard delete is rejected; `DELETE /api/customers/{id}` instead performs a soft-delete by setting `status = IN_ACTIVE` only (no other fields touched). The customer is hidden from default listings and can't be attached to new sales, but stays intact for historical sales/ledger.
+- If `accountBalance != 0` (positive = customer owes store, negative = store owes customer): the delete is rejected outright with an error — an outstanding balance must be settled (via use case 6d, a void, or a manual ledger adjustment) before the customer can be removed or deactivated.
+
+### Request (DELETE /api/customers/{id})
+No body required.
+
+### Validations
+1. Customer must exist and belong to the current store, else 404/403.
+2. `accountBalance` must be `0`, else reject with an outstanding-balance error.
+
+### Response
+- `204 No Content` on hard delete.
+- `200 OK` with the updated `customer` (now `status = IN_ACTIVE`) when a soft-delete was performed instead, along with a message indicating the customer had sale/ledger history and was deactivated rather than removed.
+
+## 6c. Get all customers (require auth) — list with filters
+
+All filters are optional and combinable (AND-ed together). Results are always scoped to the authenticated user's `store`.
+
+### Query parameters
+- `search`: free-text match across `name`, `phoneNumber`, `ntn`.
+- `status`: `ACTIVE` | `IN_ACTIVE` (defaults to `ACTIVE` only, so deactivated customers don't clutter normal listings unless explicitly requested).
+- `hasBalance`: boolean — `true` returns customers with `accountBalance != 0`, `false` returns customers with `accountBalance == 0`.
+- `minBalance`, `maxBalance`: range on `accountBalance`.
+- `page`, `size`: pagination (0-indexed page, default size e.g. 20, max size capped e.g. 100).
+- `sortBy`: one of `name`, `accountBalance`, `createdAt` (default `name`).
+- `sortDir`: `asc` | `desc` (default `asc`).
+
+### Validations
+1. `minBalance <= maxBalance` if both provided.
+2. Unknown enum values for `status` are rejected with 400, not silently ignored.
+3. `size` is capped server-side regardless of what the client requests.
+
+### Response
+- Paginated envelope: `{ content: Customer[], page, size, totalElements, totalPages }`.
+
+## 6d. Take payment from customer (require auth)
+
+Records money received from a customer against their outstanding balance. This is a general payment against the customer's ledger, not tied to any single sale/invoice — it settles the account as a whole (oldest debts first is a reporting/display concern, not a data concern, since `ledger_entries` are just a flat append-only history).
+
+### Request (POST /api/customers/{id}/payments)
+```json
+{
+  "amount": "decimal, required, must be > 0",
+  "method": "CASH | BANK, required",
+  "referenceNumber": "string, optional",
+  "description": "string, optional"
+}
+```
+
+### Validations
+1. Customer must exist and belong to the current store, else 404/403.
+2. `amount > 0`.
+3. `method` must be `CASH` or `BANK` (`CREDIT` is not a valid payment method here).
+4. Overpayment is allowed — `amount` may exceed the customer's current `accountBalance`, resulting in a negative balance (store now owes the customer).
+
+### Write steps
+1. Create `LedgerEntry`: `direction = CREDIT`, `type = PAYMENT`, `amount`, `reference_number = referenceNumber`, `description`, `customer`, `sale = null`.
+2. Update `customer.accountBalance -= amount`.
+
+### Response
+- Return the created `ledger_entry` and the updated `customer` (with new `accountBalance`).
+
+## 6e. Void customer payment (require auth)
+
+### Design decision: void via reversing entry, same pattern as sale voiding (5b) — never delete or mutate
+A payment is just a `ledger_entry` (`type = PAYMENT`, `direction = CREDIT`). Deleting or editing that row outright would corrupt the append-only ledger and make `accountBalance` history unreproducible (same reasoning as use case 5b for sales). So voiding never deletes anything or filters rows out of calculations — it works purely by posting an offsetting entry, exactly like a sale void:
+
+1. Mark the original entry: `ledger_entry.voided = true`, `voidReason = <reason>` (mandatory), `voidedAt = now()`, `voidedBy = current user`. The row and its original `amount`/`direction`/`type` are left untouched — `voided` is only a display/reporting flag (e.g. "exclude voided payments from a payments-received report") and is never used to adjust `accountBalance` itself.
+2. Create a **reversing `ledger_entry`**: `direction = DEBIT`, `type = ADJUSTMENT`, `amount = original.amount`, `reference_number = original.reference_number`, `description = "Reversal of PAYMENT voided: <voidReason>"`, `customer`, `sale = null`.
+3. Update `customer.accountBalance += original.amount` (exact opposite of the `-= amount` applied when the payment was taken in 6d).
+
+No query-time filtering of voided rows is needed to keep `accountBalance` correct — the reversing entry alone restores the balance. `voided` only helps reporting distinguish "money we actually still hold" from "a payment that was reversed" when listing/summing raw ledger entries.
+
+### Request (POST /api/customers/{customerId}/payments/{ledgerEntryId}/void)
+```json
+{
+  "voidReason": "string, required, e.g. 'Cheque bounced' or 'Entered wrong amount, corrected in payment #123'"
+}
+```
+
+### Validations
+1. Ledger entry must exist, belong to the current store's customer, and have `type == PAYMENT`, else 404/403/400.
+2. Entry must not already be `voided` (voiding twice is rejected).
+3. `voidReason` is required and must not be blank — reject with 400 if missing/empty.
+4. Only `OWNER` (and optionally the cashier who recorded it, within a short time window — same rule as sale voids in 5b) may void a payment; otherwise 403.
+
+### Response
+- Return the voided `ledger_entry` (with `voidReason`, `voidedAt`, `voidedBy`), the generated reversing `ledger_entry`, and the updated `customer` (with new `accountBalance`).
 - Each `sale` in the list includes summary fields only (`invoiceNumber`, `soldAt`, `saleType`, `saleStatus`, `totalAmount`, `totalPaid`, `remaining`, `customer.name` if present) — full `sale_items`/`payments` detail is only returned by the single-sale `GET /api/sales/{id}` endpoint (use case handled by existing `getSale`).

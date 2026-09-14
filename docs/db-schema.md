@@ -123,6 +123,7 @@
 - phoneNumber string, can be null, default to null, unique globally
 - ntn string, can be null, default to null
 - accountBalance NUMERIC(18,2), can have sign, default to 0.0
+- status enum (ACTIVE, IN_ACTIVE), can't be null, default to ACTIVE (soft-deleted/deactivated customers are hidden from default listing and can't be attached to new sales, but stay intact for historical sales/ledger)
 
 - belongs to a store, can't be null
 - have many sales
@@ -138,6 +139,10 @@ Customer.balance = 0  → Settled
 - type enum (SALE, PAYMENT, RETURN, ADJUSTMENT), can't be null
 - reference_number string, can be null, default to null
 - description string, can be null, default to null
+- voided boolean, can't be null, default to false (set true only on an original `PAYMENT` entry that has been reversed; `ADJUSTMENT`/reversal entries themselves are never voided again)
+- voidReason text, can be null, default to null, required (validated at application level) when `voided` is set to true
+- voidedAt datetime, can be null, default to null, set when `voided` is set to true
+- voidedBy UUID, can be null, default to null, references the user who voided the entry
 
 - belongs to customer or have one customer, can't be null
 - can have one sale in case of SALE, can be null in case of PAYMENT, RETURN, ADJUSTMENT
