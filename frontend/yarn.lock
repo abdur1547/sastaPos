@@ -577,6 +577,25 @@
   resolved "https://registry.yarnpkg.com/@nolyfill/is-core-module/-/is-core-module-1.0.39.tgz#3dc35ba0f1e66b403c00b39344f870298ebb1c8e"
   integrity sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==
 
+"@powersync/common@2.0.0":
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/@powersync/common/-/common-2.0.0.tgz#7a77be3fd834b726dc424bca3f78d1750c0c4d85"
+  integrity sha512-GuWmk0w0Y6I1HDwX4uGFzzw1e4E4bkvDSSCpVikdTEIk1xcW5NNnqTX8xfDheZdoQZunm/XushrR/LsIp1Yc/g==
+
+"@powersync/shared-internals@1.1.0":
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/@powersync/shared-internals/-/shared-internals-1.1.0.tgz#edcedfce83e5b1d22ac2425326f6c4328aa0c1b9"
+  integrity sha512-wvMzKlyCTEZ87dujK7eID5d5O8EaY/637c4dOj4KmqOA8nosbIqewVxWmGKzySYLh8TnyoIpsz87iniFTA9S0g==
+
+"@powersync/tauri-plugin@^0.0.6":
+  version "0.0.6"
+  resolved "https://registry.yarnpkg.com/@powersync/tauri-plugin/-/tauri-plugin-0.0.6.tgz#58290ea112f15e140e3a2236f9862f79cdaa435d"
+  integrity sha512-jFtSJY3vZ0YeYu5s7N2neGNcjphOi/wwRQHp6nFHvl4ZWWlGLc4NtvseCrRh5WafK2S5wqahH25yIpYA9rLHig==
+  dependencies:
+    "@powersync/common" "2.0.0"
+    "@powersync/shared-internals" "1.1.0"
+    "@tauri-apps/api" "^2.0.0"
+
 "@rtsao/scc@^1.1.0":
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/@rtsao/scc/-/scc-1.1.0.tgz#927dd2fae9bc3361403ac2c7a00c32ddce9ad7e8"
@@ -697,6 +716,11 @@
     "@tailwindcss/oxide" "4.3.3"
     postcss "^8.5.16"
     tailwindcss "4.3.3"
+
+"@tauri-apps/api@^2.0.0", "@tauri-apps/api@^2.11.1":
+  version "2.11.1"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/api/-/api-2.11.1.tgz#cd6b13fc26403ca095a02e39ecdbec8048d2872d"
+  integrity sha512-M2FPuYND2m+wh5hfW9ZpSdxMPdEJovPBWwoHJmwUpysTYNHaOkVFN419m/K0LIgjb/7KU2vBgsUepJWugQCvAA==
 
 "@tauri-apps/cli-darwin-arm64@2.11.4":
   version "2.11.4"

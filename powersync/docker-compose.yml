@@ -1,0 +1,46 @@
+# Standalone self-hosted PowerSync Service.
+# This does NOT run Postgres - it connects to a Postgres instance you already have running.
+#
+# Requires Docker Compose > 2.20.3 (for the `include`/env_file features used here).
+#
+# Usage:
+#   cp .env.example .env   # then edit .env
+#   docker compose up -d
+#   docker compose logs -f powersync
+
+services:
+  powersync:
+    image: journeyapps/powersync-service:latest
+    container_name: powersync
+    restart: unless-stopped
+    # Runs the API server + replication worker in a single container.
+    # For production you can split these into two containers/services:
+    #   command: ["start", "-r", "api"]     # API/sync server
+    #   command: ["start", "-r", "sync"]    # replication worker
+    command: ["start", "-r", "unified"]
+    env_file:
+      - .env
+    environment:
+      POWERSYNC_CONFIG_PATH: /config/service.yaml
+      # Keep this at roughly 80% of the container's memory limit.
+      NODE_OPTIONS: --max-old-space-size=1000
+    volumes:
+      - ./service.yaml:/config/service.yaml:ro
+      - ./sync-config.yaml:/config/sync-config.yaml:ro
+    ports:
+      - "${PS_PORT:-8080}:${PS_PORT:-8080}"
+    extra_hosts:
+      # Lets the container reach Postgres running on your host machine via
+      # `host.docker.internal` (works on Linux, Mac and Windows with this entry).
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:${PS_PORT:-8080}/probes/liveness').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 15

@@ -23,3 +23,9 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.11.3", features = [] }
 tauri-plugin-log = "2"
+tauri-plugin-powersync = "0.0.6"
+powersync = { version = "0.0.7", features = ["reqwest"] }
+async-trait = "0.1.92"
+futures = "0.3.34"
+dotenvy = "0.15.7"
+reqwest = { version = "0.13.3", features = ["json"] }

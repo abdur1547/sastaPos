@@ -41,14 +41,11 @@ public class BusinessSetting {
     @Column(nullable = false)
     private Integer nextInvoiceNumber;
 
-    @Column(nullable = false)
-    private Boolean defaultTaxInclusive;
-
-    @Column(columnDefinition = "text")
+    @Column(nullable = false, columnDefinition = "text")
     private String receiptFooter;
 
     @OneToOne(
-            mappedBy = "businessSetting",
+            mappedBy = "storeSettings",
             fetch = FetchType.LAZY
     )
     private Store store;
