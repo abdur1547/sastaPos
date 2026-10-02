@@ -10,6 +10,7 @@ import io.swagger.v3.oas.models.media.ObjectSchema;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.responses.ApiResponse;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springdoc.core.customizers.OperationCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,7 +21,7 @@ public class SwaggerConfig {
 
     @Bean
     public OpenAPI openApiSpec() {
-        return new OpenAPI().components(new Components()
+        final Components components = new Components()
                 .addSchemas("ApiErrorResponse", new ObjectSchema()
                         .addProperty("status", new IntegerSchema())
                         .addProperty("code", new StringSchema())
@@ -32,7 +33,12 @@ public class SwaggerConfig {
                         .addProperty("message", new StringSchema())
                         .addProperty("property", new StringSchema())
                         .addProperty("rejectedValue", new ObjectSchema())
-                        .addProperty("path", new StringSchema())));
+                        .addProperty("path", new StringSchema()))
+                .addSecuritySchemes("bearerAuth", new SecurityScheme()
+                        .type(SecurityScheme.Type.HTTP)
+                        .scheme("bearer")
+                        .bearerFormat("JWT"));
+        return new OpenAPI().components(components);
     }
 
     @Bean

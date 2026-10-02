@@ -31,7 +31,7 @@ spring:
   docker:
     compose:
       # Postgres is started manually via the root-level docker-compose.yml (shared with PowerSync).
-      enabled: false
+      enabled: true
 
 error:
   handling:
@@ -41,10 +41,17 @@ error:
     log-levels:
       5xx: ERROR
     codes:
-      StoreBusinessSettingUnique: STORE_BUSINESS_SETTING_UNIQUE
       ProductNameUnique: PRODUCT_NAME_UNIQUE
       ProductSkuUnique: PRODUCT_SKU_UNIQUE
       ProductBarcodeUnique: PRODUCT_BARCODE_UNIQUE
 
 springdoc:
   pathsToMatch: /, /api/**
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-change-me-in-production-please-please-please}
+    expiration-seconds: ${JWT_EXPIRATION_SECONDS:3600}
+  password-reset:
+    token-expiration-minutes: ${PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES:15}
+

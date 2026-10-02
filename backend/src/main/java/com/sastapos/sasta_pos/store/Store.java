@@ -6,6 +6,7 @@ import com.sastapos.sasta_pos.sale.Sale;
 import com.sastapos.sasta_pos.stock_movement.StockMovement;
 import com.sastapos.sasta_pos.tax_category.TaxCategory;
 import com.sastapos.sasta_pos.user.User;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
@@ -46,10 +47,10 @@ public class Store {
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false)
-    private String code;
+    @Column(nullable = false, unique = true)
+    private String ntn;
 
-    @Column(nullable = false, columnDefinition = "text")
+    @Column(columnDefinition = "text")
     private String address;
 
     @Column(nullable = false)
@@ -65,9 +66,9 @@ public class Store {
     @OneToMany(mappedBy = "store")
     private Set<User> users = new HashSet<>();
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "business_setting_id", unique = true)
-    private BusinessSetting businessSetting;
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "store_settings_id", nullable = false, unique = true)
+    private BusinessSetting storeSettings;
 
     @OneToMany(mappedBy = "store")
     private Set<TaxCategory> taxCategories = new HashSet<>();

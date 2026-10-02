@@ -6,8 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface StoreRepository extends JpaRepository<Store, UUID> {
 
-    Store findFirstByBusinessSettingId(UUID id);
+    boolean existsByNtnIgnoreCase(String ntn);
 
-    boolean existsByBusinessSettingId(UUID id);
+    boolean existsByNtnIgnoreCaseAndIdNot(String ntn, UUID id);
 
 }

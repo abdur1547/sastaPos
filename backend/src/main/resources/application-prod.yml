@@ -38,7 +38,6 @@ error:
     log-levels:
       5xx: ERROR
     codes:
-      StoreBusinessSettingUnique: STORE_BUSINESS_SETTING_UNIQUE
       ProductNameUnique: PRODUCT_NAME_UNIQUE
       ProductSkuUnique: PRODUCT_SKU_UNIQUE
       ProductBarcodeUnique: PRODUCT_BARCODE_UNIQUE

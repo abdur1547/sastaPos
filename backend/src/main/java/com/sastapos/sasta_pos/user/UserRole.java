@@ -3,7 +3,7 @@ package com.sastapos.sasta_pos.user;
 
 public enum UserRole {
 
-    ADMIN,
+    OWNER,
     CASHIER,
     GLOBAL_ADMIN
 

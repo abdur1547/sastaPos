@@ -1,6 +1,7 @@
 package com.sastapos.sasta_pos.user;
 
 import com.sastapos.sasta_pos.store.RowStatus;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
@@ -20,8 +21,9 @@ public class UserDTO {
     private String name;
 
     @NotNull
+    @Email
     @Size(max = 255)
-    private String userName;
+    private String email;
 
     @NotNull
     private String passwordHash;
