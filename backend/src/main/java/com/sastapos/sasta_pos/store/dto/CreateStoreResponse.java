@@ -1,4 +1,4 @@
-package com.sastapos.sasta_pos.store;
+package com.sastapos.sasta_pos.store.dto;
 
 import com.sastapos.sasta_pos.auth.dto.AuthenticatedUserDTO;
 import lombok.Getter;

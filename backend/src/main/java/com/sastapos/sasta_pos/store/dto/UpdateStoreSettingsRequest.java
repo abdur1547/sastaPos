@@ -1,4 +1,4 @@
-package com.sastapos.sasta_pos.store;
+package com.sastapos.sasta_pos.store.dto;
 
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;

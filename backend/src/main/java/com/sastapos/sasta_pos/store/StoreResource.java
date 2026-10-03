@@ -1,5 +1,6 @@
 package com.sastapos.sasta_pos.store;
 
+import com.sastapos.sasta_pos.store.dto.*;
 import com.sastapos.sasta_pos.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -37,7 +38,7 @@ public class StoreResource {
     @ApiResponse(responseCode = "201")
     @Operation(summary = "Create a store for the authenticated user and promote them to OWNER")
     public ResponseEntity<CreateStoreResponse> createStore(@AuthenticationPrincipal final User user,
-            @RequestBody @Valid final CreateStoreRequest request) {
+                                                           @RequestBody @Valid final CreateStoreRequest request) {
         return new ResponseEntity<>(storeService.createStore(user, request), HttpStatus.CREATED);
     }
 
@@ -57,7 +58,7 @@ public class StoreResource {
     @PatchMapping("/settings")
     @Operation(summary = "Update the authenticated user's store settings (OWNER only)")
     public ResponseEntity<StoreSettingsDTO> updateStoreSettings(@AuthenticationPrincipal final User user,
-            @RequestBody @Valid final UpdateStoreSettingsRequest request) {
+                                                                @RequestBody @Valid final UpdateStoreSettingsRequest request) {
         return ResponseEntity.ok(storeService.updateStoreSettings(user, request));
     }
 

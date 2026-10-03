@@ -4,6 +4,7 @@ import com.sastapos.sasta_pos.auth.AuthService;
 import com.sastapos.sasta_pos.business_setting.BusinessSetting;
 import com.sastapos.sasta_pos.business_setting.BusinessSettingRepository;
 import com.sastapos.sasta_pos.sale.SaleRepository;
+import com.sastapos.sasta_pos.store.dto.*;
 import com.sastapos.sasta_pos.user.User;
 import com.sastapos.sasta_pos.user.UserRepository;
 import com.sastapos.sasta_pos.user.UserRole;
@@ -12,6 +13,7 @@ import com.sastapos.sasta_pos.util.ConflictException;
 import com.sastapos.sasta_pos.util.ForbiddenException;
 import com.sastapos.sasta_pos.util.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -25,11 +27,12 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class StoreService {
 
-    private static final String DEFAULT_CURRENCY_CODE = "PKR";
-    private static final String DEFAULT_TIMEZONE = "Asia/Karachi";
+    @Value("${app.store.default-currency-code}")
+    private String defaultCurrencyCode;
+    @Value("${app.store.default-timezone}")
+    private String defaultTimezone;
 
     private final StoreRepository storeRepository;
-    private final BusinessSettingRepository businessSettingRepository;
     private final UserRepository userRepository;
     private final SaleRepository saleRepository;
     private final AuthService authService;
@@ -54,9 +57,9 @@ public class StoreService {
         store.setNtn(request.getNtn());
         store.setAddress(request.getAddress());
         store.setCurrencyCode(StringUtils.hasText(request.getCurrencyCode())
-                ? request.getCurrencyCode() : DEFAULT_CURRENCY_CODE);
+                ? request.getCurrencyCode() : defaultCurrencyCode);
         store.setTimezone(StringUtils.hasText(request.getTimezone())
-                ? request.getTimezone() : DEFAULT_TIMEZONE);
+                ? request.getTimezone() : defaultTimezone);
         store.setStatus(RowStatus.ACTIVE);
         store.setStoreSettings(storeSettings);
         storeRepository.save(store);
@@ -104,7 +107,7 @@ public class StoreService {
             store.setStatus(request.getStatus());
         }
 
-        storeRepository.save(store);
+//        storeRepository.save(store);
         return mapToDTO(store);
     }
 
@@ -128,7 +131,6 @@ public class StoreService {
             settings.setReceiptFooter(request.getReceiptFooter());
         }
 
-        businessSettingRepository.save(settings);
         return mapSettingsToDTO(settings);
     }
 
@@ -139,7 +141,6 @@ public class StoreService {
             throw new ConflictException("Store is already deactivated");
         }
         store.setStatus(RowStatus.INACTIVE);
-        storeRepository.save(store);
         return mapToDTO(store);
     }
 

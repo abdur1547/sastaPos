@@ -1,6 +1,8 @@
-package com.sastapos.sasta_pos.store;
+package com.sastapos.sasta_pos.store.dto;
 
 import java.util.UUID;
+
+import com.sastapos.sasta_pos.store.RowStatus;
 import lombok.Getter;
 import lombok.Setter;
 

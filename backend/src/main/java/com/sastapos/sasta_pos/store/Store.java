@@ -66,7 +66,7 @@ public class Store {
     @OneToMany(mappedBy = "store")
     private Set<User> users = new HashSet<>();
 
-    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "store_settings_id", nullable = false, unique = true)
     private BusinessSetting storeSettings;
 
@@ -80,7 +80,7 @@ public class Store {
     private Set<Sale> sales = new HashSet<>();
 
     @OneToMany(mappedBy = "store")
-    private Set<StockMovement> stockMovementss = new HashSet<>();
+    private Set<StockMovement> stockMovements = new HashSet<>();
 
     @CreatedDate
     @Column(nullable = false, updatable = false)

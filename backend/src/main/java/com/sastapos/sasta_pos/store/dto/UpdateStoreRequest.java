@@ -1,20 +1,22 @@
-package com.sastapos.sasta_pos.store;
+package com.sastapos.sasta_pos.store.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import com.sastapos.sasta_pos.store.RowStatus;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
 
+/**
+ * Partial update of the store profile (PATCH semantics: only non-null fields are applied).
+ * {@code name}, if provided, must not be blank (validated in the service).
+ */
 @Getter
 @Setter
-public class CreateStoreRequest {
+public class UpdateStoreRequest {
 
-    @NotBlank
     @Size(max = 255)
     private String name;
 
-    @NotBlank
     @Size(max = 255)
     private String ntn;
 
@@ -26,5 +28,7 @@ public class CreateStoreRequest {
 
     @Size(max = 100)
     private String timezone;
+
+    private RowStatus status;
 
 }
