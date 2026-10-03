@@ -12,7 +12,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     open-in-view: false
     show-sql: true
     format-sql: true
@@ -24,8 +24,8 @@ spring:
         id:
           new_generator_mappings: true
   flyway:
-    enabled: false
-    locations: classpath:db/migrations
+    enabled: true
+    locations: classpath:db/migration
     baseline-on-migrate: true
 
   docker:

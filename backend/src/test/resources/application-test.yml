@@ -1,0 +1,37 @@
+# Test profile: real PostgreSQL via Testcontainers (@ServiceConnection in AuthApiTestBase),
+# schema created by the same Flyway migrations as production, deterministic JWT settings.
+spring:
+  datasource:
+    hikari:
+      # Testcontainers proxies connections; keep the pool small and validate connections
+      # aggressively so none go stale between specs on the shared context.
+      maximum-pool-size: 4
+      minimum-idle: 0
+      max-lifetime: 60000
+      idle-timeout: 30000
+      keepalive-time: 20000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          lob:
+            non_contextual_creation: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  docker:
+    compose:
+      enabled: false
+
+app:
+  jwt:
+    secret: integration-test-secret-key-do-not-use-elsewhere
+    expiration-seconds: 3600
+  password-reset:
+    token-expiration-minutes: 15

@@ -15,4 +15,9 @@ public class LoginRequest {
     @NotBlank
     private String password;
 
+    /** Trim before validation and persistence; the service lowercases. */
+    public void setEmail(final String email) {
+        this.email = email == null ? null : email.trim();
+    }
+
 }

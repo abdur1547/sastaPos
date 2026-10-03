@@ -14,4 +14,9 @@ public class PasswordResetRequest {
     @Email
     private String email;
 
+    /** Trim before validation and persistence; the service lowercases. */
+    public void setEmail(final String email) {
+        this.email = email == null ? null : email.trim();
+    }
+
 }
