@@ -1,4 +1,4 @@
-package com.sastapos.sasta_pos.store;
+package com.sastapos.sasta_pos.store.dto;
 
 import java.util.UUID;
 import lombok.Getter;

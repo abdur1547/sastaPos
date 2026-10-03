@@ -54,4 +54,6 @@ app:
     expiration-seconds: ${JWT_EXPIRATION_SECONDS:3600}
   password-reset:
     token-expiration-minutes: ${PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES:15}
-
+  store:
+    default-currency-code: ${DEFAULT_CURRENCY_CODE:PKR}
+    default-timezone: ${DEFAULT_TIMEZONE:Asia/Karachi}

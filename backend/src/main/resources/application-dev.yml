@@ -28,7 +28,11 @@ spring:
   docker:
     compose:
       # Postgres is started manually via the root-level docker-compose.yml (shared with PowerSync).
-      enabled: false
+      enabled: true
+
+logging:
+  level:
+    org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG
 
 error:
   handling:
