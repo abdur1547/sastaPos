@@ -27,4 +27,13 @@ public final class TestDataFactory {
         return FAKER.internet().password(9, 12, true, true, true);
     }
 
+    public static String storeName() {
+        return FAKER.company().name();
+    }
+
+    /** Globally unique NTN so specs never collide on the stores.ntn unique constraint. */
+    public static String uniqueNtn() {
+        return FAKER.number().digits(13);
+    }
+
 }

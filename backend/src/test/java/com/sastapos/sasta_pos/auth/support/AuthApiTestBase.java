@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jayway.jsonpath.JsonPath;
 import com.sastapos.sasta_pos.auth.PasswordResetTokenRepository;
+import com.sastapos.sasta_pos.sale.SaleRepository;
+import com.sastapos.sasta_pos.store.StoreRepository;
 import com.sastapos.sasta_pos.user.User;
 import com.sastapos.sasta_pos.user.UserRepository;
 import java.util.Map;
@@ -86,15 +88,28 @@ public abstract class AuthApiTestBase {
     protected UserRepository userRepository;
 
     @Autowired
+    protected StoreRepository storeRepository;
+
+    @Autowired
+    protected SaleRepository saleRepository;
+
+    @Autowired
     protected PasswordResetTokenRepository passwordResetTokenRepository;
 
     @Autowired
     protected RecordingPasswordResetNotifier passwordResetNotifier;
 
+    /**
+     * Wipes mutable state in FK-safe order (no ON DELETE CASCADE in the schema): children of
+     * {@code users} first, then sales, then users, then stores (store deletion cascades to its
+     * owned {@code business_settings} row via the entity's cascade=ALL + orphanRemoval).
+     */
     @BeforeEach
     void resetDatabaseState() {
         passwordResetTokenRepository.deleteAll();
+        saleRepository.deleteAll();
         userRepository.deleteAll();
+        storeRepository.deleteAll();
         passwordResetNotifier.reset();
     }
 
