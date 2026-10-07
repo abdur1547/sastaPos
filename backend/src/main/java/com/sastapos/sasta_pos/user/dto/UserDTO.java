@@ -1,6 +1,7 @@
-package com.sastapos.sasta_pos.user;
+package com.sastapos.sasta_pos.user.dto;
 
 import com.sastapos.sasta_pos.store.RowStatus;
+import com.sastapos.sasta_pos.user.UserRole;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -24,9 +25,6 @@ public class UserDTO {
     @Email
     @Size(max = 255)
     private String email;
-
-    @NotNull
-    private String passwordHash;
 
     @NotNull
     private UserRole role;

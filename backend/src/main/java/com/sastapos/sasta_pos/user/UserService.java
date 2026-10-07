@@ -2,12 +2,24 @@ package com.sastapos.sasta_pos.user;
 
 import com.sastapos.sasta_pos.events.BeforeDeleteStore;
 import com.sastapos.sasta_pos.events.BeforeDeleteUser;
-import com.sastapos.sasta_pos.store.Store;
+import com.sastapos.sasta_pos.store.RowStatus;
+import com.sastapos.sasta_pos.auth.PasswordPolicy;
+import com.sastapos.sasta_pos.auth.PasswordResetTokenRepository;
 import com.sastapos.sasta_pos.store.StoreRepository;
+import com.sastapos.sasta_pos.util.ConflictException;
+import com.sastapos.sasta_pos.util.ForbiddenException;
+import java.util.Locale;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
+import com.sastapos.sasta_pos.user.dto.CreateUserRequestDTO;
+import com.sastapos.sasta_pos.user.dto.UpdateUserRequestDTO;
+import com.sastapos.sasta_pos.user.dto.UserDTO;
 import com.sastapos.sasta_pos.util.NotFoundException;
 import com.sastapos.sasta_pos.util.ReferencedException;
 import java.util.List;
 import java.util.UUID;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Sort;
@@ -15,75 +27,96 @@ import org.springframework.stereotype.Service;
 
 
 @Service
+@RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
     private final StoreRepository storeRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final PasswordEncoder passwordEncoder;
     private final ApplicationEventPublisher publisher;
 
-    public UserService(final UserRepository userRepository, final StoreRepository storeRepository,
-            final ApplicationEventPublisher publisher) {
-        this.userRepository = userRepository;
-        this.storeRepository = storeRepository;
-        this.publisher = publisher;
-    }
-
-    public List<UserDTO> findAll() {
-        final List<User> users = userRepository.findAll(Sort.by("id"));
-        return users.stream()
+    @Transactional(readOnly = true)
+    public List<UserDTO> findAll(final User currentUser) {
+        final UUID storeId = requireOwnedStoreId(currentUser);
+        return userRepository.findAllByStoreId(storeId, Sort.by("id")).stream()
                 .map(user -> mapToDTO(user, new UserDTO()))
                 .toList();
     }
 
-    public UserDTO get(final UUID id) {
-        return userRepository.findById(id)
-                .map(user -> mapToDTO(user, new UserDTO()))
-                .orElseThrow(NotFoundException::new);
+    @Transactional(readOnly = true)
+    public UserDTO get(final User currentUser, final UUID id) {
+        return mapToDTO(requireStoreUser(currentUser, id), new UserDTO());
     }
 
-    public UUID create(final UserDTO userDTO) {
+    @Transactional
+    public UUID create(final User currentUser, final CreateUserRequestDTO createUserRequestDTO) {
+        final UUID storeId = requireOwnedStoreId(currentUser);
+        final String email = normalizeEmail(createUserRequestDTO.getEmail());
+        if (userRepository.existsByEmailIgnoreCase(email)) {
+            throw new ConflictException("An account with this email already exists");
+        }
+        PasswordPolicy.validate(createUserRequestDTO.getPassword());
+
         final User user = new User();
-        mapToEntity(userDTO, user);
+        user.setName(createUserRequestDTO.getName());
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode(createUserRequestDTO.getPassword()));
+        user.setRole(UserRole.CASHIER);
+        user.setStatus(RowStatus.ACTIVE);
+        user.setStore(storeRepository.getReferenceById(storeId));
         return userRepository.save(user).getId();
     }
 
-    public void update(final UUID id, final UserDTO userDTO) {
-        final User user = userRepository.findById(id)
-                .orElseThrow(NotFoundException::new);
-        mapToEntity(userDTO, user);
+    @Transactional
+    public void update(final User currentUser, final UUID id, final UpdateUserRequestDTO updateUserRequestDTO) {
+        final User user = requireStoreUser(currentUser, id);
+        final String email = normalizeEmail(updateUserRequestDTO.getEmail());
+        if (userRepository.existsByEmailIgnoreCaseAndIdNot(email, id)) {
+            throw new ConflictException("An account with this email already exists");
+        }
+        user.setName(updateUserRequestDTO.getName());
+        user.setEmail(email);
         userRepository.save(user);
     }
 
-    public void delete(final UUID id) {
-        final User user = userRepository.findById(id)
-                .orElseThrow(NotFoundException::new);
+    @Transactional
+    public void delete(final User currentUser, final UUID id) {
+        final User user = requireStoreUser(currentUser, id);
+        if (user.getId().equals(currentUser.getId())) {
+            throw new ConflictException("You cannot delete your own account");
+        }
         publisher.publishEvent(new BeforeDeleteUser(id));
+        passwordResetTokenRepository.deleteAll(passwordResetTokenRepository.findAllByUserId(id));
         userRepository.delete(user);
+    }
+
+    /** Only the owner of a store may manage users, and only users belonging to that same store. */
+    private UUID requireOwnedStoreId(final User currentUser) {
+        if (currentUser.getRole() != UserRole.OWNER || currentUser.getStore() == null) {
+            throw new ForbiddenException("Only the store owner can perform this action");
+        }
+        return currentUser.getStore().getId();
+    }
+
+    private User requireStoreUser(final User currentUser, final UUID id) {
+        final UUID storeId = requireOwnedStoreId(currentUser);
+        return userRepository.findByIdAndStoreId(id, storeId).orElseThrow(NotFoundException::new);
+    }
+
+    private String normalizeEmail(final String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 
     private UserDTO mapToDTO(final User user, final UserDTO userDTO) {
         userDTO.setId(user.getId());
         userDTO.setName(user.getName());
         userDTO.setEmail(user.getEmail());
-        userDTO.setPasswordHash(user.getPasswordHash());
         userDTO.setRole(user.getRole());
         userDTO.setStatus(user.getStatus());
         userDTO.setLastLoginAt(user.getLastLoginAt());
         userDTO.setStore(user.getStore() == null ? null : user.getStore().getId());
         return userDTO;
-    }
-
-    private User mapToEntity(final UserDTO userDTO, final User user) {
-        user.setName(userDTO.getName());
-        user.setEmail(userDTO.getEmail());
-        user.setPasswordHash(userDTO.getPasswordHash());
-        user.setRole(userDTO.getRole());
-        user.setStatus(userDTO.getStatus());
-        user.setLastLoginAt(userDTO.getLastLoginAt());
-        final Store store = userDTO.getStore() == null ? null : storeRepository.findById(userDTO.getStore())
-                .orElseThrow(() -> new NotFoundException("store not found"));
-        user.setStore(store);
-        return user;
     }
 
     @EventListener(BeforeDeleteStore.class)
