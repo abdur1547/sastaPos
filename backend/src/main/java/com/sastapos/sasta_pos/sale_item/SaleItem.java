@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.Getter;
@@ -37,26 +38,22 @@ public class SaleItem {
     @Column(nullable = false)
     private String productName;
 
-    @Column(nullable = false)
     private String sku;
 
-    @Column(nullable = false)
-    private Double quantity;
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal quantity;
 
-    @Column(nullable = false)
-    private Double unitPrice;
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal unitPrice;
 
-    @Column(nullable = false)
-    private Double taxRate;
+    @Column(nullable = false, precision = 18, scale = 4)
+    private BigDecimal taxRate;
 
-    @Column(nullable = false)
-    private Boolean taxInclusive;
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal taxableAmount;
 
-    @Column(nullable = false)
-    private Double taxableAmount;
-
-    @Column(nullable = false)
-    private Double lineTotal;
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal lineTotal;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sale_id", nullable = false)

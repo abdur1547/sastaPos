@@ -30,6 +30,9 @@ spring:
       # Postgres is started manually via the root-level docker-compose.yml (shared with PowerSync).
       enabled: true
 
+server:
+  port: ${SERVER_PORT:8090}
+
 logging:
   level:
     org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG

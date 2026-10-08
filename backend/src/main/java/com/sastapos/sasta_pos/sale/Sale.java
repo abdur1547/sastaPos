@@ -1,9 +1,11 @@
 package com.sastapos.sasta_pos.sale;
 
 import com.sastapos.sasta_pos.customer.Customer;
+import com.sastapos.sasta_pos.payment.Payment;
 import com.sastapos.sasta_pos.sale_item.SaleItem;
 import com.sastapos.sasta_pos.store.Store;
 import com.sastapos.sasta_pos.user.User;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
@@ -15,14 +17,18 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.UuidGenerator;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -45,27 +51,49 @@ public class Sale {
     @Column(nullable = false)
     private String invoiceNumber;
 
-    @Column(nullable = false)
-    private Double subtotal;
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal subtotal;
+
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal discountAmount;
+
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal taxableAmount;
+
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal taxAmount;
+
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal totalAmount;
 
     @Column(nullable = false)
-    private Double discountAmount;
+    private String currencyCode = "PKR";
 
     @Column(nullable = false)
-    private Double taxableAmount;
-
-    @Column(nullable = false)
-    private Double taxAmount;
-
-    @Column(nullable = false)
-    private Double totalAmount;
-
-    @Column(nullable = false)
-    private String currencyCode;
+    @Enumerated(EnumType.STRING)
+    private SaleType saleType = SaleType.DEBIT;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private SaleStatus status;
+
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal totalPaid = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal remaining = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+
+    @Column(columnDefinition = "text")
+    private String description;
+
+    @Column(columnDefinition = "text")
+    private String voidReason;
+
+    private OffsetDateTime voidedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "voided_by")
+    private User voidedBy;
 
     @Column(nullable = false)
     private LocalDateTime soldAt;
@@ -78,8 +106,15 @@ public class Sale {
     @JoinColumn(name = "customer_id")
     private Customer customer;
 
-    @OneToMany(mappedBy = "sale")
-    private Set<SaleItem> saleItems = new HashSet<>();
+    @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("dateCreated ASC, id ASC")
+    @BatchSize(size = 50)
+    private List<SaleItem> saleItems = new ArrayList<>();
+
+    @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("dateCreated ASC, id ASC")
+    @BatchSize(size = 50)
+    private List<Payment> payments = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id")

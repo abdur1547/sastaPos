@@ -2,7 +2,9 @@ package com.sastapos.sasta_pos.units_of_measure;
 
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 
-public interface UnitsOfMeasureRepository extends JpaRepository<UnitsOfMeasure, UUID> {
+public interface UnitsOfMeasureRepository
+        extends JpaRepository<UnitsOfMeasure, UUID>, JpaSpecificationExecutor<UnitsOfMeasure> {
 }

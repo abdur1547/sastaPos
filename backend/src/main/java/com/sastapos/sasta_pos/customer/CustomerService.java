@@ -12,6 +12,7 @@ import com.sastapos.sasta_pos.customer.dto.VoidCustomerPaymentResponse;
 import com.sastapos.sasta_pos.events.BeforeDeleteStore;
 import com.sastapos.sasta_pos.ledger_entry.LedgerDirection;
 import com.sastapos.sasta_pos.ledger_entry.LedgerEntry;
+import com.sastapos.sasta_pos.ledger_entry.LedgerEntryMapper;
 import com.sastapos.sasta_pos.ledger_entry.LedgerEntryRepository;
 import com.sastapos.sasta_pos.ledger_entry.LedgerEntryType;
 import com.sastapos.sasta_pos.product.dto.PageResponse;
@@ -23,6 +24,7 @@ import com.sastapos.sasta_pos.user.UserRole;
 import com.sastapos.sasta_pos.util.BadRequestException;
 import com.sastapos.sasta_pos.util.ConflictException;
 import com.sastapos.sasta_pos.util.ForbiddenException;
+import com.sastapos.sasta_pos.util.MoneyLimits;
 import com.sastapos.sasta_pos.util.NotFoundException;
 import com.sastapos.sasta_pos.util.ReferencedException;
 import jakarta.persistence.criteria.Predicate;
@@ -41,6 +43,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -56,7 +59,7 @@ public class CustomerService {
 
     static final int MAX_PAGE_SIZE = 100;
     /** Largest magnitude representable by numeric(18,2). */
-    private static final BigDecimal MAX_BALANCE = new BigDecimal("9999999999999999.99");
+    private static final BigDecimal MAX_BALANCE = MoneyLimits.MAX_AMOUNT;
     private static final Map<String, String> SORTABLE_FIELDS = Map.of(
             "name", "name",
             "accountBalance", "accountBalance",
@@ -66,6 +69,7 @@ public class CustomerService {
     private final StoreRepository storeRepository;
     private final SaleRepository saleRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
+    private final LedgerEntryMapper ledgerEntryMapper;
 
     public record CustomerFilter(String search, RowStatus status, Boolean hasBalance, BigDecimal minBalance,
                                  BigDecimal maxBalance) {
@@ -298,6 +302,28 @@ public class CustomerService {
         return user.getStore().getId();
     }
 
+    /** Looks up an ACTIVE customer of the store for a sale, optionally taking a row lock. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Customer findActiveForSale(final UUID id, final UUID storeId, final boolean lock) {
+        final Customer customer = lock ? requireCustomerForUpdate(id, storeId) : requireCustomer(id, storeId);
+        if (customer.getStatus() != RowStatus.ACTIVE) {
+            throw new BadRequestException("Customer is not active");
+        }
+        return customer;
+    }
+
+    public Customer lockForUpdate(final UUID id, final UUID storeId) {
+        return requireCustomerForUpdate(id, storeId);
+    }
+
+    /** Adds delta (positive = customer owes more) to the balance of an already locked customer. */
+    public void adjustBalance(final Customer customer, final BigDecimal delta) {
+        final BigDecimal newBalance = customer.getAccountBalance().add(delta);
+        requireBalanceInRange(newBalance);
+        customer.setAccountBalance(newBalance);
+        customerRepository.save(customer);
+    }
+
     private Customer requireCustomer(final UUID id, final UUID storeId) {
         return customerRepository.findByIdAndStoreId(id, storeId)
                 .orElseThrow(() -> new NotFoundException("Customer not found"));
@@ -323,21 +349,7 @@ public class CustomerService {
     }
 
     private LedgerEntryDTO mapEntry(final LedgerEntry entry) {
-        final LedgerEntryDTO dto = new LedgerEntryDTO();
-        dto.setId(entry.getId());
-        dto.setDirection(entry.getDirection());
-        dto.setType(entry.getType());
-        dto.setAmount(entry.getAmount());
-        dto.setReferenceNumber(entry.getReferenceNumber());
-        dto.setDescription(entry.getDescription());
-        dto.setVoided(entry.isVoided());
-        dto.setVoidReason(entry.getVoidReason());
-        dto.setVoidedAt(entry.getVoidedAt());
-        dto.setVoidedBy(entry.getVoidedBy() == null ? null : entry.getVoidedBy().getId());
-        dto.setCustomerId(entry.getCustomer().getId());
-        dto.setSaleId(entry.getSale() == null ? null : entry.getSale().getId());
-        dto.setCreatedAt(entry.getDateCreated());
-        return dto;
+        return ledgerEntryMapper.toDTO(entry);
     }
 
     @EventListener(BeforeDeleteStore.class)

@@ -1,6 +1,8 @@
 package com.sastapos.sasta_pos.stock_movement;
 
 import com.sastapos.sasta_pos.product.Product;
+import com.sastapos.sasta_pos.sale.Sale;
+import com.sastapos.sasta_pos.sale_item.SaleItem;
 import com.sastapos.sasta_pos.store.Store;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -60,6 +62,14 @@ public class StockMovement {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id", nullable = false)
     private Store store;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sale_id")
+    private Sale sale;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sale_item_id")
+    private SaleItem saleItem;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)

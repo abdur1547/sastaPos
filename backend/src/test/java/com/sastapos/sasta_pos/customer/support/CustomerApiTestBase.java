@@ -104,11 +104,11 @@ public abstract class CustomerApiTestBase extends StoreApiTestBase {
     protected void recordSaleFor(final UUID storeId, final UUID customerId) {
         final Sale sale = new Sale();
         sale.setInvoiceNumber("TEST-" + UUID.randomUUID());
-        sale.setSubtotal(100.0);
-        sale.setDiscountAmount(0.0);
-        sale.setTaxableAmount(100.0);
-        sale.setTaxAmount(0.0);
-        sale.setTotalAmount(100.0);
+        sale.setSubtotal(new java.math.BigDecimal("100.00"));
+        sale.setDiscountAmount(new java.math.BigDecimal("0.00"));
+        sale.setTaxableAmount(new java.math.BigDecimal("100.00"));
+        sale.setTaxAmount(new java.math.BigDecimal("0.00"));
+        sale.setTotalAmount(new java.math.BigDecimal("100.00"));
         sale.setCurrencyCode("PKR");
         sale.setStatus(SaleStatus.COMPLETED);
         sale.setSoldAt(LocalDateTime.now());

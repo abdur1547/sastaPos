@@ -27,6 +27,7 @@ import com.sastapos.sasta_pos.util.ReferencedException;
 import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -41,6 +42,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -411,6 +413,32 @@ public class ProductService {
             referencedException.addParam(storeProduct.getId());
             throw referencedException;
         }
+    }
+
+    /**
+     * Loads the ACTIVE products of the store a sale refers to (optionally row-locked, ordered by id to
+     * avoid deadlocks); any missing or foreign id is a 404.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Map<UUID, Product> findActiveForSale(final Set<UUID> ids, final UUID storeId, final boolean lock) {
+        final List<Product> found = lock ? lockAll(ids, storeId)
+                : productRepository.findAllByIdInAndStoreId(ids, storeId);
+        final Map<UUID, Product> byId = found.stream().collect(Collectors.toMap(Product::getId, p -> p));
+        for (final UUID id : ids) {
+            if (!byId.containsKey(id)) {
+                throw new NotFoundException("Product not found: " + id);
+            }
+        }
+        for (final Product product : found) {
+            if (product.getStatus() != RowStatus.ACTIVE) {
+                throw new BadRequestException("Product '" + product.getName() + "' is not active");
+            }
+        }
+        return byId;
+    }
+
+    public List<Product> lockAll(final Collection<UUID> ids, final UUID storeId) {
+        return productRepository.findAllByIdInAndStoreIdForUpdate(ids, storeId);
     }
 
 }

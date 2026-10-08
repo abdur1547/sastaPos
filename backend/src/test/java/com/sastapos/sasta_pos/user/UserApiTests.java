@@ -451,11 +451,11 @@ class UserApiTests extends StoreApiTestBase {
             final UUID id = createCashier(owner.token());
             final Sale sale = new Sale();
             sale.setInvoiceNumber("TEST-" + UUID.randomUUID());
-            sale.setSubtotal(1.0);
-            sale.setDiscountAmount(0.0);
-            sale.setTaxableAmount(1.0);
-            sale.setTaxAmount(0.0);
-            sale.setTotalAmount(1.0);
+            sale.setSubtotal(new java.math.BigDecimal("1.00"));
+            sale.setDiscountAmount(new java.math.BigDecimal("0.00"));
+            sale.setTaxableAmount(new java.math.BigDecimal("1.00"));
+            sale.setTaxAmount(new java.math.BigDecimal("0.00"));
+            sale.setTotalAmount(new java.math.BigDecimal("1.00"));
             sale.setCurrencyCode("PKR");
             sale.setStatus(SaleStatus.COMPLETED);
             sale.setSoldAt(LocalDateTime.now());

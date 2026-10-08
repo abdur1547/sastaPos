@@ -1,6 +1,8 @@
 package com.sastapos.sasta_pos.product;
 
 import jakarta.persistence.LockModeType;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,6 +22,15 @@ public interface ProductRepository extends JpaRepository<Product, UUID>,
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from Product p where p.id = :id and p.store.id = :storeId")
     Optional<Product> findByIdAndStoreIdForUpdate(@Param("id") UUID id, @Param("storeId") UUID storeId);
+
+    /** Locks in id order so concurrent sales touching the same products cannot deadlock. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Product p where p.id in :ids and p.store.id = :storeId order by p.id")
+    List<Product> findAllByIdInAndStoreIdForUpdate(@Param("ids") Collection<UUID> ids,
+            @Param("storeId") UUID storeId);
+
+    @Query("select p from Product p where p.id in :ids and p.store.id = :storeId")
+    List<Product> findAllByIdInAndStoreId(@Param("ids") Collection<UUID> ids, @Param("storeId") UUID storeId);
 
     boolean existsByStoreIdAndSkuIgnoreCase(UUID storeId, String sku);
 

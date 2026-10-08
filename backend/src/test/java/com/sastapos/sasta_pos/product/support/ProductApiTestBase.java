@@ -68,11 +68,11 @@ public abstract class ProductApiTestBase extends StoreApiTestBase {
     protected void recordSaleOf(final UUID storeId, final UUID productId, final SaleStatus status) {
         final Sale sale = new Sale();
         sale.setInvoiceNumber("TEST-" + UUID.randomUUID());
-        sale.setSubtotal(100.0);
-        sale.setDiscountAmount(0.0);
-        sale.setTaxableAmount(100.0);
-        sale.setTaxAmount(0.0);
-        sale.setTotalAmount(100.0);
+        sale.setSubtotal(new java.math.BigDecimal("100.00"));
+        sale.setDiscountAmount(new java.math.BigDecimal("0.00"));
+        sale.setTaxableAmount(new java.math.BigDecimal("100.00"));
+        sale.setTaxAmount(new java.math.BigDecimal("0.00"));
+        sale.setTotalAmount(new java.math.BigDecimal("100.00"));
         sale.setCurrencyCode("PKR");
         sale.setStatus(status);
         sale.setSoldAt(LocalDateTime.now());
@@ -82,12 +82,11 @@ public abstract class ProductApiTestBase extends StoreApiTestBase {
         final SaleItem item = new SaleItem();
         item.setProductName("sold");
         item.setSku("sold-sku");
-        item.setQuantity(1.0);
-        item.setUnitPrice(100.0);
-        item.setTaxRate(0.0);
-        item.setTaxInclusive(false);
-        item.setTaxableAmount(100.0);
-        item.setLineTotal(100.0);
+        item.setQuantity(new java.math.BigDecimal("1.00"));
+        item.setUnitPrice(new java.math.BigDecimal("100.00"));
+        item.setTaxRate(java.math.BigDecimal.ZERO);
+        item.setTaxableAmount(new java.math.BigDecimal("100.00"));
+        item.setLineTotal(new java.math.BigDecimal("100.00"));
         item.setSale(sale);
         item.setProduct(productRepository.getReferenceById(productId));
         saleItemRepository.save(item);

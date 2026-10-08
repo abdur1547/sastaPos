@@ -6,6 +6,7 @@ import com.jayway.jsonpath.JsonPath;
 import com.sastapos.sasta_pos.auth.PasswordResetTokenRepository;
 import com.sastapos.sasta_pos.customer.CustomerRepository;
 import com.sastapos.sasta_pos.ledger_entry.LedgerEntryRepository;
+import com.sastapos.sasta_pos.payment.PaymentRepository;
 import com.sastapos.sasta_pos.product.ProductRepository;
 import com.sastapos.sasta_pos.sale.SaleRepository;
 import com.sastapos.sasta_pos.sale_item.SaleItemRepository;
@@ -122,6 +123,9 @@ public abstract class AuthApiTestBase {
     protected LedgerEntryRepository ledgerEntryRepository;
 
     @Autowired
+    protected PaymentRepository paymentRepository;
+
+    @Autowired
     protected PasswordResetTokenRepository passwordResetTokenRepository;
 
     @Autowired
@@ -138,6 +142,7 @@ public abstract class AuthApiTestBase {
         ledgerEntryRepository.deleteAll();
         stockMovementRepository.deleteAll();
         saleItemRepository.deleteAll();
+        paymentRepository.deleteAll();
         productRepository.deleteAll();
         taxCategoryRepository.deleteAll();
         unitsOfMeasureRepository.deleteAll();
