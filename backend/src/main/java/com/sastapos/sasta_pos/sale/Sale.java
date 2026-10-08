@@ -1,5 +1,6 @@
 package com.sastapos.sasta_pos.sale;
 
+import com.sastapos.sasta_pos.customer.Customer;
 import com.sastapos.sasta_pos.sale_item.SaleItem;
 import com.sastapos.sasta_pos.store.Store;
 import com.sastapos.sasta_pos.user.User;
@@ -72,6 +73,10 @@ public class Sale {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
+    private Customer customer;
 
     @OneToMany(mappedBy = "sale")
     private Set<SaleItem> saleItems = new HashSet<>();

@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jayway.jsonpath.JsonPath;
 import com.sastapos.sasta_pos.auth.PasswordResetTokenRepository;
+import com.sastapos.sasta_pos.customer.CustomerRepository;
+import com.sastapos.sasta_pos.ledger_entry.LedgerEntryRepository;
 import com.sastapos.sasta_pos.product.ProductRepository;
 import com.sastapos.sasta_pos.sale.SaleRepository;
 import com.sastapos.sasta_pos.sale_item.SaleItemRepository;
@@ -114,6 +116,12 @@ public abstract class AuthApiTestBase {
     protected UnitsOfMeasureRepository unitsOfMeasureRepository;
 
     @Autowired
+    protected CustomerRepository customerRepository;
+
+    @Autowired
+    protected LedgerEntryRepository ledgerEntryRepository;
+
+    @Autowired
     protected PasswordResetTokenRepository passwordResetTokenRepository;
 
     @Autowired
@@ -127,12 +135,14 @@ public abstract class AuthApiTestBase {
     @BeforeEach
     void resetDatabaseState() {
         passwordResetTokenRepository.deleteAll();
+        ledgerEntryRepository.deleteAll();
         stockMovementRepository.deleteAll();
         saleItemRepository.deleteAll();
         productRepository.deleteAll();
         taxCategoryRepository.deleteAll();
         unitsOfMeasureRepository.deleteAll();
         saleRepository.deleteAll();
+        customerRepository.deleteAll();
         userRepository.deleteAll();
         storeRepository.deleteAll();
         passwordResetNotifier.reset();

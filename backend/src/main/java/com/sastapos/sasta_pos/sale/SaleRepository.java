@@ -10,4 +10,6 @@ public interface SaleRepository extends JpaRepository<Sale, UUID> {
 
     Sale findFirstByStoreId(UUID id);
 
+    boolean existsByCustomerId(UUID customerId);
+
 }
