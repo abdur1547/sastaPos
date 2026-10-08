@@ -1,6 +1,5 @@
 package com.sastapos.sasta_pos.tax_category;
 
-import com.sastapos.sasta_pos.sale_item.SaleItem;
 import com.sastapos.sasta_pos.store.Store;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -58,10 +57,6 @@ public class TaxCategory {
 
     @Column
     private LocalDate effectiveTo;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "sale_item_id", nullable = false)
-    private SaleItem saleItem;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id")

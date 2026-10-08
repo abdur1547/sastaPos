@@ -15,9 +15,12 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -43,26 +46,24 @@ public class Product {
     @UuidGenerator
     private UUID id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false, unique = true)
     private String sku;
 
-    @Column(nullable = false, unique = true)
     private String barcode;
+
+    @Column(nullable = false)
+    private String pctCode;
 
     @Column(columnDefinition = "text")
     private String description;
 
-    @Column(nullable = false)
-    private Double sellingPrice;
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal unitPrice;
 
-    @Column(nullable = false)
-    private Double taxRate;
-
-    @Column(nullable = false)
-    private Double stockQuantity;
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal stockQuantity;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
@@ -72,18 +73,20 @@ public class Product {
     @JoinColumn(name = "units_of_measure_id", nullable = false)
     private UnitsOfMeasure unitsOfMeasure;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tax_category_id", nullable = false)
-    private TaxCategory taxCategory;
+    @ManyToMany
+    @JoinTable(name = "product_tax_categories",
+            joinColumns = @JoinColumn(name = "product_id"),
+            inverseJoinColumns = @JoinColumn(name = "tax_category_id"))
+    private Set<TaxCategory> taxCategories = new HashSet<>();
 
     @OneToMany(mappedBy = "product")
     private Set<SaleItem> saleItems = new HashSet<>();
 
     @OneToMany(mappedBy = "product")
-    private Set<StockMovement> stockMovementss = new HashSet<>();
+    private Set<StockMovement> stockMovements = new HashSet<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "store_id")
+    @JoinColumn(name = "store_id", nullable = false)
     private Store store;
 
     @CreatedDate

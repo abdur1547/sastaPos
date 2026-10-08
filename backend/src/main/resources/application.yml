@@ -40,10 +40,6 @@ error:
     full-stacktrace-http-statuses: 5xx
     log-levels:
       5xx: ERROR
-    codes:
-      ProductNameUnique: PRODUCT_NAME_UNIQUE
-      ProductSkuUnique: PRODUCT_SKU_UNIQUE
-      ProductBarcodeUnique: PRODUCT_BARCODE_UNIQUE
 
 springdoc:
   pathsToMatch: /, /api/**

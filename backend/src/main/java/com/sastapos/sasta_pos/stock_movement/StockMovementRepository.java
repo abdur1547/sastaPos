@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface StockMovementRepository extends JpaRepository<StockMovement, UUID> {
 
-    StockMovement findFirstByProductId(UUID id);
+    void deleteByProductId(UUID productId);
 
     StockMovement findFirstByStoreId(UUID id);
 

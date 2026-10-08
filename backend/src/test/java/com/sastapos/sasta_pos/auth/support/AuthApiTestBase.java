@@ -4,7 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jayway.jsonpath.JsonPath;
 import com.sastapos.sasta_pos.auth.PasswordResetTokenRepository;
+import com.sastapos.sasta_pos.product.ProductRepository;
 import com.sastapos.sasta_pos.sale.SaleRepository;
+import com.sastapos.sasta_pos.sale_item.SaleItemRepository;
+import com.sastapos.sasta_pos.stock_movement.StockMovementRepository;
+import com.sastapos.sasta_pos.tax_category.TaxCategoryRepository;
+import com.sastapos.sasta_pos.units_of_measure.UnitsOfMeasureRepository;
 import com.sastapos.sasta_pos.store.StoreRepository;
 import com.sastapos.sasta_pos.user.User;
 import com.sastapos.sasta_pos.user.UserRepository;
@@ -94,6 +99,21 @@ public abstract class AuthApiTestBase {
     protected SaleRepository saleRepository;
 
     @Autowired
+    protected ProductRepository productRepository;
+
+    @Autowired
+    protected StockMovementRepository stockMovementRepository;
+
+    @Autowired
+    protected SaleItemRepository saleItemRepository;
+
+    @Autowired
+    protected TaxCategoryRepository taxCategoryRepository;
+
+    @Autowired
+    protected UnitsOfMeasureRepository unitsOfMeasureRepository;
+
+    @Autowired
     protected PasswordResetTokenRepository passwordResetTokenRepository;
 
     @Autowired
@@ -101,12 +121,17 @@ public abstract class AuthApiTestBase {
 
     /**
      * Wipes mutable state in FK-safe order (no ON DELETE CASCADE in the schema): children of
-     * {@code users} first, then sales, then users, then stores (store deletion cascades to its
+     * {@code users} first (stock movements, sale items, products, tax categories, units), then sales, then users, then stores (store deletion cascades to its
      * owned {@code business_settings} row via the entity's cascade=ALL + orphanRemoval).
      */
     @BeforeEach
     void resetDatabaseState() {
         passwordResetTokenRepository.deleteAll();
+        stockMovementRepository.deleteAll();
+        saleItemRepository.deleteAll();
+        productRepository.deleteAll();
+        taxCategoryRepository.deleteAll();
+        unitsOfMeasureRepository.deleteAll();
         saleRepository.deleteAll();
         userRepository.deleteAll();
         storeRepository.deleteAll();

@@ -13,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.Getter;
@@ -40,27 +41,24 @@ public class StockMovement {
     @Enumerated(EnumType.STRING)
     private StockMovementType type;
 
-    @Column(nullable = false)
-    private Double quantity;
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal quantity;
 
-    @Column(nullable = false)
-    private Double quantityBefore;
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal quantityBefore;
 
-    @Column(nullable = false)
-    private Double quantityAfter;
-
-    @Column(nullable = false)
-    private String referenceType;
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal quantityAfter;
 
     @Column(nullable = false, columnDefinition = "text")
-    private String reason;
+    private String description;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id")
+    @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "store_id")
+    @JoinColumn(name = "store_id", nullable = false)
     private Store store;
 
     @CreatedDate

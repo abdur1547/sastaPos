@@ -274,8 +274,10 @@ No body required. This is a convenience alias for `PATCH /api/store` with `{ "st
 ### Response (`200 OK`)
 Return the updated `store` with `status = IN_ACTIVE`.
 
+> **Implementation notes (4–4d):** the API uses camelCase (`unitOfMeasureId`, `taxCategoryIds`); the enum value is `INACTIVE` (the `IN_ACTIVE` spelling below is the same state). Unknown JSON properties in request bodies are rejected with `400`. `sku`, `barCode` and `pctCode` are unique per store (case-insensitive, `409` on conflict). List page size is capped at 100.
+
 ## 4. Add Products to store
-- user send name string (required), sku string optional, barCode string optional, pctCode string (required), description string optional, unitPrice NUMERIC(18,2) required, stockQuantity NUMERIC(18,2) optional, unit_of_measure required (it will be a drop down in UI), tax_category_ids optional list
+- user send name string (required), sku string optional, barCode string optional, pctCode string (required), description string optional, unitPrice NUMERIC(18,2) required, stockQuantity NUMERIC(18,2) optional, unit_of_measure required (it will be a drop down in UI), taxCategoryIds optional list
 - get store from logedin user
 - backend creates a Product(name, sku, barCode, pctCode, description, unitPrice, stockQuantity, unit_of_measure, tax_categories, store, status = ACTIVE)
 - if stockQuantity > 0, backend creats a stock_movements with type = ADJUSTMENT_IN, product
@@ -291,8 +293,8 @@ Return the updated `store` with `status = IN_ACTIVE`.
   "pctCode": "string, optional",
   "description": "string, optional",
   "unitPrice": "decimal, optional",
-  "unit_of_measure_id": "uuid, optional",
-  "tax_category_ids": "uuid[], optional",
+  "unitOfMeasureId": "uuid, optional",
+  "taxCategoryIds": "uuid[], optional",
   "status": "ACTIVE | IN_ACTIVE, optional"
 }
 ```
@@ -362,7 +364,7 @@ Covers stock changes that don't come from a sale: receiving new stock (`STOCK_IN
 2. `type` must be one of `STOCK_IN`, `ADJUSTMENT_IN`, `ADJUSTMENT_OUT` — `SALE` is rejected with 400 (only created internally by the sale flow).
 3. `quantity > 0`; if `product.unit_of_measure.allowsFraction == false` then `quantity` must be a whole number.
 4. `description` is required and must not be blank for all three types — reject with 400 if missing/empty.
-5. For `ADJUSTMENT_OUT`: `product.stockQuantity >= quantity`, else reject with insufficient-stock error (stock can't go negative).
+5. For `ADJUSTMENT_OUT`: `product.stockQuantity >= quantity`, else reject with insufficient-stock error (`409 Conflict`) (stock can't go negative).
 
 ### Write steps
 1. `quantityBefore = product.stockQuantity`.

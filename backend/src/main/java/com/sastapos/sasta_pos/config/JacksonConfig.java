@@ -15,6 +15,7 @@ public class JacksonConfig {
         return jsonMapperBuilder -> jsonMapperBuilder
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 .disable(DeserializationFeature.ACCEPT_FLOAT_AS_INT)
+                .enable(tools.jackson.databind.cfg.EnumFeature.FAIL_ON_NUMBERS_FOR_ENUMS)
                 .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY);
     }
 
