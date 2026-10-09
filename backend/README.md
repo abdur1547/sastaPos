@@ -88,6 +88,9 @@ The committed configuration is in `src/main/resources/application.yml`. Database
 | `JDBC_DATABASE_URL` | `jdbc:postgresql://localhost:5432/sastaPos` |
 | `JDBC_DATABASE_USERNAME` | `postgres` |
 | `JDBC_DATABASE_PASSWORD` | `<<YOUR_PASSWORD>>` |
+| `CORS_ALLOWED_ORIGINS` | All origins in the `dev` profile; none otherwise |
+
+Set `CORS_ALLOWED_ORIGINS` to a comma-separated list of exact origins to allow outside development, for example `https://pos.example.com,https://admin.example.com`. Requests from origins not in this list are rejected by the browser's CORS policy. The `dev` profile allows all origins by default; setting `CORS_ALLOWED_ORIGINS` overrides that default.
 
 The Compose development database uses host port `5433`, so override `JDBC_DATABASE_URL` as shown above when starting Compose manually. Never commit real credentials. Production should provide all database values through its secret/environment configuration.
 

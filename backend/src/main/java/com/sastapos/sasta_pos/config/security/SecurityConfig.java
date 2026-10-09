@@ -10,6 +10,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 
 /**
@@ -29,9 +30,11 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(final HttpSecurity http,
             final JwtAuthenticationFilter jwtAuthenticationFilter,
             final RestAuthenticationEntryPoint authenticationEntryPoint,
-            final RestAccessDeniedHandler accessDeniedHandler) throws Exception {
+            final RestAccessDeniedHandler accessDeniedHandler,
+            final CorsConfigurationSource corsConfigurationSource) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/password-reset/**",

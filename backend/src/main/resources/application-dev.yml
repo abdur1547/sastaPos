@@ -30,6 +30,10 @@ spring:
       # Postgres is started manually via the root-level docker-compose.yml (shared with PowerSync).
       enabled: true
 
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:*}
+
 server:
   port: ${SERVER_PORT:8090}
 

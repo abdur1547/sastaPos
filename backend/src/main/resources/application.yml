@@ -45,6 +45,8 @@ springdoc:
   pathsToMatch: /, /api/**
 
 app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
   jwt:
     secret: ${JWT_SECRET:dev-only-change-me-in-production-please-please-please}
     expiration-seconds: ${JWT_EXPIRATION_SECONDS:3600}
