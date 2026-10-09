@@ -1,0 +1,78 @@
+<form class="filters" [formGroup]="form" (submit)="$event.preventDefault()">
+  <div class="filters-row">
+    <mat-form-field appearance="outline" class="search-field" subscriptSizing="dynamic">
+      <mat-label>Search customers</mat-label>
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput type="search" formControlName="search" placeholder="Name, phone number or NTN" />
+    </mat-form-field>
+
+    <mat-button-toggle-group formControlName="status" aria-label="Customer status" hideSingleSelectionIndicator>
+      <mat-button-toggle value="ACTIVE">Active</mat-button-toggle>
+      <mat-button-toggle value="INACTIVE">Inactive</mat-button-toggle>
+      <mat-button-toggle value="ALL">All</mat-button-toggle>
+    </mat-button-toggle-group>
+  </div>
+
+  <div class="filters-row">
+    <mat-form-field appearance="outline" class="operator-field" subscriptSizing="dynamic">
+      <mat-label>Balance</mat-label>
+      <mat-select formControlName="balance">
+        <mat-option value="ANY">Any</mat-option>
+        <mat-option value="OWES">Owes the store</mat-option>
+        <mat-option value="CREDIT">Store owes customer</mat-option>
+        <mat-option value="SETTLED">Settled</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <div class="field-group sort-group">
+      <mat-form-field appearance="outline" class="sort-field" subscriptSizing="dynamic">
+        <mat-label>Sort by</mat-label>
+        <mat-select formControlName="sortField">
+          <mat-option value="name">Name</mat-option>
+          <mat-option value="accountBalance">Balance</mat-option>
+          <mat-option value="lastUpdated">Last updated</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <button
+        mat-icon-button
+        type="button"
+        [attr.aria-label]="form.controls.sortDirection.value === 'asc' ? 'Sort ascending' : 'Sort descending'"
+        (click)="toggleSortDirection()"
+      >
+        <mat-icon>{{ form.controls.sortDirection.value === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <div class="filters-row quick-row">
+    <span class="quick-label">Quick filters</span>
+    <button
+      type="button"
+      class="chip"
+      [class.is-selected]="isOwesPreset()"
+      [attr.aria-pressed]="isOwesPreset()"
+      (click)="toggleBalancePreset('OWES')"
+    >
+      <mat-icon>account_balance_wallet</mat-icon>
+      Owes the store
+    </button>
+    <button
+      type="button"
+      class="chip"
+      [class.is-selected]="isCreditPreset()"
+      [attr.aria-pressed]="isCreditPreset()"
+      (click)="toggleBalancePreset('CREDIT')"
+    >
+      <mat-icon>savings</mat-icon>
+      Has credit
+    </button>
+    <span class="spacer"></span>
+    @if (activeFilterCount() > 0) {
+      <span class="active-count">{{ activeFilterCount() }} filter{{ activeFilterCount() === 1 ? '' : 's' }} applied</span>
+    }
+    <button mat-button type="button" (click)="reset()">
+      <mat-icon>restart_alt</mat-icon>
+      Reset
+    </button>
+  </div>
+</form>

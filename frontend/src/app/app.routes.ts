@@ -1,7 +1,6 @@
 import { Routes } from '@angular/router';
 
 import { authGuard } from './core/auth/auth.guard';
-import { CustomersPage } from './features/customers/customers.page';
 import { SellPage } from './features/sell/sell.page';
 
 export const routes: Routes = [
@@ -14,7 +13,10 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       { path: 'sell', component: SellPage, title: 'Sell | Counter' },
-      { path: 'customers', component: CustomersPage, title: 'Customers | Counter' },
+      {
+        path: 'customers',
+        loadChildren: () => import('./features/customers/customers.routes').then((m) => m.CUSTOMER_ROUTES),
+      },
       {
         path: 'products',
         loadChildren: () => import('./features/products/products.routes').then((m) => m.PRODUCT_ROUTES),

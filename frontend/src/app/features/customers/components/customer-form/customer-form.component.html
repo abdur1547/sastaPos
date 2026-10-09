@@ -1,0 +1,54 @@
+<form class="customer-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  @if (errorMessage()) {
+    <app-form-alert>{{ errorMessage() }}</app-form-alert>
+  }
+
+  <section class="form-section">
+    <h2>Basic information</h2>
+    <div class="grid">
+      <mat-form-field appearance="outline" class="span-3">
+        <mat-label>Name</mat-label>
+        <input matInput formControlName="name" required autocomplete="off" />
+        <mat-error>{{ fieldError(form.controls.name) }}</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="span-2">
+        <mat-label>Phone number</mat-label>
+        <mat-icon matPrefix>call</mat-icon>
+        <input matInput type="tel" formControlName="phoneNumber" autocomplete="off" />
+        <mat-error>{{ fieldError(form.controls.phoneNumber) }}</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>NTN</mat-label>
+        <input matInput formControlName="ntn" autocomplete="off" />
+        <mat-error>{{ fieldError(form.controls.ntn) }}</mat-error>
+      </mat-form-field>
+    </div>
+  </section>
+
+  @if (isEdit()) {
+    <section class="form-section">
+      <h2>Account</h2>
+      <p class="balance">{{ balanceLabel() }}</p>
+      <p class="hint">Updated through sales and payments</p>
+    </section>
+
+    <section class="form-section">
+      <h2>Availability</h2>
+      <mat-slide-toggle formControlName="status">
+        {{ form.controls.status.value ? 'Active — available for sale' : 'Inactive — hidden from sale' }}
+      </mat-slide-toggle>
+    </section>
+  }
+
+  <div class="actions">
+    <button mat-stroked-button type="button" [disabled]="saving()" (click)="cancel.emit()">Cancel</button>
+    <button mat-flat-button type="submit" class="primary-button" [disabled]="saving()">
+      @if (saving()) {
+        <mat-spinner diameter="18" />
+      }
+      {{ isEdit() ? 'Save changes' : 'Create customer' }}
+    </button>
+  </div>
+</form>

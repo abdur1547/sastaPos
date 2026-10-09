@@ -1,0 +1,56 @@
+<div class="table-scroll">
+  @if (loading()) {
+    <mat-progress-bar class="loading-bar" mode="indeterminate" />
+  }
+  <table class="customers-table">
+    <thead>
+      <tr>
+        <th class="col-name">Customer</th>
+        <th>Phone</th>
+        <th>NTN</th>
+        <th class="col-number">Balance</th>
+        <th>Status</th>
+        <th>Updated</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (customer of customers(); track customer.id) {
+        <tr
+          tabindex="0"
+          role="link"
+          [attr.aria-label]="'Edit ' + customer.name"
+          (click)="selectCustomer.emit(customer)"
+          (keydown.enter)="selectCustomer.emit(customer)"
+          (keydown.space)="$event.preventDefault(); selectCustomer.emit(customer)"
+        >
+          <td class="col-name">
+            <span class="customer-name">{{ customer.name }}</span>
+          </td>
+          <td>{{ customer.phoneNumber ?? '—' }}</td>
+          <td>{{ customer.ntn ?? '—' }}</td>
+          <td class="col-number">
+            <span class="balance" [class]="'balance-' + balanceState(customer)">
+              @switch (balanceState(customer)) {
+                @case ('owes') { Owes Rs {{ customer.accountBalance }} }
+                @case ('credit') { Credit Rs {{ absoluteBalance(customer) }} }
+                @default { Settled }
+              }
+            </span>
+          </td>
+          <td>
+            <span class="status" [class.is-inactive]="customer.status === 'INACTIVE'">
+              {{ customer.status === 'ACTIVE' ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
+          <td>{{ customer.lastUpdated | date: 'mediumDate' }}</td>
+        </tr>
+      } @empty {
+        @if (!loading()) {
+          <tr class="empty-row">
+            <td colspan="6">No customers match the current filters.</td>
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+</div>

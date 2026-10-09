@@ -1,0 +1,29 @@
+<header class="page-heading">
+  <p class="section-label">Directory</p>
+  <h1>Customers</h1>
+  <p class="subtitle">Manage your customer relationships and account balances.</p>
+</header>
+
+<app-customer-filters (filtersChange)="onFiltersChange($event)" />
+
+@if (error()) {
+  <p class="load-error" role="alert">{{ error() }}</p>
+}
+
+<app-customer-table class="table" [customers]="items()" [loading]="loading()" (selectCustomer)="open($event)" />
+
+<footer class="footer">
+  <button mat-flat-button type="button" class="primary-button" (click)="add()">
+    <mat-icon>add</mat-icon>
+    Add customer
+  </button>
+  <mat-paginator
+    [length]="total()"
+    [pageIndex]="pageIndex()"
+    [pageSize]="pageSize()"
+    [pageSizeOptions]="pageSizeOptions"
+    showFirstLastButtons
+    aria-label="Select customers page"
+    (page)="onPage($event)"
+  />
+</footer>

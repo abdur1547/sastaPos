@@ -109,6 +109,42 @@ const productStockMovements = new Table(
   },
 );
 
+const customers = new Table(
+  {
+    name: column.text,
+    phone_number: column.text,
+    ntn: column.text,
+    account_balance: column.text,
+    status: column.text,
+    store_id: column.text,
+    date_created: column.text,
+    last_updated: column.text,
+  },
+  {
+    indexes: {
+      customers_store_name: ['store_id', 'name'],
+      customers_store_phone: ['store_id', 'phone_number'],
+    },
+  },
+);
+
+// Same atomic-uniqueness approach as product_unique_keys: name per store and
+// phone number, encoded in the primary-key ID.
+const customerUniqueKeys = new Table(
+  {
+    customer_id: column.text,
+    store_id: column.text,
+    key_type: column.text,
+    normalized_value: column.text,
+  },
+  {
+    localOnly: true,
+    indexes: {
+      customer_unique_keys_customer: ['customer_id'],
+    },
+  },
+);
+
 export const AppSchema = new Schema({
   lists,
   todos,
@@ -118,6 +154,8 @@ export const AppSchema = new Schema({
   product_tax_categories: productTaxCategories,
   product_unique_keys: productUniqueKeys,
   product_stock_movements: productStockMovements,
+  customers,
+  customer_unique_keys: customerUniqueKeys,
 });
 
 export type Database = (typeof AppSchema)['types'];

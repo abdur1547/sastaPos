@@ -20,6 +20,7 @@ streams:
       # publication (see README.md "Postgres setup" section).
       - SELECT * FROM products WHERE store_id = auth.parameter('store_id')
       - SELECT * FROM units_of_measures
+      - SELECT * FROM customers WHERE store_id = auth.parameter('store_id')
       - SELECT * FROM tax_categories WHERE store_id IS NULL OR store_id = auth.parameter('store_id')
       - SELECT * FROM sales WHERE store_id = auth.parameter('store_id')
       # sale_items has no store_id column directly, so scope it via its parent sale.
