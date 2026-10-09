@@ -1,0 +1,100 @@
+<form class="product-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  @if (errorMessage()) {
+    <app-form-alert>{{ errorMessage() }}</app-form-alert>
+  }
+
+  <section class="form-section">
+    <h2>Basic information</h2>
+    <div class="grid">
+      <mat-form-field appearance="outline" class="span-2">
+        <mat-label>Name</mat-label>
+        <input matInput formControlName="name" required autocomplete="off" />
+        <mat-error>{{ fieldError(form.controls.name) }}</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>SKU</mat-label>
+        <input matInput formControlName="sku" autocomplete="off" />
+        <mat-error>{{ fieldError(form.controls.sku) }}</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Barcode</mat-label>
+        <mat-icon matPrefix>qr_code_scanner</mat-icon>
+        <input matInput formControlName="barcode" autocomplete="off" />
+        <mat-error>{{ fieldError(form.controls.barcode) }}</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>PCT code</mat-label>
+        <input matInput formControlName="pctCode" required autocomplete="off" />
+        <mat-error>{{ fieldError(form.controls.pctCode) }}</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="span-3">
+        <mat-label>Description</mat-label>
+        <textarea matInput rows="3" formControlName="description"></textarea>
+        <mat-error>{{ fieldError(form.controls.description) }}</mat-error>
+      </mat-form-field>
+    </div>
+  </section>
+
+  <section class="form-section">
+    <h2>Pricing &amp; stock</h2>
+    <div class="grid">
+      <mat-form-field appearance="outline">
+        <mat-label>Unit price</mat-label>
+        <span matTextPrefix>Rs&nbsp;</span>
+        <input matInput formControlName="unitPrice" inputmode="decimal" required autocomplete="off" />
+        <mat-error>{{ fieldError(form.controls.unitPrice) }}</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ isEdit() ? 'Current stock' : 'Opening stock' }}</mat-label>
+        <input matInput formControlName="stockQuantity" inputmode="decimal" autocomplete="off" />
+        @if (isEdit()) {
+          <mat-hint>Changed through stock movements</mat-hint>
+        }
+        <mat-error>{{ fieldError(form.controls.stockQuantity) }}</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Unit of measure</mat-label>
+        <mat-select formControlName="unitsOfMeasureId" required>
+          @for (unit of unitsOfMeasure(); track unit.id) {
+            <mat-option [value]="unit.id">{{ unit.name }} ({{ unit.code }})</mat-option>
+          }
+        </mat-select>
+        <mat-error>{{ fieldError(form.controls.unitsOfMeasureId) }}</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="span-3">
+        <mat-label>Tax categories</mat-label>
+        <mat-select formControlName="taxCategoryIds" multiple>
+          @for (tax of taxCategories(); track tax.id) {
+            <mat-option [value]="tax.id">{{ tax.name }} ({{ tax.rate }}%)</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+  </section>
+
+  @if (isEdit()) {
+    <section class="form-section">
+      <h2>Availability</h2>
+      <mat-slide-toggle formControlName="status">
+        {{ form.controls.status.value ? 'Active — available for sale' : 'Inactive — hidden from sale' }}
+      </mat-slide-toggle>
+    </section>
+  }
+
+  <div class="actions">
+    <button mat-stroked-button type="button" [disabled]="saving()" (click)="cancel.emit()">Cancel</button>
+    <button mat-flat-button type="submit" class="primary-button" [disabled]="saving()">
+      @if (saving()) {
+        <mat-spinner diameter="18" />
+      }
+      {{ isEdit() ? 'Save changes' : 'Create product' }}
+    </button>
+  </div>
+</form>

@@ -3,3 +3,5 @@
 .claude
 .angular
 node_modules
+dist
+build

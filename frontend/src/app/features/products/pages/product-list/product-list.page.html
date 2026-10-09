@@ -1,0 +1,29 @@
+<header class="page-heading">
+  <p class="section-label">Catalog</p>
+  <h1>Products</h1>
+  <p class="subtitle">Manage the items available at this store.</p>
+</header>
+
+<app-product-filters [unitsOfMeasure]="unitsOfMeasure()" (filtersChange)="onFiltersChange($event)" />
+
+@if (error()) {
+  <p class="load-error" role="alert">{{ error() }}</p>
+}
+
+<app-product-table class="table" [products]="items()" [loading]="loading()" (selectProduct)="open($event)" />
+
+<footer class="footer">
+  <button mat-flat-button type="button" class="primary-button" (click)="add()">
+    <mat-icon>add</mat-icon>
+    Add product
+  </button>
+  <mat-paginator
+    [length]="total()"
+    [pageIndex]="pageIndex()"
+    [pageSize]="pageSize()"
+    [pageSizeOptions]="pageSizeOptions"
+    showFirstLastButtons
+    aria-label="Select products page"
+    (page)="onPage($event)"
+  />
+</footer>

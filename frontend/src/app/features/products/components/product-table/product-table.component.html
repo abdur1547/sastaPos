@@ -1,0 +1,59 @@
+<div class="table-scroll">
+  @if (loading()) {
+    <mat-progress-bar class="loading-bar" mode="indeterminate" />
+  }
+  <table class="products-table">
+    <thead>
+      <tr>
+        <th class="col-name">Product</th>
+        <th>SKU</th>
+        <th>Barcode</th>
+        <th>PCT code</th>
+        <th>Unit</th>
+        <th class="col-number">Price</th>
+        <th class="col-number">Stock</th>
+        <th>Status</th>
+        <th>Updated</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (product of products(); track product.id) {
+        <tr
+          tabindex="0"
+          role="link"
+          [attr.aria-label]="'Edit ' + product.name"
+          (click)="selectProduct.emit(product)"
+          (keydown.enter)="selectProduct.emit(product)"
+          (keydown.space)="$event.preventDefault(); selectProduct.emit(product)"
+        >
+          <td class="col-name">
+            <span class="product-name">{{ product.name }}</span>
+            @if (product.description) {
+              <span class="product-description">{{ product.description }}</span>
+            }
+          </td>
+          <td>{{ product.sku ?? '—' }}</td>
+          <td>{{ product.barcode ?? '—' }}</td>
+          <td>{{ product.pctCode }}</td>
+          <td>{{ product.unitsOfMeasureName ?? '—' }}</td>
+          <td class="col-number">Rs {{ product.unitPrice }}</td>
+          <td class="col-number">
+            <span class="stock" [class]="'stock-' + stockLevel(product)">{{ product.stockQuantity }}</span>
+          </td>
+          <td>
+            <span class="status" [class.is-inactive]="product.status === 'INACTIVE'">
+              {{ product.status === 'ACTIVE' ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
+          <td>{{ product.lastUpdated | date: 'mediumDate' }}</td>
+        </tr>
+      } @empty {
+        @if (!loading()) {
+          <tr class="empty-row">
+            <td colspan="9">No products match the current filters.</td>
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+</div>

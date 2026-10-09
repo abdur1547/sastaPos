@@ -1,0 +1,31 @@
+<header class="page-heading">
+  <a routerLink="/products" class="back-link">
+    <mat-icon>arrow_back</mat-icon>
+    Products
+  </a>
+  <p class="section-label">{{ product() ? 'Edit product' : 'New product' }}</p>
+  <h1>{{ title() }}</h1>
+</header>
+
+@switch (state().status) {
+  @case ('loading') {
+    <p class="message">Loading product…</p>
+  }
+  @case ('missing') {
+    <p class="message" role="alert">This product no longer exists in the current store.</p>
+  }
+  @case ('error') {
+    <p class="message" role="alert">Could not load this product.</p>
+  }
+  @default {
+    <app-product-form
+      [product]="product()"
+      [unitsOfMeasure]="unitsOfMeasure()"
+      [taxCategories]="taxCategories()"
+      [saving]="saving()"
+      [errorMessage]="saveError()"
+      (save)="save($event)"
+      (cancel)="goBack()"
+    />
+  }
+}

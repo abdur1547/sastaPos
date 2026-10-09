@@ -16,12 +16,11 @@ streams:
   store_data:
     auto_subscribe: true
     queries:
-      # Table names match Spring Boot's default snake_case physical naming for the
-      # `Product`, `Sale` and `SaleItem` JPA entities. Every table referenced here must
-      # also be included in the Postgres `powersync` publication (see README.md
-      # "Postgres setup" section), and must match the client-side schema in
-      # frontend/app/lib/powersync/AppSchema.ts.
+      # Every table referenced here must be included in the Postgres `powersync`
+      # publication (see README.md "Postgres setup" section).
       - SELECT * FROM products WHERE store_id = auth.parameter('store_id')
+      - SELECT * FROM units_of_measures
+      - SELECT * FROM tax_categories WHERE store_id IS NULL OR store_id = auth.parameter('store_id')
       - SELECT * FROM sales WHERE store_id = auth.parameter('store_id')
       # sale_items has no store_id column directly, so scope it via its parent sale.
       - |

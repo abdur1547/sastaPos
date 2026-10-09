@@ -1,0 +1,111 @@
+<form class="filters" [formGroup]="form" (submit)="$event.preventDefault()">
+  <div class="filters-row">
+    <mat-form-field appearance="outline" class="search-field" subscriptSizing="dynamic">
+      <mat-label>Search products</mat-label>
+      <mat-icon matPrefix>search</mat-icon>
+      <input
+        matInput
+        type="search"
+        formControlName="search"
+        placeholder="Name, description, SKU, barcode or PCT code"
+      />
+    </mat-form-field>
+
+    <mat-button-toggle-group formControlName="status" aria-label="Product status" hideSingleSelectionIndicator>
+      <mat-button-toggle value="ACTIVE">Active</mat-button-toggle>
+      <mat-button-toggle value="INACTIVE">Inactive</mat-button-toggle>
+      <mat-button-toggle value="ALL">All</mat-button-toggle>
+    </mat-button-toggle-group>
+  </div>
+
+  <div class="filters-row">
+    <div class="field-group">
+      <mat-form-field appearance="outline" class="operator-field" subscriptSizing="dynamic">
+        <mat-label>Stock</mat-label>
+        <mat-select formControlName="stockOperator">
+          <mat-option value="ANY">Any</mat-option>
+          <mat-option value="LTE">Less or equal to</mat-option>
+          <mat-option value="GTE">Greater or equal to</mat-option>
+          <mat-option value="EQ">Equal to</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="number-field" subscriptSizing="dynamic">
+        <mat-label>Qty</mat-label>
+        <input matInput type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]*" formControlName="stockValue" />
+      </mat-form-field>
+    </div>
+
+    <div class="field-group">
+      <mat-form-field appearance="outline" class="number-field" subscriptSizing="dynamic">
+        <mat-label>Min price</mat-label>
+        <input matInput type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]*" formControlName="minPrice" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="number-field" subscriptSizing="dynamic">
+        <mat-label>Max price</mat-label>
+        <input matInput type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]*" formControlName="maxPrice" />
+      </mat-form-field>
+    </div>
+
+    <mat-form-field appearance="outline" class="unit-field" subscriptSizing="dynamic">
+      <mat-label>Unit</mat-label>
+      <mat-select formControlName="unitsOfMeasureId">
+        <mat-option value="">All units</mat-option>
+        @for (unit of unitsOfMeasure(); track unit.id) {
+          <mat-option [value]="unit.id">{{ unit.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <div class="field-group sort-group">
+      <mat-form-field appearance="outline" class="sort-field" subscriptSizing="dynamic">
+        <mat-label>Sort by</mat-label>
+        <mat-select formControlName="sortField">
+          <mat-option value="name">Name</mat-option>
+          <mat-option value="unitPrice">Price</mat-option>
+          <mat-option value="stockQuantity">Stock</mat-option>
+          <mat-option value="lastUpdated">Last updated</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <button
+        mat-icon-button
+        type="button"
+        [attr.aria-label]="form.controls.sortDirection.value === 'asc' ? 'Sort ascending' : 'Sort descending'"
+        (click)="toggleSortDirection()"
+      >
+        <mat-icon>{{ form.controls.sortDirection.value === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <div class="filters-row quick-row">
+    <span class="quick-label">Quick filters</span>
+    <button
+      type="button"
+      class="chip"
+      [class.is-selected]="isLowStockPreset()"
+      [attr.aria-pressed]="isLowStockPreset()"
+      (click)="toggleStockPreset('LTE', lowStockThreshold)"
+    >
+      <mat-icon>warning_amber</mat-icon>
+      Low stock (≤ {{ lowStockThreshold }})
+    </button>
+    <button
+      type="button"
+      class="chip"
+      [class.is-selected]="isOutOfStockPreset()"
+      [attr.aria-pressed]="isOutOfStockPreset()"
+      (click)="toggleStockPreset('EQ', '0')"
+    >
+      <mat-icon>remove_shopping_cart</mat-icon>
+      Out of stock
+    </button>
+    <span class="spacer"></span>
+    @if (activeFilterCount() > 0) {
+      <span class="active-count">{{ activeFilterCount() }} filter{{ activeFilterCount() === 1 ? '' : 's' }} applied</span>
+    }
+    <button mat-button type="button" (click)="reset()">
+      <mat-icon>restart_alt</mat-icon>
+      Reset
+    </button>
+  </div>
+</form>

@@ -92,6 +92,9 @@ yarn test
 - SQLite is managed exclusively by the Rust/Tauri layer.
 - Angular never directly owns or manages the SQLite database.
 - The frontend initializes the local database and then invokes the Rust `connect` command for PowerSync.
+- Products are synchronized from the backend only for the authenticated store, using the
+  JWT `store_id` claim. The current Rust upload handler still discards queued local
+  mutations, so local product writes are not persisted to Spring Boot or other devices.
 - Hardware integration such as barcode scanners and printers must be implemented in Rust and exposed through Tauri commands.
 
 ## License
