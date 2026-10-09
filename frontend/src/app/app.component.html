@@ -9,15 +9,15 @@
     <nav class="navigation">
       <p class="navigation-label">Workspace</p>
       <a routerLink="/sell" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">
-        <img class="nav-icon" src="assets/icons/sell.png" alt="" />
+        <mat-icon class="nav-icon" aria-hidden="true">point_of_sale</mat-icon>
         Sell
       </a>
       <a routerLink="/customers" routerLinkActive="is-active">
-        <img class="nav-icon" src="assets/icons/customers.png" alt="" />
+        <mat-icon class="nav-icon" aria-hidden="true">groups</mat-icon>
         Customers
       </a>
       <a routerLink="/products" routerLinkActive="is-active">
-        <img class="nav-icon" src="assets/icons/products.png" alt="" />
+        <mat-icon class="nav-icon" aria-hidden="true">inventory_2</mat-icon>
         Products
       </a>
       @if (auth.user()?.role === 'OWNER') {
