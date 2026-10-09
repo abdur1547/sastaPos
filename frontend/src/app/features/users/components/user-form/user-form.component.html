@@ -1,0 +1,66 @@
+<form class="user-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  @if (errorMessage()) {
+    <app-form-alert>{{ errorMessage() }}</app-form-alert>
+  }
+
+  <section class="form-section">
+    <h2>Basic information</h2>
+    <div class="grid">
+      <mat-form-field appearance="outline" class="span-2">
+        <mat-label>Name</mat-label>
+        <input matInput formControlName="name" required autocomplete="off" />
+        <mat-error>{{ fieldError(form.controls.name) }}</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="span-2">
+        <mat-label>Email</mat-label>
+        <mat-icon matPrefix>mail</mat-icon>
+        <input matInput type="email" formControlName="email" required autocomplete="off" />
+        <mat-error>{{ fieldError(form.controls.email) }}</mat-error>
+      </mat-form-field>
+    </div>
+  </section>
+
+  @if (!isEdit()) {
+    <section class="form-section">
+      <h2>Sign-in</h2>
+      <div class="grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Password</mat-label>
+          <input matInput type="password" formControlName="password" required autocomplete="new-password" />
+          <mat-hint>8+ characters with a letter and a digit</mat-hint>
+          <mat-error>{{ fieldError(form.controls.password) }}</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Confirm password</mat-label>
+          <input matInput type="password" formControlName="confirmPassword" required autocomplete="new-password" />
+          <mat-error>{{ fieldError(form.controls.confirmPassword) }}</mat-error>
+        </mat-form-field>
+      </div>
+      <p class="hint">New staff members are created as cashiers.</p>
+    </section>
+  } @else {
+    <section class="form-section">
+      <h2>Access</h2>
+      <p class="hint">Role: {{ user()!.role === 'OWNER' ? 'Owner' : 'Cashier' }}</p>
+    </section>
+  }
+
+  <div class="actions">
+    @if (isEdit() && user()!.role !== 'OWNER') {
+      <button mat-stroked-button type="button" class="danger-button" [disabled]="saving()" (click)="remove.emit()">
+        <mat-icon>delete</mat-icon>
+        Delete
+      </button>
+    }
+    <span class="spacer"></span>
+    <button mat-stroked-button type="button" [disabled]="saving()" (click)="cancel.emit()">Cancel</button>
+    <button mat-flat-button type="submit" class="primary-button" [disabled]="saving()">
+      @if (saving()) {
+        <mat-spinner diameter="18" />
+      }
+      {{ isEdit() ? 'Save changes' : 'Create staff member' }}
+    </button>
+  </div>
+</form>

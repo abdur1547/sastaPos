@@ -1,0 +1,30 @@
+<header class="page-heading">
+  <a routerLink="/users" class="back-link">
+    <mat-icon>arrow_back</mat-icon>
+    Staff
+  </a>
+  <p class="section-label">{{ user() ? 'Edit staff member' : 'New staff member' }}</p>
+  <h1>{{ title() }}</h1>
+</header>
+
+@switch (state().status) {
+  @case ('loading') {
+    <p class="message">Loading staff member…</p>
+  }
+  @case ('missing') {
+    <p class="message" role="alert">This staff member no longer exists in the current store.</p>
+  }
+  @case ('error') {
+    <p class="message" role="alert">Could not load this staff member.</p>
+  }
+  @default {
+    <app-user-form
+      [user]="user()"
+      [saving]="saving()"
+      [errorMessage]="saveError()"
+      (save)="save($event)"
+      (cancel)="goBack()"
+      (remove)="remove()"
+    />
+  }
+}

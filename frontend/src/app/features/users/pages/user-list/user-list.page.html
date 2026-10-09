@@ -1,0 +1,29 @@
+<header class="page-heading">
+  <p class="section-label">Team</p>
+  <h1>Staff</h1>
+  <p class="subtitle">Manage the people who can sign in and sell at your store.</p>
+</header>
+
+<app-user-filters (filtersChange)="onFiltersChange($event)" />
+
+@if (error()) {
+  <p class="load-error" role="alert">{{ error() }}</p>
+}
+
+<app-user-table class="table" [users]="items()" [loading]="loading()" (selectUser)="open($event)" />
+
+<footer class="footer">
+  <button mat-flat-button type="button" class="primary-button" (click)="add()">
+    <mat-icon>add</mat-icon>
+    Add staff member
+  </button>
+  <mat-paginator
+    [length]="total()"
+    [pageIndex]="pageIndex()"
+    [pageSize]="pageSize()"
+    [pageSizeOptions]="pageSizeOptions"
+    showFirstLastButtons
+    aria-label="Select staff page"
+    (page)="onPage($event)"
+  />
+</footer>

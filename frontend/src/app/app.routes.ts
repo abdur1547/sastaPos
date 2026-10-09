@@ -21,7 +21,10 @@ export const routes: Routes = [
         path: 'products',
         loadChildren: () => import('./features/products/products.routes').then((m) => m.PRODUCT_ROUTES),
       },
-      { path: '', pathMatch: 'full', redirectTo: 'sell' },
+      {
+        path: 'users',
+        loadChildren: () => import('./features/users/users.routes').then((m) => m.USER_ROUTES),
+      },
     ],
   },
   { path: '**', redirectTo: 'sell' },

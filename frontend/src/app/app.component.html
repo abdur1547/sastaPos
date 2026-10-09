@@ -20,6 +20,12 @@
         <img class="nav-icon" src="assets/icons/products.png" alt="" />
         Products
       </a>
+      @if (auth.user()?.role === 'OWNER') {
+        <a routerLink="/users" routerLinkActive="is-active">
+          <mat-icon class="nav-icon" aria-hidden="true">badge</mat-icon>
+          Staff
+        </a>
+      }
     </nav>
 
     <div class="sidebar-footer">

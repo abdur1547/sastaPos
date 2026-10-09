@@ -23,6 +23,14 @@ export abstract class BaseApiService {
     return this.http.post<TResponse>(this.url(path), body ?? null).pipe(catchError(this.handleError));
   }
 
+  protected put<TResponse, TBody = unknown>(path: string, body?: TBody): Observable<TResponse> {
+    return this.http.put<TResponse>(this.url(path), body ?? null).pipe(catchError(this.handleError));
+  }
+
+  protected delete<TResponse = void>(path: string): Observable<TResponse> {
+    return this.http.delete<TResponse>(this.url(path)).pipe(catchError(this.handleError));
+  }
+
   protected url(path: string): string {
     return `${this.baseUrl}${path}`;
   }

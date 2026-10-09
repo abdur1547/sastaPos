@@ -1,0 +1,47 @@
+<div class="table-scroll">
+  @if (loading()) {
+    <mat-progress-bar class="loading-bar" mode="indeterminate" />
+  }
+  <table class="users-table">
+    <thead>
+      <tr>
+        <th class="col-name">Staff member</th>
+        <th>Role</th>
+        <th>Status</th>
+        <th>Last login</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (user of users(); track user.id) {
+        <tr
+          tabindex="0"
+          role="link"
+          [attr.aria-label]="'Edit ' + user.name"
+          (click)="selectUser.emit(user)"
+          (keydown.enter)="selectUser.emit(user)"
+          (keydown.space)="$event.preventDefault(); selectUser.emit(user)"
+        >
+          <td class="col-name">
+            <span class="user-name">{{ user.name }}</span>
+            <span class="user-detail">{{ user.email }}</span>
+          </td>
+          <td>
+            <span class="role" [class.is-owner]="user.role === 'OWNER'">{{ roleLabel(user) }}</span>
+          </td>
+          <td>
+            <span class="status" [class.is-inactive]="user.status === 'INACTIVE'">
+              {{ user.status === 'ACTIVE' ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
+          <td>{{ user.lastLoginAt ? (user.lastLoginAt | date: 'medium') : 'Never' }}</td>
+        </tr>
+      } @empty {
+        @if (!loading()) {
+          <tr class="empty-row">
+            <td colspan="4">No staff members match the current filters.</td>
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+</div>
