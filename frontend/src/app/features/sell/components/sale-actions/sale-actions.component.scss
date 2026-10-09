@@ -1,0 +1,21 @@
+.sale-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cancel-button {
+  color: var(--accent-coral) !important;
+}
+
+.pay-button {
+  background: var(--accent-teal) !important;
+  color: #ffffff !important;
+}

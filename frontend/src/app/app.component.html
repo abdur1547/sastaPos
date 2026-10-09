@@ -1,0 +1,57 @@
+@if (auth.isAuthenticated()) {
+<div class="app-shell">
+  <aside class="sidebar" aria-label="Primary navigation">
+    <a class="brand" routerLink="/sell" aria-label="Counter home">
+      <span class="brand-mark"><img src="assets/icons/counter.png" alt="" /></span>
+      <span>Counter</span>
+    </a>
+
+    <nav class="navigation">
+      <p class="navigation-label">Workspace</p>
+      <a routerLink="/sell" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">
+        <img class="nav-icon" src="assets/icons/sell.png" alt="" />
+        Sell
+      </a>
+      <a routerLink="/customers" routerLinkActive="is-active">
+        <img class="nav-icon" src="assets/icons/customers.png" alt="" />
+        Customers
+      </a>
+      <a routerLink="/products" routerLinkActive="is-active">
+        <img class="nav-icon" src="assets/icons/products.png" alt="" />
+        Products
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="store-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>Store is open</span>
+      </div>
+      <button mat-button type="button" class="location-button">Main counter</button>
+    </div>
+  </aside>
+
+  <div class="workspace">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Downtown store</p>
+        <p class="topbar-date">Tuesday, September 2</p>
+      </div>
+      <div class="topbar-actions">
+        <button mat-button type="button" class="help-button">Help</button>
+        <span class="profile-button inline-flex items-center px-2 font-extrabold">
+          <span class="avatar">{{ initial() }}</span>
+          <span class="profile-name">{{ auth.user()?.name }}</span>
+        </span>
+        <button mat-button type="button" class="help-button" (click)="signOut()">Sign out</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <router-outlet />
+    </main>
+  </div>
+</div>
+} @else {
+  <router-outlet />
+}

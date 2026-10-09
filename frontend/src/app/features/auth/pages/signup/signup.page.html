@@ -1,0 +1,38 @@
+<app-auth-shell eyebrow="Get started" title="Create account" subtitle="Set up a cashier account for this counter.">
+  <form class="grid gap-1" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <app-form-field [control]="form.controls.name" label="Full name" autocomplete="name" icon="person" />
+    <app-form-field [control]="form.controls.email" label="Email" type="email" autocomplete="email" icon="mail" />
+    <app-form-field
+      [control]="form.controls.password"
+      label="Password"
+      type="password"
+      autocomplete="new-password"
+      icon="lock"
+    />
+    <app-form-field
+      [control]="form.controls.confirmPassword"
+      label="Confirm password"
+      type="password"
+      autocomplete="new-password"
+      icon="lock"
+    />
+
+    @if (formError()) {
+      <div class="mb-3"><app-form-alert>{{ formError() }}</app-form-alert></div>
+    }
+
+    <button mat-flat-button type="submit" class="h-11! w-full! bg-(--accent-teal)! font-bold! text-white! disabled:opacity-60" [disabled]="submitting()">
+      @if (submitting()) {
+        <mat-spinner diameter="18" class="mr-2 inline-block" />
+        Creating account…
+      } @else {
+        Create account
+      }
+    </button>
+  </form>
+
+  <span authFooter>
+    Already have an account?
+    <a class="font-bold text-teal-700 hover:underline" routerLink="/auth/login">Sign in</a>
+  </span>
+</app-auth-shell>

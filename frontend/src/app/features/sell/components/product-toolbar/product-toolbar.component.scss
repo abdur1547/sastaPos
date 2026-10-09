@@ -1,0 +1,26 @@
+.product-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.product-field {
+  flex: 1 1 auto;
+}
+
+.option-name {
+  font-weight: 700;
+}
+
+.option-price {
+  margin-left: 8px;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+button[mat-stroked-button] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}

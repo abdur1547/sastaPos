@@ -1,0 +1,26 @@
+<mat-form-field appearance="outline" class="w-full">
+  <mat-label>{{ label() }}</mat-label>
+  @if (icon()) {
+    <mat-icon matPrefix class="mr-2">{{ icon() }}</mat-icon>
+  }
+  <input
+    matInput
+    [type]="inputType()"
+    [formControl]="control()"
+    [attr.autocomplete]="autocomplete()"
+    [placeholder]="placeholder()"
+  />
+  @if (type() === 'password') {
+    <button
+      mat-icon-button
+      matSuffix
+      type="button"
+      [attr.aria-label]="passwordVisible() ? 'Hide password' : 'Show password'"
+      [attr.aria-pressed]="passwordVisible()"
+      (click)="togglePassword()"
+    >
+      <mat-icon>{{ passwordVisible() ? 'visibility_off' : 'visibility' }}</mat-icon>
+    </button>
+  }
+  <mat-error>{{ errorMessage() }}</mat-error>
+</mat-form-field>

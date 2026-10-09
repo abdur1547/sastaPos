@@ -1,0 +1,16 @@
+<div class="sale-actions">
+  <button mat-stroked-button type="button" (click)="addToPending.emit()">
+    <mat-icon>bookmark_add</mat-icon>
+    Add to Pending
+  </button>
+
+  <button mat-button type="button" class="cancel-button" (click)="cancelSale.emit()">
+    <mat-icon>close</mat-icon>
+    Cancel
+  </button>
+
+  <button mat-flat-button type="button" class="pay-button" (click)="pay.emit()">
+    <mat-icon>payments</mat-icon>
+    Payment
+  </button>
+</div>

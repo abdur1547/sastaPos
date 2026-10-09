@@ -1,0 +1,48 @@
+<div class="sell-page">
+  <app-pending-bills-bar
+    class="section"
+    [bills]="pendingBills()"
+    (resume)="onResumeBill($event)"
+    (remove)="onRemoveBill($event)"
+  />
+
+  <app-customer-toolbar
+    class="section"
+    [customers]="customers()"
+    (customerSelected)="onCustomerSelected($event)"
+    (addCustomer)="onAddCustomer()"
+    (searchCustomers)="onSearchCustomers($event)"
+  />
+
+  <app-product-toolbar
+    class="section"
+    [products]="products()"
+    (productSelected)="onProductSelected($event)"
+    (addProduct)="onAddProduct()"
+    (createReturn)="onCreateReturn()"
+    (searchProducts)="onSearchProducts($event)"
+  />
+
+  <app-sale-items-table
+    class="section"
+    [items]="cartLines()"
+    (quantityChanged)="onQuantityChanged($event)"
+    (removeItem)="onRemoveItem($event)"
+  />
+
+  <app-sale-summary
+    class="section"
+    [itemCount]="cartLines().length"
+    [totalQuantity]="totalQuantity()"
+    [discount]="discount()"
+    [totalPayable]="totalPayable()"
+    (discountChanged)="onDiscountChanged($event)"
+  />
+
+  <app-sale-actions
+    class="section"
+    (addToPending)="onAddToPending()"
+    (cancelSale)="onCancelSale()"
+    (pay)="onPay()"
+  />
+</div>

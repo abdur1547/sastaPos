@@ -1,0 +1,22 @@
+<div class="summary">
+  <div class="summary-row">
+    <span class="summary-label">Total items ({{ itemCount() }})</span>
+    <span class="summary-value">{{ totalQuantity() }} units</span>
+  </div>
+
+  <div class="summary-row">
+    <span class="summary-label">Discount</span>
+    <input
+      class="discount-input"
+      type="number"
+      min="0"
+      [ngModel]="discount()"
+      (ngModelChange)="onDiscountChange($event)"
+    />
+  </div>
+
+  <div class="summary-row total-row">
+    <span class="summary-label">Total Payable</span>
+    <span class="summary-value total-value">Rs {{ totalPayable() }}</span>
+  </div>
+</div>

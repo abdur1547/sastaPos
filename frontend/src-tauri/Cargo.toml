@@ -24,8 +24,9 @@ log = "0.4"
 tauri = { version = "2.11.3", features = [] }
 tauri-plugin-log = "2"
 tauri-plugin-powersync = "0.0.6"
-powersync = { version = "0.0.7", features = ["reqwest"] }
+powersync = "0.0.7"
 async-trait = "0.1.92"
 futures = "0.3.34"
 dotenvy = "0.15.7"
-reqwest = { version = "0.13.3", features = ["json"] }
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
+base64 = "0.22"

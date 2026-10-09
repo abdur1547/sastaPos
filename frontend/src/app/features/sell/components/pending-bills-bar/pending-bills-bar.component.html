@@ -1,0 +1,17 @@
+<div class="pending-bills">
+  <p class="label">Pending bills</p>
+  @if (bills().length) {
+    <mat-chip-set aria-label="Pending bills">
+      @for (bill of bills(); track bill.id) {
+        <mat-chip (click)="resume.emit(bill.id)" (removed)="remove.emit(bill.id)">
+          {{ bill.label }}
+          <button matChipRemove aria-label="Delete pending bill">
+            <span class="material-icons">close</span>
+          </button>
+        </mat-chip>
+      }
+    </mat-chip-set>
+  } @else {
+    <p class="empty">No pending bills</p>
+  }
+</div>

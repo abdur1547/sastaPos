@@ -1,0 +1,26 @@
+<main class="flex min-h-screen items-center justify-center bg-(--surface-canvas) p-4 text-(--ink-strong) sm:p-8">
+  <div class="w-full max-w-md">
+    <div class="mb-6 flex items-center justify-center gap-2.5 text-[22px] font-extrabold">
+      <span class="grid size-8 place-items-center overflow-hidden rounded-lg bg-(--accent-teal)">
+        <img class="size-[22px] object-contain" src="assets/icons/counter.png" alt="" />
+      </span>
+      <span>Counter</span>
+    </div>
+
+    <section class="rounded-lg border border-(--border-subtle) bg-white p-6 sm:p-8" [attr.aria-label]="title()">
+      <p class="m-0 text-[11px] font-extrabold uppercase tracking-[0.08em] text-(--accent-coral)">{{ eyebrow() }}</p>
+      <h1 class="m-0 mt-2 text-3xl font-extrabold leading-tight text-(--ink-strong)">{{ title() }}</h1>
+      @if (subtitle()) {
+        <p class="m-0 mt-2 text-sm text-(--ink-muted)">{{ subtitle() }}</p>
+      }
+
+      <div class="mt-6">
+        <ng-content />
+      </div>
+    </section>
+
+    <div class="mt-5 text-center text-sm text-(--ink-muted)">
+      <ng-content select="[authFooter]" />
+    </div>
+  </div>
+</main>

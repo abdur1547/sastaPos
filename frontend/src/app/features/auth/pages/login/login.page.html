@@ -1,0 +1,42 @@
+<app-auth-shell eyebrow="Welcome back" title="Sign in" subtitle="Sign in to open your counter.">
+  @if (notice() === 'expired') {
+    <div class="mb-4">
+      <app-form-alert tone="warning">
+        Your session has expired. Internet access is required to sign in again.
+      </app-form-alert>
+    </div>
+  }
+
+  <form class="grid gap-1" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <app-form-field [control]="form.controls.email" label="Email" type="email" autocomplete="email" icon="mail" />
+    <app-form-field
+      [control]="form.controls.password"
+      label="Password"
+      type="password"
+      autocomplete="current-password"
+      icon="lock"
+    />
+
+    <div class="-mt-2 mb-2 text-right">
+      <a class="text-sm font-bold text-teal-700 hover:underline" routerLink="/auth/reset-password">Forgot password?</a>
+    </div>
+
+    @if (formError()) {
+      <div class="mb-3"><app-form-alert>{{ formError() }}</app-form-alert></div>
+    }
+
+    <button mat-flat-button type="submit" class="h-11! w-full! bg-(--accent-teal)! font-bold! text-white! disabled:opacity-60" [disabled]="submitting()">
+      @if (submitting()) {
+        <mat-spinner diameter="18" class="mr-2 inline-block" />
+        Signing in…
+      } @else {
+        Sign in
+      }
+    </button>
+  </form>
+
+  <span authFooter>
+    New to Counter?
+    <a class="font-bold text-teal-700 hover:underline" routerLink="/auth/signup">Create an account</a>
+  </span>
+</app-auth-shell>

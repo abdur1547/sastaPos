@@ -1,0 +1,44 @@
+.summary {
+  display: grid;
+  gap: 8px;
+  max-width: 320px;
+  margin-left: auto;
+}
+
+.summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.summary-label {
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.summary-value {
+  color: var(--ink-strong);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.discount-input {
+  width: 100px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  font: inherit;
+  text-align: right;
+}
+
+.total-row {
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.total-value {
+  color: var(--accent-teal);
+  font-size: 20px;
+}

@@ -1,20 +1,20 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Sasta POS",
+  "productName": "point_of_sale",
   "version": "0.1.0",
-  "identifier": "com.sastapos.desktop-app",
+  "identifier": "com.sastapos",
   "build": {
-    "frontendDist": "../out",
-    "devUrl": "http://localhost:3000",
-    "beforeDevCommand": "yarn dev",
+    "frontendDist": "../dist/angular-starter/browser",
+    "devUrl": "http://localhost:4200",
+    "beforeDevCommand": "yarn start",
     "beforeBuildCommand": "yarn build"
   },
   "app": {
     "windows": [
       {
-        "title": "Sasta POS",
-        "width": 1200,
-        "height": 900,
+        "title": "SadaPOS",
+        "width": 1500,
+        "height": 1000,
         "resizable": true,
         "fullscreen": false
       }

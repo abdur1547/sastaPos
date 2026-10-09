@@ -1,0 +1,20 @@
+@use "tailwindcss";
+@use "flag-icons/sass/flag-icons" with (
+  $flag-icons-use-square: false
+);
+
+:root {
+  --font-display: "Nunito Sans", "Avenir Next", sans-serif;
+  --font-body: "Nunito Sans", "Avenir Next", sans-serif;
+  --surface-canvas: #f5f7f8;
+  --ink-strong: #152033;
+  --ink-muted: #64748b;
+  --border-subtle: #dce3e8;
+  --accent-teal: #14b8a6;
+  --accent-lime: #a3e635;
+  --accent-amber: #f59e0b;
+  --accent-coral: #ef6b5a;
+}
+
+html, body { height: 100%; }
+body { margin: 0; font-family: var(--font-body); }

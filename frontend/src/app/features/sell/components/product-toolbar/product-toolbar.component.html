@@ -1,0 +1,37 @@
+<div class="product-toolbar">
+  <mat-form-field appearance="outline" class="product-field" subscriptSizing="dynamic">
+    <mat-label>Products</mat-label>
+    <input
+      #productInput
+      matInput
+      type="text"
+      placeholder="Scan or search products"
+      [(ngModel)]="filterText"
+      [matAutocomplete]="productAuto"
+    />
+    <mat-icon matPrefix>inventory_2</mat-icon>
+  </mat-form-field>
+
+  <mat-autocomplete #productAuto="matAutocomplete" [displayWith]="displayProduct" (optionSelected)="onOptionSelected($event)">
+    @for (product of filteredProducts(); track product.id) {
+      <mat-option [value]="product">
+        <span class="option-name">{{ product.name }}</span>
+        <span class="option-price">Rs {{ product.unitPrice }}</span>
+      </mat-option>
+    }
+  </mat-autocomplete>
+
+  <button mat-icon-button type="button" aria-label="Search products" (click)="search()">
+    <mat-icon>search</mat-icon>
+  </button>
+
+  <button mat-stroked-button type="button" (click)="addProduct.emit()">
+    <mat-icon>add</mat-icon>
+    New Product
+  </button>
+
+  <button mat-stroked-button type="button" (click)="createReturn.emit()">
+    <mat-icon>keyboard_return</mat-icon>
+    Return Order
+  </button>
+</div>

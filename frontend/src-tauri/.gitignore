@@ -2,3 +2,6 @@
 # will have compiled files and executables
 /target/
 /gen/schemas
+
+# Secrets - copy .env.example to .env and fill in values
+.env

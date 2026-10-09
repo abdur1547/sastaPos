@@ -1,0 +1,42 @@
+<div class="table-wrapper">
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th class="col-no">No</th>
+        <th class="col-product">Product</th>
+        <th class="col-price">Price</th>
+        <th class="col-qty">Quantity</th>
+        <th class="col-subtotal">Subtotal</th>
+        <th class="col-actions"></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (item of items(); track item.productId; let i = $index) {
+        <tr>
+          <td class="col-no">{{ i + 1 }}</td>
+          <td class="col-product">{{ item.name }}</td>
+          <td class="col-price">Rs {{ item.unitPrice }}</td>
+          <td class="col-qty">
+            <input
+              class="qty-input"
+              type="number"
+              min="1"
+              [ngModel]="item.quantity"
+              (ngModelChange)="onQuantityChange(item.productId, $event)"
+            />
+          </td>
+          <td class="col-subtotal">Rs {{ subtotal(item) }}</td>
+          <td class="col-actions">
+            <button type="button" class="remove-button" aria-label="Remove product" (click)="removeItem.emit(item.productId)">
+              <mat-icon>close</mat-icon>
+            </button>
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td class="empty-row" colspan="6">No products added yet. Search a product above to start the sale.</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

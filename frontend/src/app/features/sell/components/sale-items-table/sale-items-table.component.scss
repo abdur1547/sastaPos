@@ -1,0 +1,80 @@
+.table-wrapper {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-canvas);
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+tbody td {
+  padding: 10px 12px;
+  color: var(--ink-strong);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.col-no, .col-qty, .col-price, .col-subtotal, .col-actions {
+  white-space: nowrap;
+}
+
+.col-no { width: 48px; }
+.col-qty { width: 96px; }
+.col-actions { width: 40px; text-align: center; }
+
+.qty-input {
+  width: 72px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  font: inherit;
+  text-align: center;
+}
+
+.remove-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.remove-button:hover {
+  color: var(--accent-coral);
+}
+
+.remove-button mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.empty-row {
+  padding: 28px 12px;
+  color: var(--ink-muted);
+  text-align: center;
+}

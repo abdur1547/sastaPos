@@ -1,0 +1,29 @@
+.pending-bills {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.label {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.empty {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+mat-chip-set {
+  flex: 1 1 auto;
+}
+
+.material-icons {
+  font-size: 16px;
+}
