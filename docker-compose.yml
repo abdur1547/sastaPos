@@ -20,10 +20,15 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-sastaPos}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-P4ssword!}
+      POWERSYNC_DB_PASSWORD: ${POWERSYNC_DB_PASSWORD:?set POWERSYNC_DB_PASSWORD in .env}
+    # PowerSync replicates via logical replication.
+    command: ["postgres", "-c", "wal_level=logical"]
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
-    # volumes:
-    #   - postgres_data:/var/lib/postgresql/data
+    volumes:
+      # Creates the powersync_role + `powersync` publication on first start of an empty DB.
+      - ./powersync/postgres-init.sh:/docker-entrypoint-initdb.d/10-powersync.sh:ro
+      # - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-sastaPos}"]
       interval: 5s

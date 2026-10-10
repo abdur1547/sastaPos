@@ -1,4 +1,5 @@
 mod auth;
+mod upload;
 
 use async_trait::async_trait;
 use futures::TryStreamExt;
@@ -6,46 +7,71 @@ use powersync::error::PowerSyncError;
 use powersync::{BackendConnector, PowerSyncCredentials, PowerSyncDatabase, SyncOptions};
 use tauri_plugin_powersync::PowerSyncExt;
 
-fn powersync_config_from_env() -> Result<(String, String), String> {
-  let endpoint = std::env::var("POWERSYNC_ENDPOINT")
-    .map_err(|_| "POWERSYNC_ENDPOINT is not set".to_string())?;
-  let endpoint = endpoint.trim();
-  if endpoint.is_empty() {
-    return Err("POWERSYNC_ENDPOINT is empty".to_string());
-  }
+const DEFAULT_POWERSYNC_ENDPOINT: &str = "http://localhost:8081";
 
-  let token = std::env::var("POWERSYNC_DEV_TOKEN")
-    .map_err(|_| "POWERSYNC_DEV_TOKEN is not set".to_string())?;
-  let token = token.trim();
-  if token.is_empty() {
-    return Err("POWERSYNC_DEV_TOKEN is empty".to_string());
-  }
+#[derive(Debug)]
+struct NotSignedIn;
 
-  Ok((endpoint.to_string(), token.to_string()))
+impl std::fmt::Display for NotSignedIn {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "no valid session; sign in to start syncing")
+  }
+}
+
+impl std::error::Error for NotSignedIn {}
+
+fn powersync_endpoint_from_env() -> String {
+  std::env::var("POWERSYNC_ENDPOINT")
+    .ok()
+    .map(|value| value.trim().to_string())
+    .filter(|value| !value.is_empty())
+    .unwrap_or_else(|| DEFAULT_POWERSYNC_ENDPOINT.to_string())
 }
 
 struct AppBackendConnector {
   db: PowerSyncDatabase,
   endpoint: String,
-  token: String,
+  http: reqwest::Client,
+  api_base_url: String,
 }
 
 #[async_trait]
 impl BackendConnector for AppBackendConnector {
+  // The backend-issued JWT (same one used for the REST API) is also the PowerSync token.
+  // Before login this fails and the SDK retries, so sync starts once the user signs in.
   async fn fetch_credentials(&self) -> Result<PowerSyncCredentials, PowerSyncError> {
+    let token = auth::current_access_token().ok_or_else(|| PowerSyncError::upload_error(NotSignedIn))?;
     Ok(PowerSyncCredentials {
       endpoint: self.endpoint.clone(),
-      token: self.token.clone(),
+      token,
     })
   }
 
+  // Queued local writes go to the backend's single upload endpoint, many transactions per request.
+  // Completing the last transaction of a batch also completes every earlier one.
   async fn upload_data(&self) -> Result<(), PowerSyncError> {
-    // TODO: no backend write API exists yet, so queued mutations are dropped here.
-    let mut local_writes = self.db.crud_transactions();
-    while let Some(tx) = local_writes.try_next().await? {
-      tx.complete().await?;
+    loop {
+      let mut operations: Vec<upload::Operation> = Vec::new();
+      let mut last_tx = None;
+      {
+        let mut local_writes = self.db.crud_transactions();
+        while let Some(tx) = local_writes.try_next().await? {
+          operations.extend(tx.crud.iter().map(upload::Operation::from));
+          last_tx = Some(tx);
+          if operations.len() >= upload::MAX_OPERATIONS_PER_REQUEST {
+            break;
+          }
+        }
+      }
+      let Some(last_tx) = last_tx else {
+        return Ok(());
+      };
+
+      let token = auth::current_access_token().ok_or_else(|| PowerSyncError::upload_error(NotSignedIn))?;
+      if upload::send(&self.http, &self.api_base_url, &token, &operations).await? {
+        last_tx.complete().await?;
+      }
     }
-    Ok(())
   }
 }
 
@@ -57,44 +83,14 @@ async fn connect<R: tauri::Runtime>(
 ) -> tauri_plugin_powersync::Result<()> {
   let database = app.powersync().database_from_javascript_handle(handle)?;
 
-  // Release builds do not normally include a local .env file, so the app should
-  // keep running in offline mode instead of crashing during startup.
-  let config = match powersync_config_from_env() {
-    Ok(config) => config,
-    Err(error) => {
-      eprintln!("[PowerSync] skipping sync initialization: {error}");
-      return Ok(());
-    }
-  };
-
-  let (endpoint, token) = config;
-  let options = SyncOptions::new(AppBackendConnector { db: database.clone(), endpoint, token });
+  let options = SyncOptions::new(AppBackendConnector {
+    db: database.clone(),
+    endpoint: powersync_endpoint_from_env(),
+    http: reqwest::Client::new(),
+    api_base_url: upload::api_base_url_from_env(),
+  });
   database.connect(options).await;
   Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-  use super::powersync_config_from_env;
-
-  #[test]
-  fn powersync_config_requires_endpoint_and_token() {
-    let original_endpoint = std::env::var("POWERSYNC_ENDPOINT").ok();
-    let original_token = std::env::var("POWERSYNC_DEV_TOKEN").ok();
-
-    std::env::remove_var("POWERSYNC_ENDPOINT");
-    std::env::remove_var("POWERSYNC_DEV_TOKEN");
-
-    let missing = powersync_config_from_env();
-    assert!(missing.is_err());
-
-    if let Some(value) = original_endpoint {
-      std::env::set_var("POWERSYNC_ENDPOINT", value);
-    }
-    if let Some(value) = original_token {
-      std::env::set_var("POWERSYNC_DEV_TOKEN", value);
-    }
-  }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

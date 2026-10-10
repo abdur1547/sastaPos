@@ -52,31 +52,32 @@ export class LocalDbSeeder {
       taxIds.set(code, id);
     }
 
-    let created = 0;
-    let skipped = 0;
-    for (const seed of SEED_PRODUCTS) {
-      try {
-        const product = await this.products.create({
-          name: seed.name,
-          sku: seed.sku,
-          barcode: seed.barcode,
-          pctCode: seed.pctCode,
-          description: seed.description,
-          unitPrice: seed.unitPrice,
-          stockQuantity: seed.stockQuantity,
-          unitsOfMeasureId: unitIds.get(seed.unitCode)!,
-          taxCategoryIds: [taxIds.get(seed.taxCode)!],
-        });
-        if (seed.status === "INACTIVE") {
-          await this.products.update(product.id, { status: "INACTIVE" });
-        }
-        created++;
-      } catch {
-        // Already seeded: sku/barcode/pctCode conflict.
-        skipped++;
-      }
-    }
-    return `Seeded ${created} products (${skipped} skipped), ${unitIds.size} units, ${taxIds.size} tax categories.`;
+    // let created = 0;
+    // let skipped = 0;
+    // for (const seed of SEED_PRODUCTS) {
+    //   try {
+    //     const product = await this.products.create({
+    //       name: seed.name,
+    //       sku: seed.sku,
+    //       barcode: seed.barcode,
+    //       pctCode: seed.pctCode,
+    //       description: seed.description,
+    //       unitPrice: seed.unitPrice,
+    //       stockQuantity: seed.stockQuantity,
+    //       unitsOfMeasureId: unitIds.get(seed.unitCode)!,
+    //       taxCategoryIds: [taxIds.get(seed.taxCode)!],
+    //     });
+    //     if (seed.status === "INACTIVE") {
+    //       await this.products.update(product.id, { status: "INACTIVE" });
+    //     }
+    //     created++;
+    //   } catch {
+    //     // Already seeded: sku/barcode/pctCode conflict.
+    //     skipped++;
+    //   }
+    // }
+    // return `Seeded ${created} products (${skipped} skipped), ${unitIds.size} units, ${taxIds.size} tax categories.`;
+    return `Seeded 0 products (0 skipped), ${unitIds.size} units, ${taxIds.size} tax categories.`;
   }
 
   /** Removes seeded products only (matched by seed SKU); keeps units and tax categories. */
@@ -86,7 +87,7 @@ export class LocalDbSeeder {
     const ids = `SELECT id FROM products WHERE sku IN (${marks})`;
     await this.database.writeTransaction(async (tx) => {
       for (const table of [
-        "product_stock_movements",
+        "stock_movements",
         "product_tax_categories",
         "product_unique_keys",
       ]) {

@@ -93,8 +93,8 @@ yarn test
 - Angular never directly owns or manages the SQLite database.
 - The frontend initializes the local database and then invokes the Rust `connect` command for PowerSync.
 - Products are synchronized from the backend only for the authenticated store, using the
-  JWT `store_id` claim. The current Rust upload handler still discards queued local
-  mutations, so local product writes are not persisted to Spring Boot or other devices.
+  JWT `store_id` claim. The Rust upload handler batches queued local
+  mutations to the backend's `POST /api/sync/upload` (`API_BASE_URL`).
 - Hardware integration such as barcode scanners and printers must be implemented in Rust and exposed through Tauri commands.
 
 ## License

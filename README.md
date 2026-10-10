@@ -7,109 +7,157 @@ The application is intended to support common retail operations such as store ma
 ## Architecture
 
 ```text
-Tauri desktop application
-├── Next.js + React + TypeScript UI
-├── Rust desktop layer
-└── Local SQLite database
-	│
-	└── PowerSync synchronization when online
-		    │
-		    ▼
-	  Spring Boot backend + PostgreSQL
+Tauri desktop app (Angular UI + Rust + local SQLite via PowerSync)
+        │  sync (HTTP stream, :8081)         │  REST + login (:8090)
+        ▼                                    ▼
+PowerSync service (Docker, self-hosted)   Spring Boot backend
+        │  logical replication               │  JPA
+        └──────────────► PostgreSQL (Docker, source of truth) ◄──┘
 ```
 
-- **Desktop app:** Tauri 2 packages the Next.js interface as a native desktop application. Rust provides the desktop integration layer.
-- **Frontend:** Next.js 16, React, TypeScript, and Tailwind CSS provide the user interface.
-- **Offline-first data:** SQLite is the planned local database for the desktop app, allowing sales and other workflows to continue without an active network connection.
-- **Synchronization:** PowerSync is planned to synchronize the local SQLite database with the backend data source when a connection is available.
-- **Backend:** Spring Boot 4.1.1 exposes the server-side application and API. It uses Spring Web, Spring Data JPA, validation, Flyway, and PostgreSQL.
-- **Primary database:** PostgreSQL stores the central backend data. Docker Compose provides a local PostgreSQL instance for development.
+- **Desktop app:** Tauri 2 + Angular. SQLite lives on the Rust side (PowerSync Tauri plugin); the UI reads/writes it through the plugin.
+- **Backend:** Spring Boot (port `8090`) issues HS256 JWTs at login. The token carries `aud=powersync`, `role` and `store_id`.
+- **PostgreSQL:** runs from the root `docker-compose.yml` with `wal_level=logical`. On first start `powersync/postgres-init.sh` creates the `powersync_role` user and the `powersync` publication.
+- **PowerSync service:** self-hosted (`powersync/`), replicates Postgres, validates the same backend JWT (`PS_JWK_K` = base64url of `JWT_SECRET`) and syncs only rows of the user's `store_id` (`powersync/sync-config.yaml`).
+- **Desktop sync auth:** the Rust connector reuses the JWT stored in the OS keyring at login, so syncing starts after sign-in.
 
-> **Implementation status:** The Tauri shell, Next.js configuration, and Spring Boot domain structure are present. The current frontend is still the default Next.js starter screen, and the SQLite, PowerSync, and production authentication/configuration workflows still need to be connected.
+> **Write path:** `upload_data` (`frontend/src-tauri/src/upload.rs`) batches queued local writes and POSTs them to `POST /api/sync/upload` (set `API_BASE_URL` in `frontend/src-tauri/.env`). Synced/uploaded tables: `products`, `customers`, `stock_movements`, `product_tax_categories`. 400/413/422 batches are dropped; 401/5xx/network errors are retried.
 
 ## Repository Structure
 
 ```text
 .
-├── frontend/       Next.js application and Tauri desktop project
-│   ├── app/        Next.js App Router pages and layout
-│   └── src-tauri/  Rust source and Tauri configuration
-├── backend/        Spring Boot API and PostgreSQL configuration
-│   ├── src/main/java/  Application and domain modules
-│   └── src/main/resources/
-└── README.md       Project overview and navigation
+├── docker-compose.yml   Postgres + PowerSync (includes powersync/docker-compose.yml)
+├── .env                 Postgres / backend vars (copy from .env.example)
+├── powersync/           PowerSync service.yaml, sync-config.yaml, .env, postgres-init.sh
+├── backend/             Spring Boot API
+└── frontend/            Angular app and Tauri project (src-tauri/)
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js compatible with Next.js 16
-- Yarn Classic 1.22
-- Rust and Cargo (Rust `1.77.2` or later)
-- Tauri system dependencies for the operating system
-- Java 25 and Maven, or the Maven Wrapper included in `backend/`
-- Docker and Docker Compose for the local PostgreSQL service
+- Docker + Docker Compose (v2.20+), Java 25, Node.js + Yarn 1.22, Rust (1.77.2+) and [Tauri system dependencies](https://v2.tauri.app/start/prerequisites/)
 
-See the official [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) guide for Linux and other operating systems.
+### One-time configuration
 
-### Run the Desktop App
+```bash
+cp .env.example .env                     # Postgres + backend settings
+cp powersync/.env.example powersync/.env # PowerSync settings
+cp frontend/src-tauri/.env.example frontend/src-tauri/.env
+```
+
+Keep these consistent:
+
+| Value | Where |
+| --- | --- |
+| `POWERSYNC_DB_PASSWORD` (root `.env`) | must equal the password inside `PS_DATA_SOURCE_URI` / `PS_STORAGE_SOURCE_URI` in `powersync/.env` (user `powersync_role`) |
+| `JWT_SECRET` (backend env, default is a dev value) | `PS_JWK_K` in `powersync/.env` must be its base64url encoding: `printf '%s' "$JWT_SECRET" \| base64 -w0 \| tr '+/' '-_' \| tr -d '='` (the `.env.example` value matches the default dev secret) |
+| `PS_PORT` (`powersync/.env`) | `POWERSYNC_ENDPOINT` in `frontend/src-tauri/.env` (default `8081`) |
+
+### Run everything (3 terminals)
+
+**1. PostgreSQL + PowerSync**
+
+```bash
+docker compose up -d
+docker compose logs -f powersync     # wait for "Activated new replication stream"
+```
+
+The DB init script runs only on a fresh database. If you change the role password or start from an old container: `docker compose down -v && docker compose up -d`.
+
+**2. Backend** (listens on <http://localhost:8090>, Swagger at `/swagger-ui/index.html`)
+
+```bash
+cd backend
+set -a && . ../.env && set +a   # exports JDBC_* variables
+./mvnw spring-boot:run
+```
+
+The `dev` profile creates the tables with Hibernate; the backend must have started once so tables exist (PowerSync picks them up automatically, no restart needed).
+
+**3. Desktop app**
 
 ```bash
 cd frontend
 yarn install
-yarn tauri:dev
+yarn tauri dev
 ```
 
-This starts the Next.js development server and opens the application in a Tauri window. To run only the web frontend in a browser:
+### First-use flow
+
+1. Sign up in the app (or `POST /api/auth/signup`), then create a store (`POST /api/store`).
+2. **Log in again** after creating the store: `store_id` is only put in the JWT at login, and PowerSync syncs data per `store_id`.
+3. The Tauri console logs `[PowerSync] status` once syncing.
+
+### Verify sync without the app
 
 ```bash
-cd frontend
-yarn dev
+TOKEN=$(curl -s localhost:8090/api/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"you@example.com","password":"..."}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["accessToken"])')
+curl -s -m 5 -X POST localhost:8081/sync/stream -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" -d '{"buckets":[],"include_checksum":true,"raw_data":true,"client_id":"t"}'
 ```
 
-Open <http://localhost:3000>.
+### Local SQLite database (desktop)
 
-Build a native production bundle with:
+The file is `powersync.db` in Tauri's app data dir for the identifier `com.sastapos`. `yarn tauri dev` and a packaged build use the **same file**, so they share data.
+
+| OS | Path |
+| --- | --- |
+| Linux | `~/.local/share/com.sastapos/powersync.db` (plus `-wal` / `-shm`) |
+| macOS | `~/Library/Application Support/com.sastapos/powersync.db` |
+| Windows | `%APPDATA%\com.sastapos\powersync.db` |
+
+Inspect it with `sqlite3 ~/.local/share/com.sastapos/powersync.db '.tables'` (read-only use only, while the app is closed or idle).
+
+**Reset the local DB** (it is only a replica; synced data is re-downloaded on next login): close the app, then
 
 ```bash
-cd frontend
-yarn tauri:build
+rm ~/.local/share/com.sastapos/powersync.db*
 ```
 
-### Run the Backend
+Local-only tables (`product_unique_keys`, `customer_unique_keys`, etc.) and any un-uploaded local writes are lost. Login tokens live in the OS keyring, not in this folder, so you stay logged in.
 
-Start the development PostgreSQL service first:
+**Seed / clear test data (dev only):** in `yarn tauri dev`, open devtools (right-click -> Inspect, or `Ctrl+Shift+I`) and run in the console:
+
+```js
+await seedLocalDb()    // adds sample units of measure, tax categories and products
+await clearLocalSeed() // removes only the seeded products (matched by seed SKU)
+```
+
+These are registered only in non-production builds (`app.config.ts`), so they are unavailable in a packaged app. Seeded rows are ordinary local writes and are uploaded to Postgres like any other change.
+
+### Adding a synced table
+
+1. Add a `SELECT` for it in `powersync/sync-config.yaml` and restart PowerSync (`docker compose restart powersync`).
+2. Add the table to `frontend/src/app/core/powersync/app-schema.ts`.
+3. The publication is `FOR ALL TABLES`, so no database change is needed.
+
+### Build a production desktop bundle
 
 ```bash
-cd backend
-docker compose up
+cd frontend && yarn tauri build
 ```
 
-Then build and run the Spring Boot application:
-
-```bash
-./mvnw clean package
-java -Dspring.profiles.active=production -jar ./target/sastaPos-0.0.1-SNAPSHOT.jar
-```
-
-The backend is available at <http://localhost:8080>. The default local database service is PostgreSQL on port `5433`, with database `sastaPos`, user `postgres`, and the development password defined in `backend/docker-compose.yml`. Override connection settings with `JDBC_DATABASE_URL`, `JDBC_DATABASE_USERNAME`, and `JDBC_DATABASE_PASSWORD` when needed.
+Set `POWERSYNC_ENDPOINT` for the deployed PowerSync URL; production config (TLS, secrets, `sslmode`) is managed separately.
 
 ## Component Documentation
 
-- [Frontend and desktop setup](frontend/README.md): Next.js, Tauri, Rust, local development, and desktop builds.
+- [PowerSync setup](powersync/README.md): self-hosted service details.
+- [Frontend and desktop setup](frontend/README.md): Angular, Tauri, Rust, local development, and desktop builds.
 - [Backend setup](backend/README.md): Spring Boot, profiles, Docker Compose, Maven builds, and deployment.
 
 ## Development Notes
 
 - The frontend uses Yarn 1 and its scripts are defined in `frontend/package.json`.
-- The Tauri configuration builds the statically exported Next.js output from `frontend/out` and bundles for all configured desktop targets.
-- The backend uses Spring Boot's Docker Compose integration in development and Flyway for database migrations as the schema evolves.
+- Spring Boot's Docker Compose integration is disabled; Postgres comes from the root `docker-compose.yml`. Flyway for database migrations as the schema evolves.
 - Keep local credentials and environment-specific values out of version control. Use local environment or profile configuration for database and synchronization services.
 
 ## Technology References
 
-- [Next.js](https://nextjs.org/docs)
+- [Angular](https://angular.dev)
 - [Tauri](https://v2.tauri.app/)
 - [Rust and Cargo](https://doc.rust-lang.org/cargo/)
 - [Spring Boot](https://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/)

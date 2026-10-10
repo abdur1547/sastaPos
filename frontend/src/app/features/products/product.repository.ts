@@ -224,7 +224,7 @@ export class ProductRepository {
     await this.database.writeTransaction(async (transaction) => {
       await this.requireProduct(transaction, id, storeId);
       await transaction.execute(
-        "DELETE FROM product_stock_movements WHERE product_id = ?",
+        "DELETE FROM stock_movements WHERE product_id = ?",
         [id],
       );
       await transaction.execute(
@@ -505,7 +505,7 @@ export class ProductRepository {
   ): Promise<void> {
     const id = globalThis.crypto.randomUUID();
     await transaction.execute(
-      `INSERT INTO product_stock_movements (
+      `INSERT INTO stock_movements (
         id, type, quantity, quantity_before, quantity_after, description,
         product_id, store_id, date_created, last_updated
       ) VALUES (?, 'ADJUSTMENT_IN', ?, '0.00', ?, 'Initial stock', ?, ?, ?, ?)`,

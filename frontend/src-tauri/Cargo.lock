@@ -140,6 +140,7 @@ dependencies = [
  "keyring",
  "log",
  "powersync",
+ "reqwest",
  "serde",
  "serde_json",
  "tauri",

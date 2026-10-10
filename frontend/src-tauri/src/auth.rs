@@ -138,6 +138,15 @@ pub fn auth_get_access_token() -> Result<Option<String>, String> {
     .map(|stored| stored.access_token))
 }
 
+/// Valid bearer token for Rust-side callers (e.g. the PowerSync connector).
+pub fn current_access_token() -> Option<String> {
+  load()
+    .ok()
+    .flatten()
+    .filter(|stored| stored.expires_at > now_ms())
+    .map(|stored| stored.access_token)
+}
+
 #[tauri::command]
 pub fn auth_clear_session() -> Result<(), String> {
   clear()

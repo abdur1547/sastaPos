@@ -64,7 +64,6 @@ const productTaxCategories = new Table(
     tax_category_id: column.text,
   },
   {
-    localOnly: true,
     indexes: {
       product_tax_categories_product: ['product_id'],
     },
@@ -88,7 +87,7 @@ const productUniqueKeys = new Table(
   },
 );
 
-const productStockMovements = new Table(
+const stockMovements = new Table(
   {
     type: column.text,
     quantity: column.text,
@@ -101,10 +100,9 @@ const productStockMovements = new Table(
     last_updated: column.text,
   },
   {
-    localOnly: true,
     indexes: {
-      product_stock_movements_product: ['product_id'],
-      product_stock_movements_store: ['store_id'],
+      stock_movements_product: ['product_id'],
+      stock_movements_store: ['store_id'],
     },
   },
 );
@@ -153,7 +151,7 @@ export const AppSchema = new Schema({
   tax_categories: taxCategories,
   product_tax_categories: productTaxCategories,
   product_unique_keys: productUniqueKeys,
-  product_stock_movements: productStockMovements,
+  stock_movements: stockMovements,
   customers,
   customer_unique_keys: customerUniqueKeys,
 });
