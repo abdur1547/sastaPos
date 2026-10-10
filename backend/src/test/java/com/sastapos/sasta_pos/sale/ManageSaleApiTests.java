@@ -3,7 +3,9 @@ package com.sastapos.sasta_pos.sale;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jayway.jsonpath.JsonPath;
+import com.sastapos.sasta_pos.ledger_entry.LedgerEntryType;
 import com.sastapos.sasta_pos.sale.support.SaleApiTestBase;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -149,9 +151,33 @@ class ManageSaleApiTests extends SaleApiTestBase {
         assertThat((String) JsonPath.read(r.getBody(), "$.sale.saleStatus")).isEqualTo("VOIDED");
         assertThat((String) JsonPath.read(r.getBody(), "$.sale.voidReason")).isEqualTo("mistake");
         assertThat(JsonPath.<Integer>read(r.getBody(), "$.stockMovements.length()")).isEqualTo(1);
-        assertThat(JsonPath.<Integer>read(r.getBody(), "$.ledgerEntries.length()")).isGreaterThanOrEqualTo(1);
+        assertThat(JsonPath.<Integer>read(r.getBody(), "$.ledgerEntries.length()")).isEqualTo(2);
+        assertThat(JsonPath.<List<String>>read(r.getBody(), "$.ledgerEntries[*].saleId"))
+                .containsExactly(id.toString(), id.toString());
+        assertThat(ledgerEntryRepository.findAll()).hasSize(4).allSatisfy(entry ->
+                assertThat(entry.getSale().getId()).isEqualTo(id));
         assertThat(stockOf(product)).isEqualByComparingTo("100");
         assertThat(balanceOf(cust)).isEqualByComparingTo("0");
+    }
+
+    @Test
+    void voidSaleLinkedPaymentRetainsSaleOnItsReversal() {
+        final UUID cust = newCustomer(owner.token());
+        final UUID id = createSale(owner.token(), saleJson("DEBIT", cust, null, null, "1", "10.00", "10.00",
+                item(product, "2", "10.00"), payment("10.00", "CASH")));
+        final UUID paymentEntryId = ledgerEntryRepository.findAll().stream()
+                .filter(entry -> entry.getType() == LedgerEntryType.PAYMENT)
+                .findFirst().orElseThrow().getId();
+
+        final ResponseEntity<String> r = postJson("/api/customers/" + cust + "/payments/" + paymentEntryId + "/void",
+                "{\"voidReason\":\"bounced\"}", owner.token());
+
+        assertThat(r.getStatusCode()).as(r.getBody()).isEqualTo(HttpStatus.OK);
+        assertThat((String) JsonPath.read(r.getBody(), "$.voidedEntry.saleId")).isEqualTo(id.toString());
+        assertThat((String) JsonPath.read(r.getBody(), "$.reversalEntry.saleId")).isEqualTo(id.toString());
+        assertThat(ledgerEntryRepository.findAll()).hasSize(3).allSatisfy(entry ->
+                assertThat(entry.getSale().getId()).isEqualTo(id));
+        assertThat(balanceOf(cust)).isEqualByComparingTo("10.00");
     }
 
     @Test

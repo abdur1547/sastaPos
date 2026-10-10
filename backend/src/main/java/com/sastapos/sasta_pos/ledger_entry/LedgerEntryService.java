@@ -23,7 +23,7 @@ public class LedgerEntryService {
                 sale.getInvoiceNumber(), sale, "Sale " + sale.getInvoiceNumber()));
         for (final Payment payment : sale.getPayments()) {
             entries.add(newEntry(customer, LedgerDirection.CREDIT, LedgerEntryType.PAYMENT, payment.getAmount(),
-                    sale.getInvoiceNumber(), null, payment.getDescription()));
+                    sale.getInvoiceNumber(), sale, payment.getDescription()));
         }
         return ledgerEntryRepository.saveAll(entries);
     }
@@ -32,12 +32,12 @@ public class LedgerEntryService {
     public List<LedgerEntry> recordSaleReversal(final Customer customer, final Sale sale, final String reason) {
         final List<LedgerEntry> entries = new ArrayList<>();
         entries.add(newEntry(customer, LedgerDirection.CREDIT, LedgerEntryType.ADJUSTMENT,
-                sale.getTotalAmount(), sale.getInvoiceNumber(), null,
+                sale.getTotalAmount(), sale.getInvoiceNumber(), sale,
                 "Reversal of SALE debit for voided sale " + sale.getInvoiceNumber() + ": " + reason));
         final BigDecimal paid = sale.getTotalPaid();
         if (paid.signum() > 0) {
             entries.add(newEntry(customer, LedgerDirection.DEBIT, LedgerEntryType.ADJUSTMENT, paid,
-                    sale.getInvoiceNumber(), null, "Reversal of PAYMENT credit(s) for voided sale "
+                    sale.getInvoiceNumber(), sale, "Reversal of PAYMENT credit(s) for voided sale "
                             + sale.getInvoiceNumber() + ": " + reason));
         }
         return ledgerEntryRepository.saveAll(entries);

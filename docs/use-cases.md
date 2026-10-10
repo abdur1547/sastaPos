@@ -447,7 +447,7 @@ Covers stock changes that don't come from a sale: receiving new stock (`STOCK_IN
 4. For each payment request entry: create `Payment` row: `amount`, `method`, `referenceNumber`, `description`, `sale`.
 5. If `customer` is present on the sale (both DEBIT and CREDIT):
    - Create `LedgerEntry`: `direction = DEBIT`, `type = SALE`, `amount = totalAmount`, `reference_number = invoiceNumber`, `customer`, `sale`. (Full sale amount always recorded as a debit against the customer, for a complete history.)
-   - For each payment recorded in step 4: create `LedgerEntry`: `direction = CREDIT`, `type = PAYMENT`, `amount = payment.amount`, `reference_number = invoiceNumber`, `customer`, `sale = null` (per schema, PAYMENT entries don't link to a sale directly).
+   - For each payment recorded in step 4: create `LedgerEntry`: `direction = CREDIT`, `type = PAYMENT`, `amount = payment.amount`, `reference_number = invoiceNumber`, `customer`, `sale` (the same sale as the SALE debit, including every split payment).
    - Update `customer.accountBalance += totalAmount - sum(payments.amount)` (net effect equals `remaining`; for a fully-paid DEBIT sale this nets to 0 but the ledger history is preserved).
 6. Commit transaction; on any failure roll back everything (no partial stock/ledger/payment writes).
 
@@ -458,6 +458,7 @@ Covers stock changes that don't come from a sale: receiving new stock (`STOCK_IN
 - Duplicate `product_id` within one request: rejected outright (validation #2), no merging — avoids ambiguity/errors from the frontend.
 - Tax-inclusive pricing concept removed entirely: taxes are always exclusive/added on top; tax-free products simply use `taxRate = 0.0`. `store_settings.defaultTaxInclusive` and `sale_item.taxInclusive` removed from schema.
 - `DEBIT` sales with a `customer_id` do create a `LedgerEntry` (both the SALE debit and PAYMENT credits) for full history, even though net `remaining = 0`.
+- Sale-generated ledger entries share `sale_id` for reliable grouping; `reference_number = invoiceNumber` remains a human-readable reference. Bulk uploads require `sale_id` on SALE entries and validate any supplied sale link against the entry's customer and store. Standalone customer payments remain unlinked. Existing unlinked historical entries are not automatically backfilled from invoice references.
 - Float comparisons in validations 4, 7, 8, 9 are done at 2-decimal precision (round before comparing).
 - `sale_type` is now persisted directly as `sales.saleType` (see db-schema.md) instead of being derived, since a `DEBIT` sale can still carry a `customer_id` and this value is needed for filtering/reporting in use case 5c.
 
@@ -501,8 +502,8 @@ Hard-deleting a `sale` row (and cascading to `sale_items`/`payments`/`stock_move
 1. Set `sale.saleStatus = VOIDED`, `sale.voidReason = <reason>` (mandatory, see request below), `sale.voidedAt = now()`, `sale.voidedBy = current user` (row is kept, all original children untouched — they remain the historical record of what happened).
 2. For each original `sale_item` → create a **reversing `stock_movement`**: `type = ADJUSTMENT_IN`, `quantity = sale_item.quantity`, `quantityBefore = product.stockQuantity`, `quantityAfter = quantityBefore + quantity`, `description = "Void of sale <invoiceNumber>: <voidReason>"`, linking `product`, `store`, `sale` (original), `sale_item` (original). Update `product.stockQuantity = quantityAfter`.
 3. If the sale had a `customer` (DEBIT or CREDIT), create **reversing `ledger_entries`** rather than deleting the originals:
-   - One `direction = CREDIT`, `type = ADJUSTMENT`, `amount = totalAmount`, `reference_number = invoiceNumber`, `description = "Reversal of SALE debit for voided sale <invoiceNumber>: <voidReason>"`, `customer`, `sale = null`  (reverses the original SALE debit).
-   - One `direction = DEBIT`, `type = ADJUSTMENT`, `amount = sum(payments.amount)`, `reference_number = invoiceNumber`, `description = "Reversal of PAYMENT credit(s) for voided sale <invoiceNumber>: <voidReason>"`, `customer`, `sale = null` (reverses the original PAYMENT credits).
+   - One `direction = CREDIT`, `type = ADJUSTMENT`, `amount = totalAmount`, `reference_number = invoiceNumber`, `description = "Reversal of SALE debit for voided sale <invoiceNumber>: <voidReason>"`, `customer`, `sale` (original; reverses the original SALE debit).
+   - One `direction = DEBIT`, `type = ADJUSTMENT`, `amount = sum(payments.amount)`, `reference_number = invoiceNumber`, `description = "Reversal of PAYMENT credit(s) for voided sale <invoiceNumber>: <voidReason>"`, `customer`, `sale` (original; reverses the original PAYMENT credits).
    - `reference_number` reuses the original `invoiceNumber` (rather than a synthetic `VOID-` prefix) so it joins/filters cleanly against the original sale's ledger entries; the `description` text is what visibly marks these as void-reversal entries.
    - Net effect: `customer.accountBalance` returns to what it was before the sale (adjust by `-(totalAmount) + sum(payments.amount)`, i.e. the exact opposite of what use case 5 step 5 applied).
 4. `payments` rows are left as-is (they are a historical record of money that was actually received); they are not deleted or reversed with new payment rows, since no real refund occurred automatically — a real cash/bank refund, if any, should be recorded through a separate return/refund flow (out of scope here).
@@ -672,7 +673,7 @@ Records money received from a customer against their outstanding balance. This i
 A payment is just a `ledger_entry` (`type = PAYMENT`, `direction = CREDIT`). Deleting or editing that row outright would corrupt the append-only ledger and make `accountBalance` history unreproducible (same reasoning as use case 5b for sales). So voiding never deletes anything or filters rows out of calculations — it works purely by posting an offsetting entry, exactly like a sale void:
 
 1. Mark the original entry: `ledger_entry.voided = true`, `voidReason = <reason>` (mandatory), `voidedAt = now()`, `voidedBy = current user`. The row and its original `amount`/`direction`/`type` are left untouched — `voided` is only a display/reporting flag (e.g. "exclude voided payments from a payments-received report") and is never used to adjust `accountBalance` itself.
-2. Create a **reversing `ledger_entry`**: `direction = DEBIT`, `type = ADJUSTMENT`, `amount = original.amount`, `reference_number = original.reference_number`, `description = "Reversal of PAYMENT voided: <voidReason>"`, `customer`, `sale = null`.
+2. Create a **reversing `ledger_entry`**: `direction = DEBIT`, `type = ADJUSTMENT`, `amount = original.amount`, `reference_number = original.reference_number`, `description = "Reversal of PAYMENT voided: <voidReason>"`, `customer`, `sale = original.sale` (null for a standalone customer payment; retained when reversing a sale-linked payment).
 3. Update `customer.accountBalance += original.amount` (exact opposite of the `-= amount` applied when the payment was taken in 6d).
 
 No query-time filtering of voided rows is needed to keep `accountBalance` correct — the reversing entry alone restores the balance. `voided` only helps reporting distinguish "money we actually still hold" from "a payment that was reversed" when listing/summing raw ledger entries.

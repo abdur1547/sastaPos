@@ -412,7 +412,6 @@ export class SaleRepository {
       amount: string,
       type: string,
       description: string | null,
-      linkedSaleId: string | null,
     ) =>
       tx.execute(
         `INSERT INTO ledger_entries (id, direction, amount, type, reference_number, description,
@@ -426,7 +425,7 @@ export class SaleRepository {
           invoiceNumber,
           description,
           customerId,
-          linkedSaleId,
+          saleId,
           now,
           now,
         ],
@@ -437,7 +436,6 @@ export class SaleRepository {
       totals.total,
       "SALE",
       `Sale ${invoiceNumber}`,
-      saleId,
     );
     for (const payment of request.payments) {
       await insert(
@@ -445,7 +443,6 @@ export class SaleRepository {
         fromScaled(toScaled(payment.amount, 2), 2),
         "PAYMENT",
         payment.description ?? `Payment for sale ${invoiceNumber}`,
-        null,
       );
     }
     const balance = toScaled(input.balance, 2) + input.remaining;

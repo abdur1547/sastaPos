@@ -42,6 +42,9 @@ public class LedgerEntryBulkService extends AbstractBulkEntityService {
 
     @Override
     protected void normalize(final Map<String, Object> values, final boolean insert) {
+        if (insert && LedgerEntryType.SALE.name().equals(values.get("type")) && values.get("sale_id") == null) {
+            throw new BulkValidationException("sale_id is required for a SALE ledger entry");
+        }
         if (Boolean.TRUE.equals(values.get("voided")) && values.get("void_reason") == null) {
             throw new BulkValidationException("void_reason is required for a voided ledger entry");
         }

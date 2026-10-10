@@ -76,7 +76,7 @@ class SyncSaleUploadApiTests extends ProductApiTestBase {
                 {"direction":"%s","amount":"%s","type":"%s","reference_number":"INV-100","description":null,
                 "voided":0,"customer_id":"%s","sale_id":%s}"""
                 .formatted(debit ? "DEBIT" : "CREDIT", debit ? "100.00" : "40.00", debit ? "SALE" : "PAYMENT",
-                        f.customer(), debit ? "\"" + f.sale() + "\"" : "null");
+                        f.customer(), "\"" + f.sale() + "\"");
     }
 
     private static String movementData(final SaleFixture f) {
@@ -119,6 +119,10 @@ class SyncSaleUploadApiTests extends ProductApiTestBase {
         assertThat(saleItemRepository.count()).isEqualTo(1);
         assertThat(paymentRepository.count()).isEqualTo(1);
         assertThat(ledgerEntryRepository.count()).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT sale_id FROM ledger_entries WHERE id = ?", UUID.class, f.debit()))
+                .isEqualTo(f.sale());
+        assertThat(jdbc.queryForObject("SELECT sale_id FROM ledger_entries WHERE id = ?", UUID.class, f.credit()))
+                .isEqualTo(f.sale());
         assertThat(stockMovementRepository.count()).isEqualTo(1);
         assertThat(customerRepository.findById(f.customer()).orElseThrow().getAccountBalance())
                 .isEqualByComparingTo("60.00");
@@ -141,6 +145,61 @@ class SyncSaleUploadApiTests extends ProductApiTestBase {
                 .replace("\"remaining\":\"60.00\"", "\"remaining\":\"0.00\"");
         assertAccepted(upload(f.owner().token(), List.of(op("sales", "PUT", f.sale(), debitSale))), 1);
         assertThat(saleRepository.findById(f.sale()).orElseThrow().getCustomer()).isNull();
+    }
+
+    @Test
+    void shouldAcceptLinkedReversalsAndStandalonePayments() {
+        final SaleFixture f = fixture();
+        assertAccepted(upload(f.owner().token(), graph(f)), 8);
+        final UUID saleReversal = UUID.randomUUID();
+        final UUID paymentReversal = UUID.randomUUID();
+        final UUID standalonePayment = UUID.randomUUID();
+        assertAccepted(upload(f.owner().token(), List.of(
+                op("ledger_entries", "PUT", saleReversal, """
+                        {"direction":"CREDIT","amount":"100.00","type":"ADJUSTMENT",
+                        "customer_id":"%s","sale_id":"%s"}""".formatted(f.customer(), f.sale())),
+                op("ledger_entries", "PUT", paymentReversal, """
+                        {"direction":"DEBIT","amount":"40.00","type":"ADJUSTMENT",
+                        "customer_id":"%s","sale_id":"%s"}""".formatted(f.customer(), f.sale())),
+                op("ledger_entries", "PUT", standalonePayment, """
+                        {"direction":"CREDIT","amount":"5.00","type":"PAYMENT",
+                        "customer_id":"%s","sale_id":null}""".formatted(f.customer())))), 3);
+        for (final UUID id : List.of(saleReversal, paymentReversal)) {
+            assertThat(jdbc.queryForObject("SELECT sale_id FROM ledger_entries WHERE id = ?", UUID.class, id))
+                    .isEqualTo(f.sale());
+        }
+        assertThat(jdbc.queryForObject("SELECT sale_id FROM ledger_entries WHERE id = ?",
+                UUID.class, standalonePayment)).isNull();
+        assertThat(customerRepository.findById(f.customer()).orElseThrow().getAccountBalance())
+                .isEqualByComparingTo("-5.00");
+    }
+
+    @Test
+    void shouldRejectUnlinkedSalesAndWrongCustomerOrStorePaymentLinks() {
+        final SaleFixture f = fixture();
+        final SaleFixture other = fixture();
+        assertAccepted(upload(f.owner().token(), graph(f)), 8);
+        assertAccepted(upload(other.owner().token(), graph(other)), 8);
+        final UUID anotherCustomer = UUID.randomUUID();
+        assertAccepted(upload(f.owner().token(), List.of(
+                op("customers", "PUT", anotherCustomer, "{\"name\":\"Another buyer\"}"))), 1);
+
+        final ResponseEntity<String> response = upload(f.owner().token(), List.of(
+                op("ledger_entries", "PUT", UUID.randomUUID(),
+                        ledgerData(f, true).replace("\"sale_id\":\"" + f.sale() + "\"", "\"sale_id\":null")),
+                op("ledger_entries", "PUT", UUID.randomUUID(),
+                        ledgerData(f, false).replace(f.customer().toString(), anotherCustomer.toString())),
+                op("ledger_entries", "PUT", UUID.randomUUID(),
+                        ledgerData(f, false).replace(f.sale().toString(), other.sale().toString()))));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat((int) JsonPath.read(response.getBody(), "$.applied")).isZero();
+        assertThat((int) JsonPath.read(response.getBody(), "$.rejected.length()")).isEqualTo(3);
+        assertThat((String) JsonPath.read(response.getBody(), "$.rejected[0].reason"))
+                .isEqualTo("sale_id is required for a SALE ledger entry");
+        assertThat(ledgerEntryRepository.count()).isEqualTo(4);
+        assertThat(customerRepository.findById(f.customer()).orElseThrow().getAccountBalance())
+                .isEqualByComparingTo("60.00");
     }
 
     @Test

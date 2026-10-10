@@ -145,7 +145,9 @@ Customer.balance = 0  → Settled
 - voidedBy UUID, can be null, default to null, references the user who voided the entry
 
 - belongs to customer or have one customer, can't be null
-- can have one sale in case of SALE, can be null in case of PAYMENT, RETURN, ADJUSTMENT
+- have one sale in case of SALE; PAYMENT entries created during a sale and ADJUSTMENT entries reversing that sale/payment also link to the same sale
+- sale can be null for standalone customer PAYMENT, RETURN, ADJUSTMENT entries not allocated to a sale
+- sale must belong to the same customer and store as the ledger entry; sale links and financial fields are immutable in bulk uploads
 
 ### 12. tax_categories
 - name string, can't be null, globally unique

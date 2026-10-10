@@ -119,6 +119,70 @@ describe("SaleRepository invoice allocation", () => {
     });
   });
 
+  it.each([
+    ["DEBIT", ["100.00"], "0.00", "25.00"],
+    ["DEBIT", ["40.00", "60.00"], "0.00", "25.00"],
+    ["CREDIT", ["40.00"], "60.00", "85.00"],
+    ["CREDIT", [], "100.00", "125.00"],
+  ] as const)(
+    "links %s sale debit and all payment credits to the same sale (%s)",
+    async (saleType, amounts, remaining, expectedBalance) => {
+      getOptional.mockResolvedValue({
+        id: "customer-a",
+        status: "ACTIVE",
+        account_balance: "25.00",
+      });
+      const receipt = await repository.submit(
+        {
+          ...request,
+          customerId: "customer-a",
+          saleType,
+          payments: amounts.map((amount) => ({
+            ...request.payments[0],
+            amount,
+          })),
+          totalPaidPrice: remaining === "0.00" ? "100.00" : (amounts[0] ?? "0.00"),
+        },
+        context,
+      );
+
+      const entries = execute.mock.calls.filter(([sql]) =>
+        sql.includes("INSERT INTO ledger_entries"),
+      );
+      expect(entries).toHaveLength(1 + amounts.length);
+      for (const [, parameters] of entries) {
+        expect(parameters[4]).toBe("INV-123");
+        expect(parameters[6]).toBe("customer-a");
+        expect(parameters[7]).toBe(receipt.id);
+      }
+      expect(entries[0][1].slice(1, 4)).toEqual(["DEBIT", "100.00", "SALE"]);
+      amounts.forEach((amount, index) => {
+        expect(entries[index + 1][1].slice(1, 4)).toEqual([
+          "CREDIT",
+          amount,
+          "PAYMENT",
+        ]);
+      });
+      expect(receipt.remaining).toBe(remaining);
+      expect(execute).toHaveBeenCalledWith(
+        expect.stringContaining("UPDATE customers SET account_balance"),
+        [
+          expectedBalance,
+          expect.any(String),
+          "customer-a",
+        ],
+      );
+    },
+  );
+
+  it("does not write customer ledger entries for an anonymous sale", async () => {
+    await repository.submit(request, context);
+    expect(execute).not.toHaveBeenCalledWith(
+      expect.stringContaining("INSERT INTO ledger_entries"),
+      expect.anything(),
+    );
+  });
+
   it("allows the last counter that can still be incremented within a backend integer", async () => {
     findSettings.mockResolvedValue({
       ...settings,

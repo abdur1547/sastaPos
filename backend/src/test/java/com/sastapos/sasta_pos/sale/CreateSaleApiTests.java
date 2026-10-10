@@ -74,6 +74,9 @@ class CreateSaleApiTests extends SaleApiTestBase {
         assertThat(decimal(r.getBody(), "$.remaining")).isEqualByComparingTo("6.00");
         assertThat(balanceOf(cust)).isEqualByComparingTo("6.00");
         assertThat(ledgerEntryRepository.count()).isEqualTo(2);
+        final UUID saleId = UUID.fromString(JsonPath.read(r.getBody(), "$.id"));
+        assertThat(ledgerEntryRepository.findAll()).allSatisfy(entry ->
+                assertThat(entry.getSale().getId()).isEqualTo(saleId));
     }
 
     @Test
@@ -83,6 +86,9 @@ class CreateSaleApiTests extends SaleApiTestBase {
                 item(product, "2", "10.00"), ""));
         assertThat(r.getStatusCode()).as(r.getBody()).isEqualTo(HttpStatus.CREATED);
         assertThat(balanceOf(cust)).isEqualByComparingTo("10.00");
+        final UUID saleId = UUID.fromString(JsonPath.read(r.getBody(), "$.id"));
+        assertThat(ledgerEntryRepository.findAll()).hasSize(1).allSatisfy(entry ->
+                assertThat(entry.getSale().getId()).isEqualTo(saleId));
     }
 
     @Test
@@ -91,6 +97,21 @@ class CreateSaleApiTests extends SaleApiTestBase {
         final ResponseEntity<String> r = post(saleJson("DEBIT", cust, null, null, "1", "10.00", "10.00",
                 item(product, "2", "10.00"), payment("10.00", "BANK")));
         assertThat(r.getStatusCode()).as(r.getBody()).isEqualTo(HttpStatus.CREATED);
+        assertThat(balanceOf(cust)).isEqualByComparingTo("0");
+        final UUID saleId = UUID.fromString(JsonPath.read(r.getBody(), "$.id"));
+        assertThat(ledgerEntryRepository.findAll()).hasSize(2).allSatisfy(entry ->
+                assertThat(entry.getSale().getId()).isEqualTo(saleId));
+    }
+
+    @Test
+    void debitSaleWithSplitPaymentsLinksEveryLedgerEntry() {
+        final UUID cust = newCustomer(owner.token());
+        final ResponseEntity<String> r = post(saleJson("DEBIT", cust, null, null, "1", "10.00", "10.00",
+                item(product, "2", "10.00"), payment("4.00", "CASH") + "," + payment("6.00", "BANK")));
+        assertThat(r.getStatusCode()).as(r.getBody()).isEqualTo(HttpStatus.CREATED);
+        final UUID saleId = UUID.fromString(JsonPath.read(r.getBody(), "$.id"));
+        assertThat(ledgerEntryRepository.findAll()).hasSize(3).allSatisfy(entry ->
+                assertThat(entry.getSale().getId()).isEqualTo(saleId));
         assertThat(balanceOf(cust)).isEqualByComparingTo("0");
     }
 
