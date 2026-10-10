@@ -4,7 +4,7 @@
 
 - This is a Java 25 / Spring Boot 4.1.1 monolith for Sasta POS.
 - Organize code by feature under `src/main/java/com/sastapos/sasta_pos/`; keep each feature's resources, services, repositories, DTOs, entities, and rules together.
-- PostgreSQL is the central database. Desktop clients are offline-first with local SQLite and are intended to synchronize through PowerSync when online. The current repository does not yet implement the PowerSync connector or sync endpoints.
+- PostgreSQL is the central database. Desktop clients are offline-first with local SQLite and are intended to synchronize through PowerSync when online. Local writes are uploaded through the single `POST /api/sync/upload` endpoint (`sync` package: routing, coalescing and table registry only). Business rules live in per-feature `*BulkService` classes built on the generic `bulk` package (set-based SQL, per-row rejection on integrity failures). To sync a new table, add a bulk service and register it in `SyncTableConfig`.
 - Use Maven's standard `src/main/java` and `src/main/resources` source roots.
 
 ## Commands

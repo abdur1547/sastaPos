@@ -285,7 +285,7 @@ public class ProductService {
                 predicates.add(cb.equal(root.get("unitsOfMeasure").get("id"), filter.unitOfMeasureId()));
             }
             if (filter.taxCategoryId() != null) {
-                predicates.add(cb.equal(root.join("taxCategories").get("id"), filter.taxCategoryId()));
+                predicates.add(cb.equal(root.join("taxCategoryLinks").get("taxCategory").get("id"), filter.taxCategoryId()));
             }
             if (filter.minStock() != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("stockQuantity"), filter.minStock()));

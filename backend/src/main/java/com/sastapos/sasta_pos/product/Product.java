@@ -6,6 +6,7 @@ import com.sastapos.sasta_pos.store.RowStatus;
 import com.sastapos.sasta_pos.store.Store;
 import com.sastapos.sasta_pos.tax_category.TaxCategory;
 import com.sastapos.sasta_pos.units_of_measure.UnitsOfMeasure;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
@@ -15,8 +16,6 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
@@ -73,11 +72,8 @@ public class Product {
     @JoinColumn(name = "units_of_measure_id", nullable = false)
     private UnitsOfMeasure unitsOfMeasure;
 
-    @ManyToMany
-    @JoinTable(name = "product_tax_categories",
-            joinColumns = @JoinColumn(name = "product_id"),
-            inverseJoinColumns = @JoinColumn(name = "tax_category_id"))
-    private Set<TaxCategory> taxCategories = new HashSet<>();
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<ProductTaxCategory> taxCategoryLinks = new HashSet<>();
 
     @OneToMany(mappedBy = "product")
     private Set<SaleItem> saleItems = new HashSet<>();
@@ -96,5 +92,18 @@ public class Product {
     @LastModifiedDate
     @Column(nullable = false)
     private OffsetDateTime lastUpdated;
+
+    public Set<TaxCategory> getTaxCategories() {
+        final Set<TaxCategory> result = new HashSet<>();
+        taxCategoryLinks.forEach(link -> result.add(link.getTaxCategory()));
+        return result;
+    }
+
+    public void setTaxCategories(final Set<TaxCategory> taxCategories) {
+        taxCategoryLinks.removeIf(link -> !taxCategories.contains(link.getTaxCategory()));
+        final Set<TaxCategory> existing = getTaxCategories();
+        taxCategories.stream().filter(tc -> !existing.contains(tc))
+                .forEach(tc -> taxCategoryLinks.add(new ProductTaxCategory(this, tc)));
+    }
 
 }

@@ -16,9 +16,13 @@ import org.springframework.stereotype.Component;
 
 /**
  * Issues and verifies stateless access JWTs signed with a server-side HMAC secret.
+ * The same token is accepted by PowerSync (HS256 key configured in powersync/service.yaml).
  */
 @Component
 public class JwtService {
+
+    static final String POWERSYNC_KEY_ID = "powersync";
+    static final String POWERSYNC_AUDIENCE = "powersync";
 
     private final SecretKey key;
     private final long expirationSeconds;
@@ -35,12 +39,19 @@ public class JwtService {
 
     public String generateToken(final User user) {
         final Instant now = Instant.now();
-        return Jwts.builder()
+        final var builder = Jwts.builder()
+                .header().keyId(POWERSYNC_KEY_ID).and()
                 .subject(user.getId().toString())
-                .claim("role", user.getRole().name())
+                .audience().add(POWERSYNC_AUDIENCE).and()
+                .claim("role", user.getRole().name());
+        // PowerSync sync streams scope data by this claim (see powersync/sync-config.yaml).
+        if (user.getStore() != null) {
+            builder.claim("store_id", user.getStore().getId().toString());
+        }
+        return builder
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(expirationSeconds)))
-                .signWith(key)
+                .signWith(key, Jwts.SIG.HS256)
                 .compact();
     }
 
