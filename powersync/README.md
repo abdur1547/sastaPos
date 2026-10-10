@@ -174,20 +174,16 @@ PowerSync never creates users or passwords — it just validates a JWT your back
 client connection request (the `sub`/user id claim is what scopes per-user data in your sync
 rules).
 
-If you don't yet have an auth backend issuing PowerSync-compatible JWTs, this repo includes a
-`key-generator` tool (at `../key-generator`) that creates an RSA keypair you can use for local
-testing:
+In this project the Spring Boot backend signs HS256 JWTs (`JWT_SECRET`) with `aud=powersync`,
+`kid=powersync` and a `store_id` claim. `service.yaml` validates them with a static `oct` key whose
+`k` is `PS_JWK_K`, the base64url (no padding) encoding of the same secret:
 
 ```bash
-cd ../key-generator
-pnpm install
-pnpm start
+printf '%s' "$JWT_SECRET" | base64 -w0 | tr '+/' '-_' | tr -d '='
 ```
 
-It prints a public JWK (paste into `service.yaml` under `client_auth.jwks.keys`, and remove/ignore
-`jwks_uri`) and a base64 private key your own backend uses to sign JWTs for connecting clients.
-This is only meant to get you unblocked locally — in production, prefer real auth integration
-(Supabase Auth, Auth0, Firebase Auth, or your own OAuth/JWT issuer) and use `jwks_uri`.
+For production use a long random `JWT_SECRET` (or switch to RS256 and `jwks_uri`; the
+`key-generator` tool can create a keypair).
 
 ---
 

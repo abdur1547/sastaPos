@@ -46,19 +46,15 @@ sync_config:
 # Client (end user) authentication
 # ---------------------------------------------------------------------------
 client_auth:
-  # JWKS endpoint of whatever issues your app's JWTs (your backend, Supabase,
-  # Auth0, Firebase, etc). PowerSync only validates tokens, it never issues them.
-  jwks_uri: !env PS_JWKS_URL
-
-  # Optional static key set instead of a JWKS URL - useful when self-signing
-  # tokens with a fixed keypair generated via the repo's `key-generator` tool.
-  # jwks:
-  #   keys:
-  #     - kty: 'RSA'
-  #       n: !env PS_JWK_N
-  #       e: !env PS_JWK_E
-  #       alg: 'RS256'
-  #       kid: !env PS_JWK_KID
+  # The Spring Boot backend signs access tokens with HS256 using app.jwt.secret
+  # (JWT_SECRET). PowerSync validates them with the same secret, base64url-encoded
+  # in PS_JWK_K (see README "Authentication"). PowerSync only validates tokens.
+  jwks:
+    keys:
+      - kty: oct
+        alg: HS256
+        kid: powersync
+        k: !env PS_JWK_K
 
   audience: ["powersync-dev", "powersync"]
 
