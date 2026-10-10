@@ -21,6 +21,8 @@ public final class BulkColumn {
     private Integer scale;
     private Set<String> allowedValues;
     private String storeRefTable;
+    private String storeRefCondition;
+    private boolean increasing;
     private Supplier<Object> defaultValue;
 
     private BulkColumn(final String name, final ColumnType type) {
@@ -44,6 +46,24 @@ public final class BulkColumn {
 
     public static BulkColumn timestamp(final String name) {
         return new BulkColumn(name, ColumnType.TIMESTAMPTZ);
+    }
+
+    public static BulkColumn integer(final String name) {
+        return new BulkColumn(name, ColumnType.INTEGER);
+    }
+
+    public static BulkColumn bool(final String name) {
+        return new BulkColumn(name, ColumnType.BOOLEAN);
+    }
+
+    /** Counter updates never move backwards when an offline batch is retried. */
+    public BulkColumn increasing() {
+        this.increasing = true;
+        return this;
+    }
+
+    public boolean isIncreasing() {
+        return increasing;
     }
 
     /** NOT NULL in the database: a missing or null value rejects the row. */
@@ -94,7 +114,19 @@ public final class BulkColumn {
     /** The referenced row must exist in {@code table} within the caller's store (tenant isolation). */
     public BulkColumn refersToStoreRow(final String table) {
         this.storeRefTable = table;
+        this.storeRefCondition = "ref.store_id = CAST(:store_id AS uuid)";
         return this;
+    }
+
+    /** Custom scope for references to child tables without their own store_id. */
+    public BulkColumn refersToStoreRow(final String table, final String condition) {
+        this.storeRefTable = table;
+        this.storeRefCondition = condition;
+        return this;
+    }
+
+    public String storeRefCondition() {
+        return storeRefCondition;
     }
 
     public String name() {

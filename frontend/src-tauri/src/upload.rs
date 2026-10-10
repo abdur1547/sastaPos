@@ -5,7 +5,7 @@
 
 use powersync::error::PowerSyncError;
 use powersync::{CrudEntry, UpdateType};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 const DEFAULT_API_BASE_URL: &str = "http://localhost:8090";
@@ -52,20 +52,46 @@ struct UploadRequest<'a> {
 
 #[derive(Debug, PartialEq)]
 pub enum Outcome {
-  /// The batch was handled (rejected rows included); remove it from the queue.
+  /// Inspect the response; only a batch with no rejections may leave the queue.
   Done,
-  /// The server will never accept this batch as-is; drop it so the queue is not blocked forever.
-  Discard,
-  /// Transient or auth problem; keep the queue and let the SDK retry.
+  /// Keep failed batches until the server accepts them; never discard local writes.
   Retry,
 }
 
 pub fn classify(status: u16) -> Outcome {
   match status {
     200..=299 => Outcome::Done,
-    400 | 413 | 422 => Outcome::Discard,
     _ => Outcome::Retry,
   }
+}
+
+#[derive(Debug, Deserialize)]
+struct UploadResponse {
+  applied: usize,
+  rejected: Vec<UploadRejection>,
+}
+
+#[derive(Debug, Deserialize)]
+struct UploadRejection {
+  table: String,
+  id: String,
+  reason: String,
+}
+
+fn require_accepted(body: &str) -> Result<(), PowerSyncError> {
+  let response: UploadResponse = serde_json::from_str(body)
+    .map_err(|err| failure(format!("invalid upload response; retaining local changes: {err}")))?;
+  if !response.rejected.is_empty() {
+    let rejected = response.rejected.iter()
+      .map(|row| format!("{} {}: {}", row.table, row.id, row.reason))
+      .collect::<Vec<_>>()
+      .join("; ");
+    return Err(failure(format!(
+      "server applied {} changes but rejected others; retaining batch for retry: {rejected}",
+      response.applied
+    )));
+  }
+  Ok(())
 }
 
 #[derive(Debug)]
@@ -99,19 +125,14 @@ pub async fn send(
     .map_err(|err| failure(format!("upload request failed: {err}")))?;
 
   let status = response.status().as_u16();
-  let body = response.text().await.unwrap_or_default();
+  let body = response.text().await
+    .map_err(|err| failure(format!("could not read upload response; retaining local changes: {err}")))?;
   match classify(status) {
     Outcome::Done => {
-      if body.contains("\"rejected\":[{") {
-        log::warn!("server rejected some changes: {body}");
-      }
+      require_accepted(&body)?;
       Ok(true)
     }
-    Outcome::Discard => {
-      log::error!("dropping un-uploadable batch (HTTP {status}): {body}");
-      Ok(true)
-    }
-    Outcome::Retry => Err(failure(format!("upload failed with HTTP {status}"))),
+    Outcome::Retry => Err(failure(format!("upload failed with HTTP {status}; retaining local changes: {body}"))),
   }
 }
 
@@ -123,10 +144,24 @@ mod tests {
   fn classifies_statuses() {
     assert_eq!(classify(200), Outcome::Done);
     assert_eq!(classify(204), Outcome::Done);
-    assert_eq!(classify(400), Outcome::Discard);
-    assert_eq!(classify(422), Outcome::Discard);
+    assert_eq!(classify(400), Outcome::Retry);
+    assert_eq!(classify(413), Outcome::Retry);
+    assert_eq!(classify(422), Outcome::Retry);
     assert_eq!(classify(401), Outcome::Retry);
     assert_eq!(classify(500), Outcome::Retry);
+  }
+
+  #[test]
+  fn only_acknowledges_fully_accepted_batches() {
+    assert!(require_accepted(r#"{"applied":7,"rejected":[]}"#).is_ok());
+    assert!(require_accepted(r#"{
+      "applied": 5,
+      "rejected": [
+        {"table":"sales","id":"sale-1","reason":"Table is not accepted for upload"}
+      ]
+    }"#).is_err());
+    assert!(require_accepted("not json").is_err());
+    assert!(require_accepted(r#"{"applied":5}"#).is_err());
   }
 
   #[test]

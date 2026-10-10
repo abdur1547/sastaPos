@@ -10,9 +10,15 @@
       class="discount-input"
       type="number"
       min="0"
-      [ngModel]="discount()"
-      (ngModelChange)="onDiscountChange($event)"
+      step="0.01"
+      [attr.aria-invalid]="discountError() || discount().invalid"
+      [formControl]="discount()"
     />
+  </div>
+
+  <div class="summary-row">
+    <span class="summary-label">Tax</span>
+    <span class="summary-value">Rs {{ tax() }}</span>
   </div>
 
   <div class="summary-row total-row">

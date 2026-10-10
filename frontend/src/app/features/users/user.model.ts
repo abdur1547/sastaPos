@@ -4,7 +4,8 @@ export type { UserRole, UserStatus };
 
 /**
  * A staff member of the current store. Users are managed through the backend
- * API (never stored locally) because passwords are hashed server-side.
+ * API because passwords are hashed server-side. PowerSync also keeps a
+ * credential-free, read-only identity projection for related sales/void records.
  */
 export interface User {
   readonly id: string;

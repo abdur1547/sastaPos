@@ -11,30 +11,43 @@
       </tr>
     </thead>
     <tbody>
-      @for (item of items(); track item.productId; let i = $index) {
+      @for (
+        group of lines().controls;
+        track group.controls.product.value.id;
+        let i = $index
+      ) {
+        @let product = group.controls.product.value;
         <tr>
           <td class="col-no">{{ i + 1 }}</td>
-          <td class="col-product">{{ item.name }}</td>
-          <td class="col-price">Rs {{ item.unitPrice }}</td>
+          <td class="col-product">{{ product.name }}</td>
+          <td class="col-price">Rs {{ product.unitPrice }}</td>
           <td class="col-qty">
             <input
               class="qty-input"
               type="number"
-              min="1"
-              [ngModel]="item.quantity"
-              (ngModelChange)="onQuantityChange(item.productId, $event)"
+              min="0.01"
+              [step]="product.allowsFraction ? 0.01 : 1"
+              [attr.aria-invalid]="group.controls.quantity.invalid"
+              [formControl]="group.controls.quantity"
             />
           </td>
-          <td class="col-subtotal">Rs {{ subtotal(item) }}</td>
+          <td class="col-subtotal">Rs {{ priced()[i]?.taxable }}</td>
           <td class="col-actions">
-            <button type="button" class="remove-button" aria-label="Remove product" (click)="removeItem.emit(item.productId)">
+            <button
+              type="button"
+              class="remove-button"
+              aria-label="Remove product"
+              (click)="removeItem.emit(product.id)"
+            >
               <mat-icon>close</mat-icon>
             </button>
           </td>
         </tr>
       } @empty {
         <tr>
-          <td class="empty-row" colspan="6">No products added yet. Search a product above to start the sale.</td>
+          <td class="empty-row" colspan="6">
+            No products added yet. Search a product above to start the sale.
+          </td>
         </tr>
       }
     </tbody>

@@ -1,23 +1,27 @@
+/** Product as the counter needs it: current price, stock, unit rules and summed tax rate. */
+export interface SellProduct {
+  readonly id: string;
+  readonly name: string;
+  readonly sku: string | null;
+  readonly barcode: string | null;
+  /** Decimal string, e.g. "420.00". */
+  readonly unitPrice: string;
+  readonly stockQuantity: string;
+  readonly allowsFraction: boolean;
+  readonly unitName: string;
+  /** Sum of the linked tax categories' rates, applied exclusively on top of the price. */
+  readonly taxRate: number;
+}
+
+export interface SellCustomer {
+  readonly id: string;
+  readonly name: string;
+  readonly phoneNumber: string | null;
+  readonly accountBalance: string;
+}
+
+/** An IN_PROGRESS (draft) sale shown in the pending bills bar. */
 export interface PendingBill {
-  id: string;
-  label: string;
-}
-
-export interface Customer {
-  id: string;
-  name: string;
-  phone: string;
-}
-
-export interface Product {
-  id: string;
-  name: string;
-  unitPrice: number;
-}
-
-export interface CartLine {
-  productId: string;
-  name: string;
-  unitPrice: number;
-  quantity: number;
+  readonly id: string;
+  readonly label: string;
 }

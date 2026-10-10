@@ -1,30 +1,49 @@
 <div class="customer-toolbar">
-  <mat-form-field appearance="outline" class="customer-field" subscriptSizing="dynamic">
+  <mat-form-field
+    appearance="outline"
+    class="customer-field"
+    subscriptSizing="dynamic"
+  >
     <mat-label>Customer</mat-label>
     <input
       matInput
       type="text"
       placeholder="Search by name or phone"
-      [(ngModel)]="filterText"
+      [formControl]="search"
+      (keydown.enter)="selectSingleMatch()"
       [matAutocomplete]="customerAuto"
     />
     <mat-icon matPrefix>person_search</mat-icon>
   </mat-form-field>
 
-  <mat-autocomplete #customerAuto="matAutocomplete" [displayWith]="displayCustomer" (optionSelected)="onOptionSelected($event)">
+  <mat-autocomplete
+    #customerAuto="matAutocomplete"
+    [displayWith]="displayCustomer"
+    (optionSelected)="onOptionSelected($event)"
+  >
     @for (customer of filteredCustomers(); track customer.id) {
       <mat-option [value]="customer">
         <span class="option-name">{{ customer.name }}</span>
-        <span class="option-phone">{{ customer.phone }}</span>
+        <span class="option-phone">{{ customer.phoneNumber }}</span>
       </mat-option>
     }
   </mat-autocomplete>
 
-  <button mat-icon-button type="button" aria-label="Search customers" (click)="search()">
+  <button
+    mat-icon-button
+    type="button"
+    aria-label="Search customers"
+    (click)="selectSingleMatch()"
+  >
     <mat-icon>search</mat-icon>
   </button>
 
-  <button mat-stroked-button type="button" class="add-button" (click)="addCustomer.emit()">
+  <button
+    mat-stroked-button
+    type="button"
+    class="add-button"
+    (click)="addCustomer.emit()"
+  >
     <mat-icon>person_add</mat-icon>
     Add Customer
   </button>

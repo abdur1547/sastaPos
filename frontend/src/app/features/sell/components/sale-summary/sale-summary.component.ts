@@ -1,21 +1,18 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, input } from "@angular/core";
+import { FormControl, ReactiveFormsModule } from "@angular/forms";
 
 @Component({
-  selector: 'app-sale-summary',
-  imports: [FormsModule],
-  templateUrl: './sale-summary.component.html',
-  styleUrl: './sale-summary.component.scss',
+  selector: "app-sale-summary",
+  imports: [ReactiveFormsModule],
+  templateUrl: "./sale-summary.component.html",
+  styleUrl: "./sale-summary.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SaleSummaryComponent {
   readonly itemCount = input<number>(0);
-  readonly totalQuantity = input<number>(0);
-  readonly discount = input<number>(0);
-  readonly totalPayable = input<number>(0);
-  readonly discountChanged = output<number>();
-
-  onDiscountChange(value: number): void {
-    this.discountChanged.emit(Math.max(0, Number(value) || 0));
-  }
+  readonly totalQuantity = input<string>("0");
+  readonly discount = input.required<FormControl<number | null>>();
+  readonly discountError = input<boolean>(false);
+  readonly tax = input<string>("0.00");
+  readonly totalPayable = input<string>("0.00");
 }

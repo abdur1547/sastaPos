@@ -9,38 +9,41 @@
   <app-customer-toolbar
     class="section"
     [customers]="customers()"
+    [customer]="store.customer()"
     (customerSelected)="onCustomerSelected($event)"
+    (customerCleared)="store.setCustomer(null)"
     (addCustomer)="onAddCustomer()"
-    (searchCustomers)="onSearchCustomers($event)"
   />
 
   <app-product-toolbar
     class="section"
     [products]="products()"
-    (productSelected)="onProductSelected($event)"
+    (productSelected)="store.addProduct($event)"
     (addProduct)="onAddProduct()"
     (createReturn)="onCreateReturn()"
-    (searchProducts)="onSearchProducts($event)"
   />
 
   <app-sale-items-table
     class="section"
-    [items]="cartLines()"
-    (quantityChanged)="onQuantityChanged($event)"
-    (removeItem)="onRemoveItem($event)"
+    [lines]="store.lines"
+    [priced]="store.totals().lines"
+    (removeItem)="store.removeProduct($event)"
   />
 
   <app-sale-summary
     class="section"
-    [itemCount]="cartLines().length"
-    [totalQuantity]="totalQuantity()"
-    [discount]="discount()"
-    [totalPayable]="totalPayable()"
-    (discountChanged)="onDiscountChanged($event)"
+    [itemCount]="store.items().length"
+    [totalQuantity]="store.totalQuantity()"
+    [discount]="store.form.controls.discount"
+    [discountError]="store.discountTooHigh()"
+    [tax]="store.totals().tax"
+    [totalPayable]="store.totals().total"
   />
 
   <app-sale-actions
     class="section"
+    [canSave]="canSubmit()"
+    [canPay]="canSubmit()"
     (addToPending)="onAddToPending()"
     (cancelSale)="onCancelSale()"
     (pay)="onPay()"

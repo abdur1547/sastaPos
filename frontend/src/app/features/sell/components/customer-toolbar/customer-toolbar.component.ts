@@ -1,49 +1,97 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  input,
+  output,
+} from "@angular/core";
+import { toSignal } from "@angular/core/rxjs-interop";
+import { FormControl, ReactiveFormsModule } from "@angular/forms";
+import {
+  MatAutocompleteModule,
+  MatAutocompleteSelectedEvent,
+} from "@angular/material/autocomplete";
+import { MatButtonModule } from "@angular/material/button";
+import { MatFormFieldModule } from "@angular/material/form-field";
+import { MatIconModule } from "@angular/material/icon";
+import { MatInputModule } from "@angular/material/input";
+import { startWith } from "rxjs";
 
-import { Customer } from '../../models/sell.model';
+import { SellCustomer } from "../../models/sell.model";
 
 @Component({
-  selector: 'app-customer-toolbar',
-  imports: [FormsModule, MatAutocompleteModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule],
-  templateUrl: './customer-toolbar.component.html',
-  styleUrl: './customer-toolbar.component.scss',
+  selector: "app-customer-toolbar",
+  imports: [
+    ReactiveFormsModule,
+    MatAutocompleteModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+  ],
+  templateUrl: "./customer-toolbar.component.html",
+  styleUrl: "./customer-toolbar.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CustomerToolbarComponent {
-  readonly customers = input<Customer[]>([]);
-  readonly customerSelected = output<Customer>();
+  readonly customers = input<readonly SellCustomer[]>([]);
+  /** The customer currently attached to the sale; keeps the field in sync when set from outside. */
+  readonly customer = input<SellCustomer | null>(null);
+  readonly customerSelected = output<SellCustomer>();
+  readonly customerCleared = output<void>();
   readonly addCustomer = output<void>();
-  readonly searchCustomers = output<string>();
 
-  readonly filterText = signal('');
+  protected readonly search = new FormControl<string | SellCustomer>("", {
+    nonNullable: true,
+  });
 
-  readonly filteredCustomers = computed(() => {
-    const term = this.filterText().trim().toLowerCase();
+  private readonly searchValue = toSignal(
+    this.search.valueChanges.pipe(startWith(this.search.value)),
+    {
+      initialValue: "",
+    },
+  );
+
+  protected readonly filteredCustomers = computed(() => {
+    const value = this.searchValue();
+    const term = (typeof value === "string" ? value : value.name)
+      .trim()
+      .toLowerCase();
     if (!term) {
       return this.customers();
     }
     return this.customers().filter(
-      (customer) => customer.name.toLowerCase().includes(term) || customer.phone.includes(term),
+      (customer) =>
+        customer.name.toLowerCase().includes(term) ||
+        (customer.phoneNumber ?? "").includes(term),
     );
   });
 
-  onOptionSelected(event: MatAutocompleteSelectedEvent): void {
-    const customer = event.option.value as Customer;
-    this.filterText.set(customer.name);
-    this.customerSelected.emit(customer);
+  constructor() {
+    effect(() => {
+      const selected = this.customer();
+      this.search.setValue(selected ?? "", { emitEvent: false });
+    });
+    this.search.valueChanges.subscribe((value) => {
+      if (value === "" && this.customer()) {
+        this.customerCleared.emit();
+      }
+    });
   }
 
-  displayCustomer(customer: Customer | string | null): string {
-    return typeof customer === 'string' ? customer : (customer?.name ?? '');
+  protected onOptionSelected(event: MatAutocompleteSelectedEvent): void {
+    this.customerSelected.emit(event.option.value as SellCustomer);
   }
 
-  search(): void {
-    this.searchCustomers.emit(this.filterText());
+  protected displayCustomer(customer: SellCustomer | string | null): string {
+    return typeof customer === "string" ? customer : (customer?.name ?? "");
+  }
+
+  protected selectSingleMatch(): void {
+    const matches = this.filteredCustomers();
+    if (matches.length === 1 && typeof this.search.value === "string") {
+      this.customerSelected.emit(matches[0]);
+    }
   }
 }

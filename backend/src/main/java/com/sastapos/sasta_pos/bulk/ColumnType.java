@@ -13,6 +13,7 @@ public enum ColumnType {
     UUID("uuid"),
     TEXT("text"),
     NUMERIC("numeric"),
+    INTEGER("integer"),
     BOOLEAN("boolean"),
     TIMESTAMPTZ("timestamptz");
 
@@ -35,11 +36,20 @@ public enum ColumnType {
                 case UUID -> raw instanceof UUID uuid ? uuid : java.util.UUID.fromString(raw.toString().trim());
                 case TEXT -> raw.toString();
                 case NUMERIC -> raw instanceof BigDecimal decimal ? decimal : new BigDecimal(raw.toString().trim());
+                case INTEGER -> toInteger(raw);
                 case BOOLEAN -> toBoolean(raw);
                 case TIMESTAMPTZ -> raw instanceof OffsetDateTime time ? time : toTimestamp(raw.toString().trim());
             };
         } catch (final IllegalArgumentException | java.time.DateTimeException e) {
             throw new BulkValidationException(column + " is not a valid " + sqlType);
+        }
+    }
+
+    private static Integer toInteger(final Object raw) {
+        try {
+            return new BigDecimal(raw.toString().trim()).intValueExact();
+        } catch (final ArithmeticException e) {
+            throw new IllegalArgumentException("not an integer", e);
         }
     }
 

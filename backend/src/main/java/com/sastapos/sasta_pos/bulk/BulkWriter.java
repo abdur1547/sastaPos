@@ -102,10 +102,10 @@ public class BulkWriter {
             values.add(cast(table.storeParam(), ColumnType.UUID));
         }
         final String updates = table.updatableColumns().stream()
-                .map(column -> column.name() + " = EXCLUDED." + column.name())
+                .map(column -> column.name() + " = " + updateValue(table, column, "EXCLUDED." + column.name()))
                 .collect(Collectors.joining(", "));
         final String conflict = (updates.isEmpty() ? "id = " + table.name() + ".id" : updates);
-        final String guard = table.ownsStoreColumn() ? " WHERE " + table.scopeCondition() : "";
+        final String guard = " WHERE " + table.scopeCondition();
         return "INSERT INTO " + table.name() + " (" + String.join(", ", names) + ") SELECT "
                 + String.join(", ", values) + " WHERE TRUE" + referenceChecks(table, false)
                 + " ON CONFLICT (id) DO UPDATE SET " + conflict + guard;
@@ -114,7 +114,8 @@ public class BulkWriter {
     String patchSql(final BulkTable table) {
         final String assignments = table.updatableColumns().stream()
                 .map(column -> column.name() + " = CASE WHEN :has_" + column.name() + " THEN "
-                        + cast(column.name(), column.type()) + " ELSE " + table.name() + "." + column.name() + " END")
+                        + updateValue(table, column, cast(column.name(), column.type()))
+                        + " ELSE " + table.name() + "." + column.name() + " END")
                 .collect(Collectors.joining(", "));
         return "UPDATE " + table.name() + " SET " + assignments + " WHERE " + table.name() + ".id = "
                 + cast("id", table.keyType()) + " AND " + table.scopeCondition() + referenceChecks(table, true);
@@ -123,12 +124,19 @@ public class BulkWriter {
     private static String referenceChecks(final BulkTable table, final boolean onlyWhenPatched) {
         return table.referencingColumns().filter(column -> !onlyWhenPatched || !column.isImmutable()).map(column -> {
             final String exists = "EXISTS (SELECT 1 FROM " + column.storeRefTable() + " ref WHERE ref.id = "
-                    + cast(column.name(), column.type()) + " AND ref.store_id = CAST(:" + table.storeParam()
-                    + " AS uuid))";
+                    + cast(column.name(), column.type()) + " AND " + column.storeRefCondition() + ")";
+            final String allowed = column.isRequired() ? exists
+                    : "(" + cast(column.name(), column.type()) + " IS NULL OR " + exists + ")";
             return onlyWhenPatched
-                    ? " AND (NOT :has_" + column.name() + " OR " + exists + ")"
-                    : " AND " + exists;
+                    ? " AND (NOT :has_" + column.name() + " OR " + allowed + ")"
+                    : " AND " + allowed;
         }).collect(Collectors.joining());
+    }
+
+    private static String updateValue(final BulkTable table, final BulkColumn column, final String value) {
+        return column.isIncreasing()
+                ? "GREATEST(" + table.name() + "." + column.name() + ", " + value + ")"
+                : value;
     }
 
     private static String cast(final String param, final ColumnType type) {

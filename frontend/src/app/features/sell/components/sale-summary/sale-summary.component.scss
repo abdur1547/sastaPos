@@ -42,3 +42,7 @@
   color: var(--accent-teal);
   font-size: 20px;
 }
+
+.discount-input[aria-invalid="true"] {
+  border-color: var(--accent-coral);
+}

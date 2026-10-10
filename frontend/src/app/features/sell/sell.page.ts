@@ -1,16 +1,38 @@
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from "@angular/core";
+import { takeUntilDestroyed, toSignal } from "@angular/core/rxjs-interop";
+import { MatDialog } from "@angular/material/dialog";
+import { MatSnackBar } from "@angular/material/snack-bar";
+import { ActivatedRoute, Router } from "@angular/router";
+import { firstValueFrom } from "rxjs";
 
-import { CustomerToolbarComponent } from './components/customer-toolbar/customer-toolbar.component';
-import { PendingBillsBarComponent } from './components/pending-bills-bar/pending-bills-bar.component';
-import { ProductToolbarComponent } from './components/product-toolbar/product-toolbar.component';
-import { SaleActionsComponent } from './components/sale-actions/sale-actions.component';
-import { SaleItemsTableComponent } from './components/sale-items-table/sale-items-table.component';
-import { SaleSummaryComponent } from './components/sale-summary/sale-summary.component';
-import { TMP_CUSTOMERS, TMP_PENDING_BILLS, TMP_PRODUCTS } from './data/sell-tmp-data';
-import { CartLine, Customer, PendingBill, Product } from './models/sell.model';
+import { RETURN_TO_PARAM } from "../../core/navigation/return-navigation";
+import { CustomerToolbarComponent } from "./components/customer-toolbar/customer-toolbar.component";
+import {
+  PaymentDialogComponent,
+  PaymentDialogData,
+} from "./components/payment-dialog/payment-dialog.component";
+import { PendingBillsBarComponent } from "./components/pending-bills-bar/pending-bills-bar.component";
+import { ProductToolbarComponent } from "./components/product-toolbar/product-toolbar.component";
+import { SaleActionsComponent } from "./components/sale-actions/sale-actions.component";
+import { SaleItemsTableComponent } from "./components/sale-items-table/sale-items-table.component";
+import { SaleSummaryComponent } from "./components/sale-summary/sale-summary.component";
+import { SellCustomer } from "./models/sell.model";
+import { SaleService } from "./sale.service";
+import { SellFormStore } from "./state/sell-form.store";
+
+const SELL_URL = "/sell";
 
 @Component({
-  selector: 'app-sell-page',
+  selector: "app-sell-page",
   imports: [
     CustomerToolbarComponent,
     PendingBillsBarComponent,
@@ -19,103 +41,203 @@ import { CartLine, Customer, PendingBill, Product } from './models/sell.model';
     SaleItemsTableComponent,
     SaleSummaryComponent,
   ],
-  templateUrl: './sell.page.html',
-  styleUrl: './sell.page.scss',
+  templateUrl: "./sell.page.html",
+  styleUrl: "./sell.page.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SellPage {
-  readonly pendingBills = signal<PendingBill[]>(TMP_PENDING_BILLS);
-  readonly customers = signal<Customer[]>(TMP_CUSTOMERS);
-  readonly products = signal<Product[]>(TMP_PRODUCTS);
-  readonly selectedCustomer = signal<Customer | null>(null);
-  readonly cartLines = signal<CartLine[]>([]);
-  readonly discount = signal(0);
+  private readonly sales = inject(SaleService);
+  private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
-  readonly totalQuantity = computed(() => this.cartLines().reduce((sum, line) => sum + line.quantity, 0));
-  readonly subtotal = computed(() => this.cartLines().reduce((sum, line) => sum + line.quantity * line.unitPrice, 0));
-  readonly totalPayable = computed(() => Math.max(0, this.subtotal() - this.discount()));
+  protected readonly store = inject(SellFormStore);
 
-  onResumeBill(_billId: string): void {
-    // Loading a pending bill's items back into the cart will land with the pending-bills service.
-  }
+  protected readonly products = toSignal(this.sales.watchProducts(), {
+    initialValue: [],
+  });
+  protected readonly customers = toSignal(this.sales.watchCustomers(), {
+    initialValue: [],
+  });
+  protected readonly pendingBills = toSignal(this.sales.watchPendingBills(), {
+    initialValue: [],
+  });
 
-  onRemoveBill(billId: string): void {
-    this.pendingBills.update((bills) => bills.filter((bill) => bill.id !== billId));
-  }
+  protected readonly busy = signal(false);
+  protected readonly canSubmit = computed(
+    () => !this.store.isEmpty() && this.store.valid() && !this.busy(),
+  );
 
-  onCustomerSelected(customer: Customer): void {
-    this.selectedCustomer.set(customer);
-  }
+  // Ids handed back by the product/customer editors, resolved once the local DB emits them.
+  private readonly incomingCustomerId = signal<string | null>(null);
+  private readonly incomingProductId = signal<string | null>(null);
 
-  onAddCustomer(): void {
-    // Opening the create-customer flow will be wired up once that feature exists.
-  }
+  constructor() {
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(inject(DestroyRef)))
+      .subscribe((params) => {
+        const customerId = params.get("newCustomerId");
+        const productId = params.get("newProductId");
+        if (!customerId && !productId) {
+          return;
+        }
+        this.incomingCustomerId.set(customerId);
+        this.incomingProductId.set(productId);
+        void this.router.navigate([], {
+          queryParams: { newCustomerId: null, newProductId: null },
+          queryParamsHandling: "merge",
+          replaceUrl: true,
+        });
+      });
 
-  onSearchCustomers(_term: string): void {
-    // Dedicated customer search will be wired up once that feature exists.
-  }
-
-  onProductSelected(product: Product): void {
-    this.cartLines.update((lines) => {
-      const existing = lines.find((line) => line.productId === product.id);
-      if (existing) {
-        return lines.map((line) =>
-          line.productId === product.id ? { ...line, quantity: line.quantity + 1 } : line,
-        );
+    effect(() => {
+      const id = this.incomingCustomerId();
+      const customer = id
+        ? this.customers().find((candidate) => candidate.id === id)
+        : null;
+      if (customer) {
+        untracked(() => {
+          this.store.setCustomer(customer);
+          this.incomingCustomerId.set(null);
+        });
       }
-      return [...lines, { productId: product.id, name: product.name, unitPrice: product.unitPrice, quantity: 1 }];
+    });
+
+    effect(() => {
+      const id = this.incomingProductId();
+      const product = id
+        ? this.products().find((candidate) => candidate.id === id)
+        : null;
+      if (product) {
+        untracked(() => {
+          this.store.addProduct(product);
+          this.incomingProductId.set(null);
+        });
+      }
     });
   }
 
-  onQuantityChanged(change: { productId: string; quantity: number }): void {
-    this.cartLines.update((lines) =>
-      lines.map((line) => (line.productId === change.productId ? { ...line, quantity: change.quantity } : line)),
-    );
+  protected onCustomerSelected(customer: SellCustomer): void {
+    this.store.setCustomer(customer);
   }
 
-  onRemoveItem(productId: string): void {
-    this.cartLines.update((lines) => lines.filter((line) => line.productId !== productId));
+  protected onAddCustomer(): void {
+    void this.router.navigate(["/customers/new"], {
+      queryParams: { [RETURN_TO_PARAM]: SELL_URL },
+    });
   }
 
-  onAddProduct(): void {
-    // Opening the create-product flow will be wired up once that feature exists.
+  protected onAddProduct(): void {
+    void this.router.navigate(["/products/new"], {
+      queryParams: { [RETURN_TO_PARAM]: SELL_URL },
+    });
   }
 
-  onCreateReturn(): void {
-    // Return-order flow will be wired up once that feature exists.
+  protected onCreateReturn(): void {
+    // Returns are out of scope on the backend for now; the button stays as a placeholder.
   }
 
-  onSearchProducts(_term: string): void {
-    // Dedicated product search will be wired up once that feature exists.
-  }
-
-  onDiscountChanged(discount: number): void {
-    this.discount.set(discount);
-  }
-
-  onAddToPending(): void {
-    if (!this.cartLines().length) {
+  protected async onResumeBill(billId: string): Promise<void> {
+    if (this.busy() || billId === this.store.activeDraftId()) {
       return;
     }
-    const nextOrderNumber = this.pendingBills().length + 1;
-    this.pendingBills.update((bills) => [
-      ...bills,
-      { id: `bill-${Date.now()}`, label: `Order ${nextOrderNumber}` },
-    ]);
-    this.resetSale();
+    await this.run(async () => {
+      if (!this.store.isEmpty()) {
+        await this.sales.saveDraft(this.store.checkoutInput());
+      }
+      const draft = await this.sales.loadDraft(billId);
+      if (!draft) {
+        this.notify("That pending bill no longer exists.");
+        return;
+      }
+      const productsById = new Map(
+        this.products().map((product) => [product.id, product]),
+      );
+      const items = draft.items.flatMap((item) => {
+        const product = productsById.get(item.productId);
+        return product ? [{ product, quantity: Number(item.quantity) }] : [];
+      });
+      this.store.restore({
+        draftId: draft.id,
+        customer:
+          this.customers().find(
+            (customer) => customer.id === draft.customerId,
+          ) ?? null,
+        discount: Number(draft.discount),
+        items,
+      });
+      if (items.length < draft.items.length) {
+        this.notify(
+          "Some products are no longer available and were removed from this bill.",
+        );
+      }
+    });
   }
 
-  onCancelSale(): void {
-    this.resetSale();
+  protected async onRemoveBill(billId: string): Promise<void> {
+    await this.run(async () => {
+      await this.sales.discardDraft(billId);
+      if (billId === this.store.activeDraftId()) {
+        this.store.reset();
+      }
+    });
   }
 
-  onPay(): void {
-    this.resetSale();
+  protected async onAddToPending(): Promise<void> {
+    if (!this.canSubmit()) {
+      return;
+    }
+    await this.run(async () => {
+      await this.sales.saveDraft(this.store.checkoutInput());
+      this.store.reset();
+      this.notify("Sale saved to pending bills.");
+    });
   }
 
-  private resetSale(): void {
-    this.cartLines.set([]);
-    this.discount.set(0);
-    this.selectedCustomer.set(null);
+  protected onCancelSale(): void {
+    this.store.reset();
+  }
+
+  protected async onPay(): Promise<void> {
+    if (!this.canSubmit()) {
+      return;
+    }
+    const data: PaymentDialogData = {
+      total: this.store.totals().total,
+      customer: this.store.customer(),
+    };
+    const payment = await firstValueFrom(
+      this.dialog
+        .open(PaymentDialogComponent, { data, autoFocus: "first-tabbable" })
+        .afterClosed(),
+    );
+    if (!payment) {
+      return;
+    }
+    await this.run(async () => {
+      const receipt = await this.sales.complete(
+        this.store.checkoutInput(payment),
+      );
+      this.store.reset();
+      this.notify(`Sale ${receipt.invoiceNumber} completed.`);
+    });
+  }
+
+  private async run(action: () => Promise<void>): Promise<void> {
+    this.busy.set(true);
+    try {
+      await action();
+    } catch (error) {
+      this.notify(
+        error instanceof Error ? error.message : "Something went wrong.",
+      );
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  private notify(message: string): void {
+    this.snackBar.open(message, "Dismiss", { duration: 5000 });
   }
 }

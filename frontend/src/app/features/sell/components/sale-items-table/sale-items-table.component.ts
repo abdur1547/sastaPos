@@ -1,27 +1,26 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { MatIconModule } from '@angular/material/icon';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  input,
+  output,
+} from "@angular/core";
+import { FormArray, ReactiveFormsModule } from "@angular/forms";
+import { MatIconModule } from "@angular/material/icon";
 
-import { CartLine } from '../../models/sell.model';
+import { PricedLine } from "../../domain/sale-calculator";
+import { SellLineGroup } from "../../state/sell-form.store";
 
 @Component({
-  selector: 'app-sale-items-table',
-  imports: [FormsModule, MatIconModule],
-  templateUrl: './sale-items-table.component.html',
-  styleUrl: './sale-items-table.component.scss',
+  selector: "app-sale-items-table",
+  imports: [ReactiveFormsModule, MatIconModule],
+  templateUrl: "./sale-items-table.component.html",
+  styleUrl: "./sale-items-table.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SaleItemsTableComponent {
-  readonly items = input<CartLine[]>([]);
-  readonly quantityChanged = output<{ productId: string; quantity: number }>();
+  /** One form group per cart line; quantities are edited through their controls. */
+  readonly lines = input.required<FormArray<SellLineGroup>>();
+  /** Priced lines, in the same order as `lines`. */
+  readonly priced = input<readonly PricedLine[]>([]);
   readonly removeItem = output<string>();
-
-  onQuantityChange(productId: string, value: number): void {
-    const quantity = Math.max(1, Math.floor(Number(value) || 1));
-    this.quantityChanged.emit({ productId, quantity });
-  }
-
-  subtotal(item: CartLine): number {
-    return item.quantity * item.unitPrice;
-  }
 }

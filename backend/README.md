@@ -2,7 +2,24 @@
 
 The backend is a Spring Boot monolith for Sasta POS, an offline-first desktop point-of-sale application for the Pakistani market. It provides the central API and PostgreSQL persistence used by desktop clients. Desktop clients are intended to keep a local SQLite database and use PowerSync to synchronize data when connectivity is available.
 
-PowerSync and the desktop SQLite workflow are part of the system architecture, but the current repository does not yet contain the PowerSync connector, sync endpoints, or a committed local schema. Do not treat the synchronization workflow as implemented until those pieces are added.
+PowerSync downloads store-scoped data to the native desktop SQLite database. Queued
+desktop writes use `POST /api/sync/upload`, which routes and coalesces operations into
+feature-owned bulk services.
+
+Supported upload tables are `customers`, `products`, `product_tax_categories`,
+`business_settings` (invoice-counter advancement only), `sales`, `sale_items`,
+`payments`, `ledger_entries`, and `stock_movements`. Parent records are persisted
+before children. Child references and conflicting IDs are store-scoped. Sales
+retain client-generated IDs and invoices; uploading snapshots does not run the
+REST sale-creation side effects again. Ledger uploads recompute customer balances
+inside the write transaction, and invoice counters cannot decrease on retries.
+Store/staff projections and lookup tables remain download-only.
+
+An HTTP 200 upload response can contain per-row rejections. The native client retains
+the batch until the rejection list is empty; correct rejected data/configuration
+before retrying. Older clients acknowledged rejected batches, so previously lost
+writes require reconciliation using the original IDs, not creating a second sale.
+Concurrent offline invoice allocation across devices is not yet coordinated.
 
 ## Technology and Structure
 

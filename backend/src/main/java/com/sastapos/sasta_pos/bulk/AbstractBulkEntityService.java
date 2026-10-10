@@ -37,9 +37,11 @@ public abstract class AbstractBulkEntityService implements BulkEntityService {
     public BulkResult upsertAll(final UUID storeId, final List<BulkRow> rows) {
         final BulkResult result = new BulkResult();
         final List<TypedRow> prepared = prepare(rows, true, result);
-        applyIsolated(prepared, TypedRow::key,
-                batch -> rejected(writer.upsert(table, storeId, batch), "id belongs to another store or references "
-                        + "a row outside the store"), result);
+        applyIsolated(prepared, TypedRow::key, batch -> {
+            final List<Object> refused = writer.upsert(table, storeId, batch);
+            afterWrite(storeId, batch, refused);
+            return rejected(refused, "id belongs to another store or references a row outside the store");
+        }, result);
         return result;
     }
 
@@ -47,9 +49,11 @@ public abstract class AbstractBulkEntityService implements BulkEntityService {
     public BulkResult patchAll(final UUID storeId, final List<BulkRow> rows) {
         final BulkResult result = new BulkResult();
         final List<TypedRow> prepared = prepare(rows, false, result);
-        applyIsolated(prepared, TypedRow::key,
-                batch -> rejected(writer.patch(table, storeId, batch), "row not found in the store or references "
-                        + "a row outside the store"), result);
+        applyIsolated(prepared, TypedRow::key, batch -> {
+            final List<Object> refused = writer.patch(table, storeId, batch);
+            afterWrite(storeId, batch, refused);
+            return rejected(refused, "row not found in the store or references a row outside the store");
+        }, result);
         return result;
     }
 
@@ -70,6 +74,10 @@ public abstract class AbstractBulkEntityService implements BulkEntityService {
 
     /** Cross-field rules on coerced values; throw {@link BulkValidationException} to reject the row. */
     protected void normalize(final Map<String, Object> values, final boolean insert) {
+    }
+
+    /** Runs inside the write transaction, including each isolated retry. */
+    protected void afterWrite(final UUID storeId, final List<TypedRow> rows, final List<Object> refused) {
     }
 
     /** Deletes rows; override to deactivate instead or to refuse. Returns the rows that were refused. */

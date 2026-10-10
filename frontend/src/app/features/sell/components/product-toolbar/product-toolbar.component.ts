@@ -6,42 +6,68 @@ import {
   computed,
   input,
   output,
-  signal,
   viewChild,
-} from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
+} from "@angular/core";
+import { toSignal } from "@angular/core/rxjs-interop";
+import { FormControl, ReactiveFormsModule } from "@angular/forms";
+import {
+  MatAutocompleteModule,
+  MatAutocompleteSelectedEvent,
+  MatAutocompleteTrigger,
+} from "@angular/material/autocomplete";
+import { MatButtonModule } from "@angular/material/button";
+import { MatFormFieldModule } from "@angular/material/form-field";
+import { MatIconModule } from "@angular/material/icon";
+import { MatInputModule } from "@angular/material/input";
+import { map, startWith } from "rxjs";
 
-import { Product } from '../../models/sell.model';
+import { SellProduct } from "../../models/sell.model";
 
 @Component({
-  selector: 'app-product-toolbar',
-  imports: [FormsModule, MatAutocompleteModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule],
-  templateUrl: './product-toolbar.component.html',
-  styleUrl: './product-toolbar.component.scss',
+  selector: "app-product-toolbar",
+  imports: [
+    ReactiveFormsModule,
+    MatAutocompleteModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+  ],
+  templateUrl: "./product-toolbar.component.html",
+  styleUrl: "./product-toolbar.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductToolbarComponent implements AfterViewInit {
-  readonly products = input<Product[]>([]);
-  readonly productSelected = output<Product>();
+  readonly products = input<readonly SellProduct[]>([]);
+  readonly productSelected = output<SellProduct>();
   readonly addProduct = output<void>();
   readonly createReturn = output<void>();
-  readonly searchProducts = output<string>();
 
-  private readonly productInput = viewChild<ElementRef<HTMLInputElement>>('productInput');
+  private readonly productInput =
+    viewChild<ElementRef<HTMLInputElement>>("productInput");
+  private readonly trigger = viewChild(MatAutocompleteTrigger);
 
-  readonly filterText = signal('');
+  protected readonly search = new FormControl("", { nonNullable: true });
 
-  readonly filteredProducts = computed(() => {
-    const term = this.filterText().trim().toLowerCase();
+  private readonly searchText = toSignal(
+    // Material writes the picked option object into the control before `select` clears it.
+    this.search.valueChanges.pipe(
+      startWith(""),
+      map((value) => (typeof value === "string" ? value : "")),
+    ),
+    { initialValue: "" },
+  );
+
+  protected readonly filteredProducts = computed(() => {
+    const term = this.searchText().trim().toLowerCase();
     if (!term) {
       return this.products();
     }
-    return this.products().filter((product) => product.name.toLowerCase().includes(term));
+    return this.products().filter((product) =>
+      [product.name, product.sku, product.barcode].some((field) =>
+        field?.toLowerCase().includes(term),
+      ),
+    );
   });
 
   ngAfterViewInit(): void {
@@ -52,19 +78,40 @@ export class ProductToolbarComponent implements AfterViewInit {
     this.productInput()?.nativeElement.focus();
   }
 
-  onOptionSelected(event: MatAutocompleteSelectedEvent): void {
-    const product = event.option.value as Product;
-    this.productSelected.emit(product);
-    this.filterText.set('');
-    queueMicrotask(() => this.focusSearch());
+  protected onOptionSelected(event: MatAutocompleteSelectedEvent): void {
+    this.select(event.option.value as SellProduct);
   }
 
   // Products are added to the table on select, so the field should stay empty for the next search.
-  displayProduct(): string {
-    return '';
+  protected displayProduct(): string {
+    return "";
   }
 
-  search(): void {
-    this.searchProducts.emit(this.filterText());
+  /** Scanner/Enter flow: an exact barcode or SKU match, or the only remaining match, is added directly. */
+  protected submitSearch(): void {
+    if (this.trigger()?.activeOption) {
+      return;
+    }
+    const term = this.searchText().trim().toLowerCase();
+    if (!term) {
+      return;
+    }
+    const matches = this.filteredProducts();
+    const exact = matches.find(
+      (product) =>
+        product.barcode?.toLowerCase() === term ||
+        product.sku?.toLowerCase() === term,
+    );
+    const target = exact ?? (matches.length === 1 ? matches[0] : null);
+    if (target) {
+      this.trigger()?.closePanel();
+      this.select(target);
+    }
+  }
+
+  private select(product: SellProduct): void {
+    this.productSelected.emit(product);
+    this.search.setValue("");
+    queueMicrotask(() => this.focusSearch());
   }
 }

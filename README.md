@@ -135,6 +135,40 @@ These are registered only in non-production builds (`app.config.ts`), so they ar
 2. Add the table to `frontend/src/app/core/powersync/app-schema.ts`.
 3. The publication is `FOR ALL TABLES`, so no database change is needed.
 
+### Store settings and invoice synchronization
+
+The auto-subscribed store stream includes the current `stores` row, its linked
+`business_settings`, credential-free staff identities, products and their lookup
+tables, customers, sales, sale items, payments, stock movements, and ledger entries.
+Child tables are scoped through their store-owned parent. Password hashes and
+password-reset tokens are never sent to clients; staff management remains a backend
+API workflow.
+
+Completed sales resolve settings through `stores.store_settings_id` for the current
+store, then increment `next_invoice_number` in the same local transaction as the sale.
+Drafts do not require invoice settings. If invoice settings have not synced, check
+that the store has a linked settings row, restart PowerSync after changing the stream
+configuration, and allow the desktop app to sync. Rebuild/relaunch the desktop app
+after changing its local schema; do not delete the local database or pending writes.
+
+This local counter is not a cross-device invoice reservation mechanism. Coordinating
+invoice numbers and persisting their increments on the backend are still required
+before relying on concurrent/offline invoicing across multiple devices.
+The backend upload registry accepts customers, products, product-tax links, sales,
+sale items, payments, ledger entries, stock movements, and invoice-counter updates.
+Parent rows are uploaded before children; ledger balances are recomputed from
+persisted entries so retries do not double-charge customers. Settings uploads can
+only advance the linked store's counter; other settings remain managed by the store
+API. Store and staff identity projections are download-only.
+
+The desktop acknowledges an upload only after a valid response with no rejected
+rows. Rejected or failed batches stay queued and report the reason for correction;
+already-applied rows are safely retried by their original IDs. Older desktop versions
+discarded rejected rows after a successful HTTP response: those missing writes will
+not automatically retry after an upgrade. Reconcile affected local sales and their
+original IDs against the backend before requeueing them; do not recreate completed
+sales or apply stock movements a second time.
+
 ### Build a production desktop bundle
 
 ```bash

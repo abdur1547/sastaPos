@@ -1,0 +1,20 @@
+.payment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 320px;
+}
+
+.total {
+  margin: 0 0 8px;
+}
+
+.remaining {
+  margin: 0 0 8px;
+  color: var(--text-muted, #64748b);
+}
+
+.error {
+  margin: 0 0 8px;
+  color: var(--accent-coral);
+}

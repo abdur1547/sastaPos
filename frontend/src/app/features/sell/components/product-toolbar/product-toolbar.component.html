@@ -1,18 +1,27 @@
 <div class="product-toolbar">
-  <mat-form-field appearance="outline" class="product-field" subscriptSizing="dynamic">
+  <mat-form-field
+    appearance="outline"
+    class="product-field"
+    subscriptSizing="dynamic"
+  >
     <mat-label>Products</mat-label>
     <input
       #productInput
       matInput
       type="text"
       placeholder="Scan or search products"
-      [(ngModel)]="filterText"
+      [formControl]="search"
+      (keydown.enter)="submitSearch()"
       [matAutocomplete]="productAuto"
     />
     <mat-icon matPrefix>inventory_2</mat-icon>
   </mat-form-field>
 
-  <mat-autocomplete #productAuto="matAutocomplete" [displayWith]="displayProduct" (optionSelected)="onOptionSelected($event)">
+  <mat-autocomplete
+    #productAuto="matAutocomplete"
+    [displayWith]="displayProduct"
+    (optionSelected)="onOptionSelected($event)"
+  >
     @for (product of filteredProducts(); track product.id) {
       <mat-option [value]="product">
         <span class="option-name">{{ product.name }}</span>
@@ -21,7 +30,12 @@
     }
   </mat-autocomplete>
 
-  <button mat-icon-button type="button" aria-label="Search products" (click)="search()">
+  <button
+    mat-icon-button
+    type="button"
+    aria-label="Search products"
+    (click)="submitSearch()"
+  >
     <mat-icon>search</mat-icon>
   </button>
 

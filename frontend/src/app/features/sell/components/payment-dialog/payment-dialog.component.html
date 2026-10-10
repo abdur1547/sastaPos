@@ -1,0 +1,77 @@
+<h2 mat-dialog-title>Payment</h2>
+
+<mat-dialog-content>
+  <form
+    class="payment-form"
+    [formGroup]="form"
+    (ngSubmit)="confirm()"
+    id="payment-form"
+  >
+    <p class="total">
+      Total payable <strong>Rs {{ data.total }}</strong>
+    </p>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Method</mat-label>
+      <mat-select formControlName="method">
+        @for (method of methods; track method) {
+          <mat-option [value]="method">{{
+            method === "CASH" ? "Cash" : "Bank"
+          }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Amount received</mat-label>
+      <input
+        matInput
+        type="number"
+        min="0"
+        step="0.01"
+        formControlName="amount"
+      />
+    </mat-form-field>
+
+    @if (remaining() !== "0.00") {
+      <p class="remaining">
+        Rs {{ remaining() }} will be added to
+        {{
+          data.customer
+            ? data.customer.name + "'s account"
+            : "the customer account"
+        }}.
+      </p>
+    }
+    @if (form.errors?.["overpaid"]) {
+      <p class="error" role="alert">Payment cannot exceed the total payable.</p>
+    }
+    @if (form.errors?.["customerRequired"]) {
+      <p class="error" role="alert">
+        Select a customer to sell on credit, or collect the full amount.
+      </p>
+    }
+
+    <mat-form-field appearance="outline">
+      <mat-label>Reference number</mat-label>
+      <input matInput type="text" formControlName="referenceNumber" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Note</mat-label>
+      <input matInput type="text" formControlName="description" />
+    </mat-form-field>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close>Cancel</button>
+  <button
+    mat-flat-button
+    type="submit"
+    form="payment-form"
+    [disabled]="form.invalid"
+  >
+    Complete sale
+  </button>
+</mat-dialog-actions>

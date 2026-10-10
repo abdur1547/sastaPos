@@ -18,6 +18,11 @@ streams:
     queries:
       # Every table referenced here must be included in the Postgres `powersync`
       # publication (see README.md "Postgres setup" section).
+      - SELECT * FROM stores WHERE id = auth.parameter('store_id')
+      # Staff identity is needed by sales and void records. Never sync password_hash.
+      - |
+        SELECT id, name, email, role, status, last_login_at, store_id, date_created, last_updated
+        FROM users WHERE store_id = auth.parameter('store_id')
       - SELECT * FROM products WHERE store_id = auth.parameter('store_id')
       - SELECT * FROM stock_movements WHERE store_id = auth.parameter('store_id')
       # product_tax_categories has no store_id column, so scope it via its product.
@@ -32,6 +37,17 @@ streams:
       - |
         SELECT sale_items.* FROM sale_items
         WHERE sale_id IN (SELECT id FROM sales WHERE store_id = auth.parameter('store_id'))
+      # payments and ledger_entries have no store_id either; scope them via their sale / customer.
+      - |
+        SELECT payments.* FROM payments
+        WHERE sale_id IN (SELECT id FROM sales WHERE store_id = auth.parameter('store_id'))
+      - |
+        SELECT ledger_entries.* FROM ledger_entries
+        WHERE customer_id IN (SELECT id FROM customers WHERE store_id = auth.parameter('store_id'))
+      # Invoice numbering settings of the signed-in store (stores.store_settings_id).
+      - |
+        SELECT * FROM business_settings
+        WHERE id IN (SELECT store_settings_id FROM stores WHERE id = auth.parameter('store_id'))
 
   # Example of a per-user stream (not auto-subscribed): uncomment and adapt
   # once you have JWTs including a user id claim.
