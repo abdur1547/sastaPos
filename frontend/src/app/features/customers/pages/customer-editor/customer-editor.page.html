@@ -22,7 +22,7 @@
   [customer]="customer()"
   [saving]="saving()"
   [errorMessage]="saveError()"
-  (save)="save($event)"
-  (cancel)="goBack()"
+  (submitted)="save($event)"
+  (cancelled)="goBack()"
 />
 } }

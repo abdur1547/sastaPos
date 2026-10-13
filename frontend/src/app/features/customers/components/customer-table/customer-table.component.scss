@@ -11,7 +11,7 @@
   overflow: auto;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: #ffffff;
+  background: #fff;
 }
 
 .loading-bar {
@@ -99,9 +99,19 @@ tbody tr:focus-visible {
   text-align: center;
 }
 
-.balance-settled { color: var(--ink-muted); }
-.balance-owes { background: #fef3c7; color: #92400e; }
-.balance-credit { background: #dbeafe; color: #1e40af; }
+.balance-settled {
+  color: var(--ink-muted);
+}
+
+.balance-owes {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.balance-credit {
+  background: #dbeafe;
+  color: #1e40af;
+}
 
 .status {
   padding: 2px 10px;

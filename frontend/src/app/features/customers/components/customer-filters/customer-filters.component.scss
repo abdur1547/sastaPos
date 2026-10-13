@@ -8,7 +8,7 @@
   padding: 16px;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: #ffffff;
+  background: #fff;
 }
 
 .filters-row {
@@ -28,10 +28,21 @@
   gap: 8px;
 }
 
-.operator-field { width: 180px; }
-.number-field { width: 110px; }
-.unit-field { width: 170px; }
-.sort-field { width: 150px; }
+.operator-field {
+  width: 180px;
+}
+
+.number-field {
+  width: 110px;
+}
+
+.unit-field {
+  width: 170px;
+}
+
+.sort-field {
+  width: 150px;
+}
 
 .quick-row {
   padding-top: 4px;

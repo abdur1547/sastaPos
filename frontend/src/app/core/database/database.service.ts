@@ -122,7 +122,7 @@ export class DatabaseService {
       execute: <Row extends SqliteRecord = SqliteRecord>(
         sql: string,
         parameters: readonly SqliteValue[] = [],
-      ) => this.executeOn(transaction, sql, parameters),
+      ) => this.executeOn<Row>(transaction, sql, parameters),
       getAll: <Row extends SqliteRecord>(
         sql: string,
         parameters: readonly SqliteValue[] = [],

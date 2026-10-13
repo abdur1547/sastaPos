@@ -18,8 +18,4 @@ export class AppComponent {
   protected signOut(): Promise<void> {
     return this.auth.logout();
   }
-  
-  async ngOnInit(): Promise<void> {}
-
-  async ngOnDestroy(): Promise<void> {}
 }

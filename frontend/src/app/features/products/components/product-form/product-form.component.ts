@@ -52,8 +52,8 @@ export class ProductFormComponent {
   readonly saving = input(false);
   readonly errorMessage = input("");
 
-  readonly save = output<ProductFormValue>();
-  readonly cancel = output<void>();
+  readonly submitted = output<ProductFormValue>();
+  readonly cancelled = output<void>();
 
   protected readonly isEdit = computed(() => this.product() !== null);
 
@@ -103,7 +103,7 @@ export class ProductFormComponent {
       return;
     }
     const value = this.form.getRawValue();
-    this.save.emit({
+    this.submitted.emit({
       ...value,
       taxCategoryIds: value.taxCategoryIds,
       status: value.status ? "ACTIVE" : "INACTIVE",

@@ -11,7 +11,7 @@
   padding: 20px;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: #ffffff;
+  background: #fff;
 }
 
 h2 {
@@ -29,8 +29,13 @@ h2 {
   column-gap: 16px;
 }
 
-.grid > mat-form-field { grid-column: span 2; }
-.grid > .span-2 { grid-column: span 2; }
+.grid > mat-form-field {
+  grid-column: span 2;
+}
+
+.grid > .span-2 {
+  grid-column: span 2;
+}
 
 .actions {
   display: flex;
@@ -38,7 +43,9 @@ h2 {
   gap: 12px;
 }
 
-.spacer { flex: 1 1 auto; }
+.spacer {
+  flex: 1 1 auto;
+}
 
 .actions button {
   display: inline-flex;
@@ -52,14 +59,20 @@ h2 {
   font-size: 13px;
 }
 
-@media (max-width: 720px) {
-  .grid { grid-template-columns: 1fr; }
-  .grid > mat-form-field, .grid > .span-2 { grid-column: auto; }
+@media (width <= 720px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .grid > mat-form-field,
+  .grid > .span-2 {
+    grid-column: auto;
+  }
 }
 
 .primary-button {
   background: var(--accent-teal) !important;
-  color: #ffffff !important;
+  color: #fff !important;
 }
 
 .danger-button {

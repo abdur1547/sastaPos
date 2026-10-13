@@ -81,7 +81,16 @@ yarn tauri build
 # production desktop binary/package build
 
 yarn lint
-# lint frontend code
+# lint TypeScript, Angular templates, and SCSS
+
+yarn lint:eslint
+# lint TypeScript and Angular templates
+
+yarn lint:scss
+# lint SCSS
+
+yarn lint:fix
+# automatically fix supported lint issues
 
 yarn test
 # run Jest tests

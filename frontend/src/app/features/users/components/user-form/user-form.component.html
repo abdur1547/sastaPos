@@ -49,13 +49,13 @@
 
   <div class="actions">
     @if (isEdit() && user()!.role !== 'OWNER') {
-      <button mat-stroked-button type="button" class="danger-button" [disabled]="saving()" (click)="remove.emit()">
+      <button mat-stroked-button type="button" class="danger-button" [disabled]="saving()" (click)="removed.emit()">
         <mat-icon>delete</mat-icon>
         Delete
       </button>
     }
     <span class="spacer"></span>
-    <button mat-stroked-button type="button" [disabled]="saving()" (click)="cancel.emit()">Cancel</button>
+    <button mat-stroked-button type="button" [disabled]="saving()" (click)="cancelled.emit()">Cancel</button>
     <button mat-flat-button type="submit" class="primary-button" [disabled]="saving()">
       @if (saving()) {
         <mat-spinner diameter="18" />

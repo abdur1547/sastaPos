@@ -1,0 +1,94 @@
+<ng-template #sortHeader let-field="field" let-label="label">
+  <button type="button" class="sort-button" (click)="toggleSort(field)">
+    {{ label }}
+    <mat-icon class="sort-icon" [class.is-active]="sort().field === field" aria-hidden="true">{{ sortIcon(field) }}</mat-icon>
+  </button>
+</ng-template>
+
+<div class="table-scroll">
+  @if (loading()) {
+    <mat-progress-bar class="loading-bar" mode="indeterminate" />
+  }
+  <table class="sales-table">
+    <thead>
+      <tr>
+        <th [attr.aria-sort]="ariaSort('invoiceNumber')">
+          <ng-container *ngTemplateOutlet="sortHeader; context: { field: 'invoiceNumber', label: 'Invoice' }" />
+        </th>
+        <th [attr.aria-sort]="ariaSort('soldAt')">
+          <ng-container *ngTemplateOutlet="sortHeader; context: { field: 'soldAt', label: 'Date & time' }" />
+        </th>
+        <th class="col-wide">Customer</th>
+        <th>Cashier</th>
+        <th class="col-number">Items</th>
+        <th>Payment</th>
+        <th class="col-number" [attr.aria-sort]="ariaSort('totalAmount')">
+          <ng-container *ngTemplateOutlet="sortHeader; context: { field: 'totalAmount', label: 'Total' }" />
+        </th>
+        <th class="col-number">Paid</th>
+        <th class="col-number" [attr.aria-sort]="ariaSort('remaining')">
+          <ng-container *ngTemplateOutlet="sortHeader; context: { field: 'remaining', label: 'Due' }" />
+        </th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (sale of sales(); track sale.id) {
+        <tr
+          tabindex="0"
+          role="link"
+          [class.is-voided]="sale.status === 'VOIDED'"
+          [attr.aria-label]="'Open sale ' + sale.invoiceNumber"
+          (click)="selectSale.emit(sale)"
+          (keydown.enter)="selectSale.emit(sale)"
+          (keydown.space)="$event.preventDefault(); selectSale.emit(sale)"
+        >
+          <td><span class="invoice">{{ sale.invoiceNumber }}</span></td>
+          <td>
+            <span class="primary">{{ sale.soldAt | date: 'mediumDate' }}</span>
+            <span class="secondary">{{ sale.soldAt | date: 'shortTime' }}</span>
+          </td>
+          <td class="col-wide">
+            @if (sale.customer; as customer) {
+              <span class="primary">{{ customer.name }}</span>
+            } @else {
+              <span class="muted">Walk-in</span>
+            }
+          </td>
+          <td>{{ sale.cashierName ?? '—' }}</td>
+          <td class="col-number">{{ sale.itemCount }}</td>
+          <td>
+            <span class="primary">{{ methods(sale) }}</span>
+            <span class="secondary">{{ sale.saleType === 'CREDIT' ? 'On account' : 'Paid sale' }}</span>
+          </td>
+          <td class="col-number amount strong">Rs {{ sale.totalAmount }}</td>
+          <td class="col-number amount">Rs {{ sale.totalPaid }}</td>
+          <td class="col-number amount">
+            @if (isDue(sale)) {
+              <span class="pill pill-due">Rs {{ sale.remaining }}</span>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+          <td>
+            @if (sale.status === 'VOIDED') {
+              <span class="pill pill-voided">Voided</span>
+            } @else {
+              <span class="pill pill-completed">Completed</span>
+            }
+          </td>
+        </tr>
+      } @empty {
+        @if (!loading()) {
+          <tr class="empty-row">
+            <td [attr.colspan]="columnCount">
+              <mat-icon>receipt_long</mat-icon>
+              <span>No sales match the current filters.</span>
+              <span class="secondary">Try a wider period or reset the filters.</span>
+            </td>
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+</div>

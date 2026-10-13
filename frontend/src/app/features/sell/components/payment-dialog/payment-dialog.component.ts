@@ -12,6 +12,7 @@ import {
   ValidationErrors,
   Validators,
 } from "@angular/forms";
+import { MatAutocompleteModule } from "@angular/material/autocomplete";
 import { MatButtonModule } from "@angular/material/button";
 import {
   MAT_DIALOG_DATA,
@@ -19,6 +20,7 @@ import {
   MatDialogRef,
 } from "@angular/material/dialog";
 import { MatFormFieldModule } from "@angular/material/form-field";
+import { MatIconModule } from "@angular/material/icon";
 import { MatInputModule } from "@angular/material/input";
 import { MatSelectModule } from "@angular/material/select";
 import { startWith } from "rxjs";
@@ -31,15 +33,24 @@ import { CheckoutPayment } from "../../sale.service";
 export interface PaymentDialogData {
   readonly total: string;
   readonly customer: SellCustomer | null;
+  /** Offered when the sale is (partly) on credit and needs a customer account. */
+  readonly customers: readonly SellCustomer[];
+}
+
+export interface PaymentDialogResult {
+  readonly payment: CheckoutPayment;
+  readonly customer: SellCustomer | null;
 }
 
 @Component({
   selector: "app-payment-dialog",
   imports: [
     ReactiveFormsModule,
+    MatAutocompleteModule,
     MatButtonModule,
     MatDialogModule,
     MatFormFieldModule,
+    MatIconModule,
     MatInputModule,
     MatSelectModule,
   ],
@@ -50,7 +61,9 @@ export interface PaymentDialogData {
 export class PaymentDialogComponent {
   protected readonly data = inject<PaymentDialogData>(MAT_DIALOG_DATA);
   private readonly dialogRef =
-    inject<MatDialogRef<PaymentDialogComponent, CheckoutPayment>>(MatDialogRef);
+    inject<MatDialogRef<PaymentDialogComponent, PaymentDialogResult>>(
+      MatDialogRef,
+    );
 
   protected readonly methods: readonly PaymentMethod[] = ["CASH", "BANK"];
 
@@ -61,6 +74,10 @@ export class PaymentDialogComponent {
         Validators.required,
         Validators.min(0),
       ]),
+      /** A string while the cashier is typing, the picked customer once chosen. */
+      customer: new FormControl<SellCustomer | string | null>(
+        this.data.customer,
+      ),
       referenceNumber: new FormControl("", {
         nonNullable: true,
         validators: [Validators.maxLength(255)],
@@ -70,7 +87,13 @@ export class PaymentDialogComponent {
         validators: [Validators.maxLength(500)],
       }),
     },
-    { validators: (group) => this.validateAmount(group.value.amount ?? null) },
+    {
+      validators: (group) =>
+        this.validateAmount(
+          group.value.amount ?? null,
+          asCustomer(group.value.customer),
+        ),
+    },
   );
 
   private readonly amount = toSignal(
@@ -82,11 +105,53 @@ export class PaymentDialogComponent {
     },
   );
 
+  private readonly customerValue = toSignal(
+    this.form.controls.customer.valueChanges.pipe(
+      startWith(this.form.controls.customer.value),
+    ),
+    { initialValue: this.form.controls.customer.value },
+  );
+
+  protected readonly selectedCustomer = computed(() =>
+    asCustomer(this.customerValue()),
+  );
+
+  protected readonly filteredCustomers = computed(() => {
+    const value = this.customerValue();
+    const term = (typeof value === "string" ? value : (value?.name ?? ""))
+      .trim()
+      .toLowerCase();
+    if (!term || typeof value !== "string") {
+      return this.data.customers;
+    }
+    return this.data.customers.filter(
+      (customer) =>
+        customer.name.toLowerCase().includes(term) ||
+        (customer.phoneNumber ?? "").includes(term),
+    );
+  });
+
   protected readonly remaining = computed(() => {
     const paid = toScaled(this.amount() ?? 0, 2);
     const remaining = toScaled(this.data.total, 2) - paid;
     return remaining > 0n ? fromScaled(remaining, 2) : "0.00";
   });
+
+  protected readonly isCredit = computed(() => this.remaining() !== "0.00");
+
+  protected displayCustomer(customer: SellCustomer | string | null): string {
+    return typeof customer === "string" ? customer : (customer?.name ?? "");
+  }
+
+  protected selectSingleMatch(): void {
+    const matches = this.filteredCustomers();
+    if (
+      matches.length === 1 &&
+      typeof this.form.controls.customer.value === "string"
+    ) {
+      this.form.controls.customer.setValue(matches[0]);
+    }
+  }
 
   protected confirm(): void {
     if (this.form.invalid) {
@@ -95,14 +160,20 @@ export class PaymentDialogComponent {
     }
     const value = this.form.getRawValue();
     this.dialogRef.close({
-      amount: value.amount ?? 0,
-      method: value.method,
-      referenceNumber: value.referenceNumber,
-      description: value.description,
+      payment: {
+        amount: value.amount ?? 0,
+        method: value.method,
+        referenceNumber: value.referenceNumber,
+        description: value.description,
+      },
+      customer: asCustomer(value.customer),
     });
   }
 
-  private validateAmount(amount: number | null): ValidationErrors | null {
+  private validateAmount(
+    amount: number | null,
+    customer: SellCustomer | null,
+  ): ValidationErrors | null {
     if (amount === null) {
       return null;
     }
@@ -111,9 +182,15 @@ export class PaymentDialogComponent {
     if (paid > total) {
       return { overpaid: true };
     }
-    if (paid < total && !this.data.customer) {
+    if (paid < total && !customer) {
       return { customerRequired: true };
     }
     return null;
   }
+}
+
+function asCustomer(
+  value: SellCustomer | string | null | undefined,
+): SellCustomer | null {
+  return value && typeof value === "object" ? value : null;
 }

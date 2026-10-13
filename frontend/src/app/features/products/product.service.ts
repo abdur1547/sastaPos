@@ -4,9 +4,6 @@ import { Observable } from "rxjs";
 import { AuthService } from "../../core/auth/auth.service";
 import { CreateProductInput, UpdateProductInput } from "./product-input.model";
 import {
-  ProductConflictError,
-  ProductNotFoundError,
-  ProductPersistenceError,
   ProductValidationError,
 } from "./product.errors";
 import { ProductRepository, ProductChanges } from "./product.repository";

@@ -1,0 +1,252 @@
+<a class="back-link" routerLink="/sales">
+  <mat-icon>arrow_back</mat-icon>
+  Sales register
+</a>
+
+@switch (state().status) {
+  @case ('loading') {
+    <mat-progress-bar mode="indeterminate" />
+  }
+  @case ('missing') {
+    <section class="card empty-state">
+      <mat-icon>search_off</mat-icon>
+      <h2>Sale not found</h2>
+      <p>It may belong to another store or has not synced to this device yet.</p>
+    </section>
+  }
+  @case ('error') {
+    <p class="load-error" role="alert">{{ $any(state()).message }}</p>
+  }
+}
+
+@if (sale(); as detail) {
+  @let header = detail.header;
+
+  <header class="doc-header">
+    <div>
+      <p class="section-label">Sale record</p>
+      <h1>
+        {{ header.invoiceNumber }}
+        @if (header.status === 'VOIDED') {
+          <span class="status-chip is-voided">Voided</span>
+        } @else {
+          <span class="status-chip is-completed">Completed</span>
+        }
+      </h1>
+      <p class="subtitle">
+        {{ header.soldAt | date: 'EEEE, d MMMM y, h:mm a' }} · {{ itemCount() }} item{{ itemCount() === 1 ? '' : 's' }}
+      </p>
+    </div>
+
+    <div class="actions">
+      @if (header.status !== 'VOIDED') {
+        <span [matTooltip]="voidDecision()?.allowed ? '' : $any(voidDecision()).reason" matTooltipPosition="below">
+          <button
+            type="button"
+            class="danger-button"
+            [disabled]="!voidDecision()?.allowed || voiding()"
+            (click)="openVoidDialog()"
+          >
+            <mat-icon>block</mat-icon>
+            Void sale
+          </button>
+        </span>
+      }
+    </div>
+  </header>
+
+  @if (header.voided; as voided) {
+    <section class="void-banner" role="status">
+      <mat-icon>block</mat-icon>
+      <div>
+        <strong>This sale was voided</strong>
+        <span>
+          {{ voided.at ? (voided.at | date: 'medium') : 'Date unknown' }}
+          @if (voided.byName) { by {{ voided.byName }} }
+        </span>
+        <span class="void-reason">“{{ voided.reason }}”</span>
+        <span class="hint">Stock and customer balances were reversed by the entries in the audit trail below.</span>
+      </div>
+    </section>
+  }
+
+  <section class="card overview" aria-label="Sale overview">
+    <div class="field">
+      <span class="label">Customer</span>
+      @if (header.customer; as customer) {
+        <a class="value link" [routerLink]="['/customers', customer.id]">{{ customer.name }}</a>
+        @if (customer.phoneNumber) {
+          <span class="hint">{{ customer.phoneNumber }}</span>
+        }
+      } @else {
+        <span class="value">Walk-in customer</span>
+      }
+    </div>
+    <div class="field">
+      <span class="label">Cashier</span>
+      <span class="value">{{ header.cashier.name ?? 'Unknown user' }}</span>
+    </div>
+    <div class="field">
+      <span class="label">Sale type</span>
+      <span class="value">{{ header.saleType === 'CREDIT' ? 'On account' : 'Paid sale' }}</span>
+    </div>
+    <div class="field">
+      <span class="label">Payment status</span>
+      @if (isPositive(header.remaining) && header.status === 'COMPLETED') {
+        <span class="value"><span class="pill pill-due">Rs {{ header.remaining }} due</span></span>
+      } @else if (header.status === 'COMPLETED') {
+        <span class="value"><span class="pill pill-paid">Paid in full</span></span>
+      } @else {
+        <span class="value">—</span>
+      }
+    </div>
+    @if (header.description) {
+      <div class="field is-wide">
+        <span class="label">Note</span>
+        <span class="value">{{ header.description }}</span>
+      </div>
+    }
+  </section>
+
+  <section class="card" aria-labelledby="items-heading">
+    <h2 id="items-heading">Items</h2>
+    <table class="doc-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th class="col-wide">Product</th>
+          <th class="col-number">Qty</th>
+          <th class="col-number">Unit price</th>
+          <th class="col-number">Tax</th>
+          <th class="col-number">Line total</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of detail.items; track item.id; let index = $index) {
+          <tr>
+            <td class="muted">{{ index + 1 }}</td>
+            <td class="col-wide">
+              <span class="strong">{{ item.productName }}</span>
+              @if (item.sku) { <span class="hint">SKU {{ item.sku }}</span> }
+            </td>
+            <td class="col-number">{{ item.quantity }}</td>
+            <td class="col-number">Rs {{ item.unitPrice }}</td>
+            <td class="col-number">{{ item.taxRate }}%</td>
+            <td class="col-number strong">Rs {{ item.lineTotal }}</td>
+          </tr>
+        } @empty {
+          <tr><td colspan="6" class="muted empty-cell">No items recorded.</td></tr>
+        }
+      </tbody>
+    </table>
+
+    <dl class="totals">
+      <div><dt>Subtotal</dt><dd>Rs {{ header.subtotal }}</dd></div>
+      @if (isPositive(header.discountAmount)) {
+        <div><dt>Discount</dt><dd>− Rs {{ header.discountAmount }}</dd></div>
+      }
+      <div><dt>Tax</dt><dd>Rs {{ header.taxAmount }}</dd></div>
+      <div class="grand"><dt>Total</dt><dd>Rs {{ header.totalAmount }}</dd></div>
+      <div><dt>Paid</dt><dd>Rs {{ header.totalPaid }}</dd></div>
+      <div [class.is-due]="isPositive(header.remaining)"><dt>Balance due</dt><dd>Rs {{ header.remaining }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="card" aria-labelledby="payments-heading">
+    <h2 id="payments-heading">Payments</h2>
+    @if (detail.payments.length) {
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th class="col-wide">Reference / note</th>
+            <th>Received</th>
+            <th class="col-number">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (payment of detail.payments; track payment.id) {
+            <tr>
+              <td class="strong">{{ methodLabel(payment.method) }}</td>
+              <td class="col-wide">
+                {{ payment.referenceNumber ?? '' }}
+                @if (payment.description) { <span class="hint">{{ payment.description }}</span> }
+                @if (!payment.referenceNumber && !payment.description) { <span class="muted">—</span> }
+              </td>
+              <td>{{ payment.createdAt ? (payment.createdAt | date: 'short') : '—' }}</td>
+              <td class="col-number strong">Rs {{ payment.amount }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p class="muted">No payment was taken. The full amount was charged to the customer's account.</p>
+    }
+  </section>
+
+  @if (hasAuditTrail()) {
+    <section class="card" aria-labelledby="audit-heading">
+      <h2 id="audit-heading">Audit trail</h2>
+      <p class="hint section-hint">Entries this sale wrote to stock and to the customer's account. They are never edited; a void adds reversing entries.</p>
+
+      @if (detail.stockMovements.length) {
+        <h3>Stock movements</h3>
+        <table class="doc-table">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th class="col-wide">Product</th>
+              <th>Movement</th>
+              <th class="col-number">Qty</th>
+              <th class="col-number">Stock before → after</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (movement of detail.stockMovements; track movement.id) {
+              <tr>
+                <td>{{ movement.createdAt ? (movement.createdAt | date: 'short') : '—' }}</td>
+                <td class="col-wide">
+                  {{ movement.productName ?? 'Deleted product' }}
+                  @if (movement.description) { <span class="hint">{{ movement.description }}</span> }
+                </td>
+                <td>
+                  <span class="pill" [class.pill-in]="movement.type === 'ADJUSTMENT_IN'" [class.pill-out]="movement.type !== 'ADJUSTMENT_IN'">
+                    {{ movementLabel(movement.type) }}
+                  </span>
+                </td>
+                <td class="col-number">{{ movement.type === 'ADJUSTMENT_IN' ? '+' : '−' }}{{ movement.quantity }}</td>
+                <td class="col-number muted">{{ movement.quantityBefore }} → {{ movement.quantityAfter }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+
+      @if (detail.ledgerEntries.length) {
+        <h3>Customer account entries</h3>
+        <table class="doc-table">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Entry</th>
+              <th class="col-wide">Description</th>
+              <th class="col-number">Debit</th>
+              <th class="col-number">Credit</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (entry of detail.ledgerEntries; track entry.id) {
+              <tr>
+                <td>{{ entry.createdAt ? (entry.createdAt | date: 'short') : '—' }}</td>
+                <td class="strong">{{ ledgerLabel(entry.type) }}</td>
+                <td class="col-wide muted">{{ entry.description ?? '—' }}</td>
+                <td class="col-number">{{ entry.direction === 'DEBIT' ? 'Rs ' + entry.amount : '' }}</td>
+                <td class="col-number">{{ entry.direction === 'CREDIT' ? 'Rs ' + entry.amount : '' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </section>
+  }
+}

@@ -89,7 +89,7 @@
   }
 
   <div class="actions">
-    <button mat-stroked-button type="button" [disabled]="saving()" (click)="cancel.emit()">Cancel</button>
+    <button mat-stroked-button type="button" [disabled]="saving()" (click)="cancelled.emit()">Cancel</button>
     <button mat-flat-button type="submit" class="primary-button" [disabled]="saving()">
       @if (saving()) {
         <mat-spinner diameter="18" />

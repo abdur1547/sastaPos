@@ -43,8 +43,8 @@ export class CustomerFormComponent {
   readonly saving = input(false);
   readonly errorMessage = input("");
 
-  readonly save = output<CustomerFormValue>();
-  readonly cancel = output<void>();
+  readonly submitted = output<CustomerFormValue>();
+  readonly cancelled = output<void>();
 
   protected readonly isEdit = computed(() => this.customer() !== null);
   protected readonly balanceLabel = computed(() => {
@@ -86,7 +86,7 @@ export class CustomerFormComponent {
       return;
     }
     const value = this.form.getRawValue();
-    this.save.emit({ ...value, status: value.status ? "ACTIVE" : "INACTIVE" });
+    this.submitted.emit({ ...value, status: value.status ? "ACTIVE" : "INACTIVE" });
   }
 
   protected fieldError(control: AbstractControl): string {

@@ -19,6 +19,7 @@ import { CustomerToolbarComponent } from "./components/customer-toolbar/customer
 import {
   PaymentDialogComponent,
   PaymentDialogData,
+  PaymentDialogResult,
 } from "./components/payment-dialog/payment-dialog.component";
 import { PendingBillsBarComponent } from "./components/pending-bills-bar/pending-bills-bar.component";
 import { ProductToolbarComponent } from "./components/product-toolbar/product-toolbar.component";
@@ -206,18 +207,25 @@ export class SellPage {
     const data: PaymentDialogData = {
       total: this.store.totals().total,
       customer: this.store.customer(),
+      customers: this.customers(),
     };
-    const payment = await firstValueFrom(
+    const result = await firstValueFrom(
       this.dialog
-        .open(PaymentDialogComponent, { data, autoFocus: "first-tabbable" })
+        .open<PaymentDialogComponent, PaymentDialogData, PaymentDialogResult>(
+          PaymentDialogComponent,
+          { data, autoFocus: "first-tabbable" },
+        )
         .afterClosed(),
     );
-    if (!payment) {
+    if (!result) {
       return;
+    }
+    if (result.customer && result.customer.id !== this.store.customer()?.id) {
+      this.store.setCustomer(result.customer);
     }
     await this.run(async () => {
       const receipt = await this.sales.complete(
-        this.store.checkoutInput(payment),
+        this.store.checkoutInput(result.payment),
       );
       this.store.reset();
       this.notify(`Sale ${receipt.invoiceNumber} completed.`);

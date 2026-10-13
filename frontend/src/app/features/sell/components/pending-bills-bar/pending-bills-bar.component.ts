@@ -17,6 +17,6 @@ import { PendingBill } from "../../models/sell.model";
 })
 export class PendingBillsBarComponent {
   readonly bills = input<readonly PendingBill[]>([]);
-  readonly resume = output<string>();
-  readonly remove = output<string>();
+  readonly resumed = output<string>();
+  readonly removed = output<string>();
 }

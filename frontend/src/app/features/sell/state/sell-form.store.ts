@@ -25,8 +25,6 @@ export type SellFormGroup = FormGroup<{
   lines: FormArray<SellLineGroup>;
 }>;
 
-const MIN_QUANTITY = 0.01;
-
 function quantityValidator(product: SellProduct): ValidatorFn {
   return (control: AbstractControl<number | null>): ValidationErrors | null => {
     const value = control.value;

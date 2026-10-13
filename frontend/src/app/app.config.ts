@@ -1,7 +1,6 @@
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import {
   ApplicationConfig,
-  ErrorHandler,
   inject,
   provideAppInitializer,
   provideZoneChangeDetection,
@@ -14,7 +13,6 @@ import { routes } from './app.routes';
 import { AuthService } from './core/auth/auth.service';
 import { authTokenInterceptor } from './core/auth/auth-token.interceptor';
 import { LocalDbSeeder } from './core/dev/local-db-seeder';
-import { GlobalErrorHandler } from './core/error/global-error-handler';
 import { PowerSyncService } from './core/powersync/powersync.service';
 
 export const appConfig: ApplicationConfig = {
@@ -23,7 +21,6 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideAnimationsAsync(),
     provideHttpClient(withFetch(), withInterceptors([authTokenInterceptor])),
-    // { provide: ErrorHandler, useClass: GlobalErrorHandler },
     provideAppInitializer(() => inject(AuthService).restoreSession()),
     provideAppInitializer(() => inject(PowerSyncService).connect()),
     provideAppInitializer(() => {

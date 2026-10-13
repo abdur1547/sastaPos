@@ -1,0 +1,115 @@
+.content {
+  display: grid;
+  gap: 16px;
+  max-width: 520px;
+}
+
+.lead {
+  margin: 0;
+  color: var(--ink-strong);
+}
+
+.impact {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface-canvas);
+  list-style: none;
+}
+
+.impact li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.impact li > mat-icon {
+  flex: none;
+  color: var(--accent-teal);
+}
+
+.impact li.is-warning > mat-icon {
+  color: var(--accent-amber);
+}
+
+.impact div {
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.impact span {
+  color: var(--ink-muted);
+}
+
+.reason-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  padding: 5px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink-strong);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chip:hover:not(:disabled) {
+  border-color: var(--accent-amber);
+}
+
+.chip.is-selected {
+  border-color: var(--accent-amber);
+  background: #fef3c7;
+}
+
+.reason-field {
+  width: 100%;
+}
+
+.error {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.danger-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent-coral);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.danger-button mat-icon {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+}

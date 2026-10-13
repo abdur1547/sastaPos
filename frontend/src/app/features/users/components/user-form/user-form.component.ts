@@ -49,9 +49,9 @@ export class UserFormComponent {
   readonly saving = input(false);
   readonly errorMessage = input("");
 
-  readonly save = output<UserFormValue>();
-  readonly cancel = output<void>();
-  readonly remove = output<void>();
+  readonly submitted = output<UserFormValue>();
+  readonly cancelled = output<void>();
+  readonly removed = output<void>();
 
   protected readonly isEdit = computed(() => this.user() !== null);
 
@@ -89,7 +89,7 @@ export class UserFormComponent {
       return;
     }
     const { name, email, password } = this.form.getRawValue();
-    this.save.emit({ name, email, password });
+    this.submitted.emit({ name, email, password });
   }
 
   protected fieldError(control: AbstractControl): string {

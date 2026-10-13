@@ -11,7 +11,7 @@
   padding: 20px;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: #ffffff;
+  background: #fff;
 }
 
 h2 {
@@ -29,8 +29,13 @@ h2 {
   column-gap: 16px;
 }
 
-.span-2 { grid-column: span 2; }
-.span-3 { grid-column: span 3; }
+.span-2 {
+  grid-column: span 2;
+}
+
+.span-3 {
+  grid-column: span 3;
+}
 
 .actions {
   display: flex;
@@ -44,12 +49,18 @@ h2 {
   gap: 8px;
 }
 
-@media (max-width: 720px) {
-  .grid { grid-template-columns: 1fr; }
-  .span-2, .span-3 { grid-column: auto; }
+@media (width <= 720px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .span-2,
+  .span-3 {
+    grid-column: auto;
+  }
 }
 
 .primary-button {
   background: var(--accent-teal) !important;
-  color: #ffffff !important;
+  color: #fff !important;
 }

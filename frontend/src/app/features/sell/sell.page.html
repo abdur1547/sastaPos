@@ -2,8 +2,8 @@
   <app-pending-bills-bar
     class="section"
     [bills]="pendingBills()"
-    (resume)="onResumeBill($event)"
-    (remove)="onRemoveBill($event)"
+    (resumed)="onResumeBill($event)"
+    (removed)="onRemoveBill($event)"
   />
 
   <app-customer-toolbar
@@ -34,6 +34,7 @@
     class="section"
     [itemCount]="store.items().length"
     [totalQuantity]="store.totalQuantity()"
+    [subtotal]="store.totals().subtotal"
     [discount]="store.form.controls.discount"
     [discountError]="store.discountTooHigh()"
     [tax]="store.totals().tax"

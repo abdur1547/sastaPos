@@ -1,0 +1,106 @@
+<h2 mat-dialog-title>Void sale {{ header.invoiceNumber }}?</h2>
+
+<mat-dialog-content>
+  <form class="content" (submit)="$event.preventDefault(); submit()">
+    <p class="lead">
+      The sale stays in the register as <strong>Voided</strong> for your records. These reversing entries will be
+      added:
+    </p>
+
+    <ul class="impact">
+      <li>
+        <mat-icon>inventory_2</mat-icon>
+        <div>
+          <strong>Stock returned</strong>
+          <span>
+            @for (item of data.sale.items; track item.id; let last = $last) {
+              {{ item.quantity }} × {{ item.productName }}{{ last ? '' : ', ' }}
+            } @empty {
+              No items on this sale.
+            }
+          </span>
+        </div>
+      </li>
+      @if (header.customer; as customer) {
+        <li>
+          <mat-icon>account_balance_wallet</mat-icon>
+          <div>
+            <strong>{{ customer.name }}'s account</strong>
+            <span>
+              @if (balanceChange(); as change) {
+                Balance reduced by Rs {{ change }} (the unpaid part of this bill).
+              } @else {
+                Balance unchanged — the bill was fully paid.
+              }
+            </span>
+          </div>
+        </li>
+      }
+      @if (hasPayments) {
+        <li class="is-warning">
+          <mat-icon>payments</mat-icon>
+          <div>
+            <strong>Refund Rs {{ header.totalPaid }} to the customer</strong>
+            <span>
+              @if (header.customer) {
+                The payment is reversed on the customer's account. Hand back the money or keep it as their credit.
+              } @else {
+                Hand the money back from the drawer.
+              }
+            </span>
+          </div>
+        </li>
+      }
+    </ul>
+
+    <div class="reason-chips" role="group" aria-label="Common reasons">
+      @for (quick of quickReasons; track quick) {
+        <button
+          type="button"
+          class="chip"
+          [class.is-selected]="isQuickReason(quick)"
+          [attr.aria-pressed]="isQuickReason(quick)"
+          [disabled]="saving()"
+          (click)="selectQuickReason(quick)"
+        >
+          {{ quick }}
+        </button>
+      }
+    </div>
+
+    <mat-form-field appearance="outline" class="reason-field">
+      <mat-label>Reason for voiding</mat-label>
+      <textarea
+        matInput
+        cdkFocusInitial
+        rows="3"
+        [formControl]="reason"
+        [attr.maxlength]="maxLength"
+        [readonly]="saving()"
+      ></textarea>
+      <mat-hint align="end">{{ reason.value.length }} / {{ maxLength }}</mat-hint>
+      @if (reason.hasError('required') || reason.hasError('pattern')) {
+        <mat-error>A reason is required. It is saved on the sale and its reversing entries.</mat-error>
+      }
+    </mat-form-field>
+
+    @if (error(); as message) {
+      <p class="error" role="alert">
+        <mat-icon>error</mat-icon>
+        {{ message }}
+      </p>
+    }
+  </form>
+</mat-dialog-content>
+
+@if (saving()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close [disabled]="saving()">Keep sale</button>
+  <button type="button" class="danger-button" [disabled]="saving()" (click)="submit()">
+    <mat-icon>block</mat-icon>
+    {{ saving() ? 'Voiding…' : 'Void sale' }}
+  </button>
+</mat-dialog-actions>

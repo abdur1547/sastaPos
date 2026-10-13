@@ -1,0 +1,39 @@
+<header class="page-heading">
+  <p class="section-label">Ledgers</p>
+  <h1>Sales register</h1>
+  <p class="subtitle">Every completed and voided sale, newest first. Open a sale to see its full record.</p>
+</header>
+
+<app-sale-summary-strip [summary]="summary()" />
+
+<app-sale-register-filters
+  [initialFilters]="initialFilters"
+  [cashiers]="cashiers()"
+  (filtersChange)="onFiltersChange($event)"
+/>
+
+@if (error()) {
+  <p class="load-error" role="alert">{{ error() }}</p>
+}
+
+<app-sale-register-table
+  class="table"
+  [sales]="items()"
+  [loading]="loading()"
+  [sort]="state.sort()"
+  (sortChange)="onSortChange($event)"
+  (selectSale)="open($event)"
+/>
+
+<footer class="footer">
+  <span class="result-count">{{ total() }} sale{{ total() === 1 ? '' : 's' }}</span>
+  <mat-paginator
+    [length]="total()"
+    [pageIndex]="state.pageIndex()"
+    [pageSize]="state.pageSize()"
+    [pageSizeOptions]="pageSizeOptions"
+    showFirstLastButtons
+    aria-label="Select sales page"
+    (page)="onPage($event)"
+  />
+</footer>

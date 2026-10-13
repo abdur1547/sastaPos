@@ -22,9 +22,9 @@
       [user]="user()"
       [saving]="saving()"
       [errorMessage]="saveError()"
-      (save)="save($event)"
-      (cancel)="goBack()"
-      (remove)="remove()"
+      (submitted)="save($event)"
+      (cancelled)="goBack()"
+      (removed)="remove()"
     />
   }
 }

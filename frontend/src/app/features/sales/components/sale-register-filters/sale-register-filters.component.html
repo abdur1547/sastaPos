@@ -1,0 +1,109 @@
+<form class="filters" [formGroup]="form" (submit)="$event.preventDefault()">
+  <div class="filters-row">
+    <mat-form-field appearance="outline" class="search-field" subscriptSizing="dynamic">
+      <mat-label>Search sales</mat-label>
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput type="search" formControlName="search" placeholder="Invoice number, customer name or phone" />
+    </mat-form-field>
+
+    <mat-button-toggle-group formControlName="status" aria-label="Sale status" hideSingleSelectionIndicator>
+      <mat-button-toggle value="POSTED">All</mat-button-toggle>
+      <mat-button-toggle value="COMPLETED">Completed</mat-button-toggle>
+      <mat-button-toggle value="VOIDED">Voided</mat-button-toggle>
+    </mat-button-toggle-group>
+  </div>
+
+  <div class="filters-row">
+    <mat-form-field appearance="outline" class="period-field" subscriptSizing="dynamic">
+      <mat-label>Period</mat-label>
+      <mat-icon matPrefix>calendar_month</mat-icon>
+      <mat-select formControlName="datePreset">
+        @for (preset of presets; track preset[0]) {
+          <mat-option [value]="preset[0]">{{ preset[1] }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    @if (isCustom()) {
+      <mat-form-field appearance="outline" class="range-field" subscriptSizing="dynamic">
+        <mat-label>From – To</mat-label>
+        <mat-date-range-input [formGroup]="customRange" [rangePicker]="rangePicker">
+          <input matStartDate formControlName="start" placeholder="From" />
+          <input matEndDate formControlName="end" placeholder="To" />
+        </mat-date-range-input>
+        <mat-datepicker-toggle matIconSuffix [for]="rangePicker" />
+        <mat-date-range-picker #rangePicker />
+      </mat-form-field>
+    }
+
+    <mat-form-field appearance="outline" class="select-field" subscriptSizing="dynamic">
+      <mat-label>Sale type</mat-label>
+      <mat-select formControlName="saleType">
+        <mat-option value="ALL">Any type</mat-option>
+        <mat-option value="DEBIT">Paid sale</mat-option>
+        <mat-option value="CREDIT">On account</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="select-field" subscriptSizing="dynamic">
+      <mat-label>Payment</mat-label>
+      <mat-select formControlName="paymentMethod">
+        <mat-option value="ALL">Any method</mat-option>
+        <mat-option value="CASH">Cash</mat-option>
+        <mat-option value="BANK">Bank</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="select-field" subscriptSizing="dynamic">
+      <mat-label>Cashier</mat-label>
+      <mat-select formControlName="cashierId">
+        <mat-option value="">Everyone</mat-option>
+        @for (cashier of cashiers(); track cashier.id) {
+          <mat-option [value]="cashier.id">{{ cashier.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <div class="filters-row quick-row">
+    <span class="quick-label">Quick filters</span>
+    <button
+      type="button"
+      class="chip"
+      [class.is-selected]="filters().datePreset === 'today'"
+      [attr.aria-pressed]="filters().datePreset === 'today'"
+      (click)="selectPreset(filters().datePreset === 'today' ? 'all' : 'today')"
+    >
+      <mat-icon>today</mat-icon>
+      Today
+    </button>
+    <button
+      type="button"
+      class="chip"
+      [class.is-selected]="filters().outstandingOnly"
+      [attr.aria-pressed]="filters().outstandingOnly"
+      (click)="toggleOutstanding()"
+    >
+      <mat-icon>pending_actions</mat-icon>
+      Payment due
+    </button>
+    <button
+      type="button"
+      class="chip"
+      [class.is-selected]="filters().status === 'VOIDED'"
+      [attr.aria-pressed]="filters().status === 'VOIDED'"
+      (click)="toggleVoided()"
+    >
+      <mat-icon>block</mat-icon>
+      Voided
+    </button>
+    <span class="spacer"></span>
+    @if (activeFilterCount() > 0) {
+      <span class="active-count">{{ activeFilterCount() }} filter{{ activeFilterCount() === 1 ? '' : 's' }} changed</span>
+    }
+    <button mat-button type="button" (click)="reset()">
+      <mat-icon>restart_alt</mat-icon>
+      Reset
+    </button>
+  </div>
+</form>

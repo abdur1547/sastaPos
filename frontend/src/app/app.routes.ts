@@ -14,6 +14,10 @@ export const routes: Routes = [
     children: [
       { path: 'sell', component: SellPage, title: 'Sell | Counter' },
       {
+        path: 'sales',
+        loadChildren: () => import('./features/sales/sales.routes').then((m) => m.SALE_ROUTES),
+      },
+      {
         path: 'customers',
         loadChildren: () => import('./features/customers/customers.routes').then((m) => m.CUSTOMER_ROUTES),
       },

@@ -3,7 +3,7 @@
   @if (bills().length) {
     <mat-chip-set aria-label="Pending bills">
       @for (bill of bills(); track bill.id) {
-        <mat-chip (click)="resume.emit(bill.id)" (removed)="remove.emit(bill.id)">
+        <mat-chip (click)="resumed.emit(bill.id)" (removed)="removed.emit(bill.id)">
           {{ bill.label }}
           <button matChipRemove aria-label="Delete pending bill">
             <span class="material-icons">close</span>

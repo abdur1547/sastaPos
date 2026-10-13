@@ -33,12 +33,37 @@
       />
     </mat-form-field>
 
-    @if (remaining() !== "0.00") {
+    @if (isCredit()) {
+      <mat-form-field appearance="outline">
+        <mat-label>Customer account</mat-label>
+        <mat-icon matPrefix>person_search</mat-icon>
+        <input
+          matInput
+          type="text"
+          placeholder="Search by name or phone"
+          formControlName="customer"
+          (keydown.enter)="$event.preventDefault(); selectSingleMatch()"
+          [matAutocomplete]="customerAuto"
+        />
+      </mat-form-field>
+
+      <mat-autocomplete
+        #customerAuto="matAutocomplete"
+        [displayWith]="displayCustomer"
+      >
+        @for (customer of filteredCustomers(); track customer.id) {
+          <mat-option [value]="customer">
+            <span class="option-name">{{ customer.name }}</span>
+            <span class="option-phone">{{ customer.phoneNumber }}</span>
+          </mat-option>
+        }
+      </mat-autocomplete>
+
       <p class="remaining">
         Rs {{ remaining() }} will be added to
         {{
-          data.customer
-            ? data.customer.name + "'s account"
+          selectedCustomer()
+            ? selectedCustomer()!.name + "'s account"
             : "the customer account"
         }}.
       </p>
