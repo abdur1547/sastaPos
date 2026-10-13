@@ -16,7 +16,8 @@ export const authGuard: CanActivateFn = () => {
 
 /** Keeps signed-in users out of the authentication pages. */
 export const guestGuard: CanActivateFn = () => {
-  // const auth = inject(AuthService);
-  // return auth.isAuthenticated() ? inject(Router).createUrlTree(['/sell']) : true;
-  return true;
+  const session = inject(AuthService).session();
+  return session && session.expiresAt > Date.now()
+    ? inject(Router).createUrlTree(['/sell'])
+    : true;
 };

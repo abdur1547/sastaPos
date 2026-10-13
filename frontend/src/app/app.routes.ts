@@ -12,6 +12,7 @@ export const routes: Routes = [
     path: '',
     canActivate: [authGuard],
     children: [
+      { path: '', pathMatch: 'full', redirectTo: 'sell' },
       { path: 'sell', component: SellPage, title: 'Sell | Counter' },
       {
         path: 'sales',

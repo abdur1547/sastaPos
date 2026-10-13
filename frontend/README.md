@@ -2,6 +2,8 @@
 
 A desktop point-of-sale application built with Angular 22 for the frontend and Tauri 2 for the native desktop shell. The app uses a local SQLite database owned by the Rust/Tauri side, with PowerSync handling remote synchronization.
 
+On startup, the app restores the locally stored session. Users with a valid session open on the Sell page; users with an expired or missing session are directed to sign in. Authentication pages also redirect users with a valid session to Sell.
+
 ## Stack
 
 - Angular 22
