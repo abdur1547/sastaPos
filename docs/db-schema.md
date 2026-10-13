@@ -61,7 +61,7 @@
 - taxAmount NUMERIC(18,2), can't be null
 - totalAmount NUMERIC(18,2), can't be null
 - currencyCode string, can't be null, default to PKR
-- soldAt datetime, can't be null, defult to currenct date time
+- soldAt datetime, can't be null, defaults to current UTC time; PostgreSQL stores UTC in a timestamp without time zone
 - saleStatus enum (COMPLETED, IN_PROGRESS, VOIDED), default to COMPLETED (IN_PROGRESS when this sale is saved as draft)
 - totalPaid NUMERIC(18,2), can't be null (buyer paid on the spot, debit sale)
 - remaining NUMERIC(18,2), can't be null, default to 0.0, (if buyer buy at credit, how much buyer will pay in fututre)

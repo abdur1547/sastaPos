@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.jayway.jsonpath.JsonPath;
 import com.sastapos.sasta_pos.ledger_entry.LedgerEntryType;
 import com.sastapos.sasta_pos.sale.support.SaleApiTestBase;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -243,5 +245,17 @@ class ManageSaleApiTests extends SaleApiTestBase {
         backdateSale(id, 2);
         assertThat(postJson(voidUrl(id), "{\"voidReason\":\"x\"}", cashier).getStatusCode())
                 .isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void cashierSameDayPermissionUsesStoreDateRatherThanUtcDate() {
+        final var store = storeRepository.findById(owner.storeId()).orElseThrow();
+        store.setTimezone(LocalDateTime.now(ZoneOffset.UTC).getHour() < 12
+                ? "Etc/GMT+12" : "Pacific/Kiritimati");
+        storeRepository.save(store);
+        final String cashier = signupCashierAttachedToStore(owner.storeId());
+        final UUID id = createSale(cashier, simpleDebit(product));
+        assertThat(postJson(voidUrl(id), "{\"voidReason\":\"x\"}", cashier).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
     }
 }

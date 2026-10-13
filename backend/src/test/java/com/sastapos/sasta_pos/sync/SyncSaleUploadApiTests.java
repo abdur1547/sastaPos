@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.jayway.jsonpath.JsonPath;
 import com.sastapos.sasta_pos.product.support.ProductApiTestBase;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -13,8 +14,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestPropertySource;
 
 
+@TestPropertySource(properties = "spring.datasource.hikari.connection-init-sql=SET TIME ZONE 'Asia/Karachi'")
 class SyncSaleUploadApiTests extends ProductApiTestBase {
 
     @Autowired
@@ -139,6 +142,16 @@ class SyncSaleUploadApiTests extends ProductApiTestBase {
     private static void assertRejected(final ResponseEntity<String> response, final UUID id) {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat((List<String>) JsonPath.read(response.getBody(), "$.rejected[*].id")).contains(id.toString());
+    }
+
+    @Test
+    void shouldKeepLateEveningSaleInUtcWithANonUtcDatabaseSession() {
+        final SaleFixture f = fixture();
+        final String data = saleData(f, "COMPLETED")
+                .replace("2026-10-10T10:00:00Z", "2026-10-13T23:30:00+05:00");
+        assertAccepted(upload(f.owner().token(), List.of(op("sales", "PUT", f.sale(), data))), 1);
+        assertThat(saleRepository.findById(f.sale()).orElseThrow().getSoldAt())
+                .isEqualTo(LocalDateTime.parse("2026-10-13T18:30:00"));
     }
 
     @Test

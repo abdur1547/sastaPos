@@ -119,6 +119,35 @@ describe("SaleRepository invoice allocation", () => {
     });
   });
 
+  it.each(["COMPLETED", "IN_PROGRESS"] as const)(
+    "stores a late-evening %s sale as the current UTC instant",
+    async (saleStatus) => {
+      const now = new Date("2026-10-13T23:30:00+05:00");
+      jest.useFakeTimers().setSystemTime(now);
+      try {
+        await repository.submit(
+          {
+            ...request,
+            saleStatus,
+            payments: saleStatus === "COMPLETED" ? request.payments : [],
+            totalPaidPrice: saleStatus === "COMPLETED" ? "100.00" : "0.00",
+          },
+          context,
+        );
+        const saleWrite = execute.mock.calls.find(([sql]) =>
+          sql.includes("INSERT INTO sales"),
+        );
+        expect(saleWrite?.[1][9]).toBe("2026-10-13T18:30:00.000Z");
+        expect(saleWrite?.[1].slice(17)).toEqual([
+          "2026-10-13T18:30:00.000Z",
+          "2026-10-13T18:30:00.000Z",
+        ]);
+      } finally {
+        jest.useRealTimers();
+      }
+    },
+  );
+
   it.each([
     ["DEBIT", ["100.00"], "0.00", "25.00"],
     ["DEBIT", ["40.00", "60.00"], "0.00", "25.00"],

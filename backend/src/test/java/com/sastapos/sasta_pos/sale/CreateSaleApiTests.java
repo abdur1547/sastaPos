@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.jayway.jsonpath.JsonPath;
 import com.sastapos.sasta_pos.sale.support.SaleApiTestBase;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,6 +51,16 @@ class CreateSaleApiTests extends SaleApiTestBase {
         final String a = JsonPath.read(post(simpleDebit(product)).getBody(), "$.invoiceNumber");
         final String b = JsonPath.read(post(simpleDebit(product)).getBody(), "$.invoiceNumber");
         assertThat(a).isNotEqualTo(b);
+    }
+
+    @Test
+    void soldAtIsUtcRatherThanStoreLocalTime() {
+        final LocalDateTime before = LocalDateTime.now(ZoneOffset.UTC);
+        final ResponseEntity<String> response = post(simpleDebit(product));
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        final UUID id = UUID.fromString(JsonPath.read(response.getBody(), "$.id"));
+        assertThat(saleRepository.findById(id).orElseThrow().getSoldAt())
+                .isBetween(before, LocalDateTime.now(ZoneOffset.UTC));
     }
 
     @Test

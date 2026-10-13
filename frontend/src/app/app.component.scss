@@ -149,20 +149,13 @@
   background: #fff;
 }
 
-.topbar-date {
-  margin: 3px 0 0;
-  color: var(--ink-strong);
-  font-size: 14px;
-  font-weight: 700;
-}
-
 .topbar-actions {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.help-button {
+.sign-out-button {
   color: var(--ink-muted) !important;
   font-weight: 700;
 }
@@ -226,7 +219,7 @@
     padding: 28px 20px;
   }
 
-  .help-button,
+  .sign-out-button,
   .profile-name {
     display: none;
   }

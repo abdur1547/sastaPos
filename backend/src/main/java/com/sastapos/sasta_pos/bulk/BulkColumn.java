@@ -48,6 +48,11 @@ public final class BulkColumn {
         return new BulkColumn(name, ColumnType.TIMESTAMPTZ);
     }
 
+    /** A UTC instant stored in a PostgreSQL timestamp without time zone. */
+    public static BulkColumn utcTimestamp(final String name) {
+        return new BulkColumn(name, ColumnType.UTC_TIMESTAMP);
+    }
+
     public static BulkColumn integer(final String name) {
         return new BulkColumn(name, ColumnType.INTEGER);
     }

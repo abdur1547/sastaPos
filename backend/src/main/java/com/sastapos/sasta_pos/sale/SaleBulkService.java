@@ -27,7 +27,7 @@ public class SaleBulkService extends AbstractBulkEntityService {
             BulkColumn.numeric("tax_amount", 2).required().nonNegative(),
             BulkColumn.numeric("total_amount", 2).required().nonNegative(),
             BulkColumn.text("currency_code").required().defaultTo("PKR"),
-            BulkColumn.timestamp("sold_at").required(),
+            BulkColumn.utcTimestamp("sold_at").required(),
             BulkColumn.text("status").required().oneOf(SaleStatus.class),
             BulkColumn.numeric("total_paid", 2).required().nonNegative(),
             BulkColumn.numeric("remaining", 2).required().nonNegative(),

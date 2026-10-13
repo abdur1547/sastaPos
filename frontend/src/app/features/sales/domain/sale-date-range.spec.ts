@@ -33,4 +33,20 @@ describe("sale date range", () => {
     expect(parseSqlTimestamp("2026-05-10T08:00:00.000Z")?.toISOString()).toBe("2026-05-10T08:00:00.000Z");
     expect(parseSqlTimestamp("not a date")).toBeNull();
   });
+
+  it("keeps a late-evening sale on the same local date before and after sync", () => {
+    for (const timestamp of [
+      "2026-10-13T18:30:00.000Z",
+      "2026-10-13 18:30:00",
+    ]) {
+      const date = parseSqlTimestamp(timestamp);
+      expect(date).not.toBeNull();
+      if (date) {
+        expect(formatDate(date, "yyyy-MM-dd HH:mm", "en-US", "+0500")).toBe(
+          "2026-10-13 23:30",
+        );
+      }
+    }
+  });
 });
+import { formatDate } from "@angular/common";

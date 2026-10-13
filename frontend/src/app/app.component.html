@@ -47,17 +47,13 @@
 
   <div class="workspace">
     <header class="topbar">
-      <div>
-        <p class="eyebrow">Downtown store</p>
-        <p class="topbar-date">Tuesday, September 2</p>
-      </div>
+      <div></div>
       <div class="topbar-actions">
-        <button mat-button type="button" class="help-button">Help</button>
         <span class="profile-button inline-flex items-center px-2 font-extrabold">
           <span class="avatar">{{ initial() }}</span>
           <span class="profile-name">{{ auth.user()?.name }}</span>
         </span>
-        <button mat-button type="button" class="help-button" (click)="signOut()">Sign out</button>
+        <button mat-button type="button" class="sign-out-button" (click)="signOut()">Sign out</button>
       </div>
     </header>
 

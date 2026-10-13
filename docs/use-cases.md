@@ -439,6 +439,7 @@ Covers stock changes that don't come from a sale: receiving new stock (`STOCK_IN
 ### Transactional write steps (all-or-nothing)
 1. Generate `invoiceNumber` from `store_settings.invoicePrefix + store_settings.nextInvoiceNumber`; increment and persist `store_settings.nextInvoiceNumber`.
 2. Create `Sale` row: `invoiceNumber`, `subtotal`, `discountAmount`, `taxableAmount`, `taxAmount`, `totalAmount`, `currencyCode = store.currencyCode`, `soldAt = now()`, `saleStatus = COMPLETED`, `totalPaid = sum(payments.amount)`, `remaining = totalAmount - totalPaid`, `customer` (nullable), `user = current logged in user`, `store`.
+   - `soldAt` is always UTC, including API-created sales and finalised drafts. Offline ISO timestamps are normalised to UTC before storage in PostgreSQL's `timestamp` column, independent of the database session timezone. Zone-less synced timestamps are read as UTC and displayed in the device's local timezone; cashier same-day void permissions use the store's timezone.
 3. For each sale_item request entry:
    - Snapshot `productName`, `sku` from product at time of sale.
    - Compute and persist `SaleItem`: `quantity`, `unitPrice`, `taxRate`, `taxableAmount`, `lineTotal`, `product`, `sale`.
@@ -536,7 +537,7 @@ Sync uploads bypass `SaleService`, so a `BEFORE UPDATE` trigger on `sales` keeps
 All filters are optional and combinable (AND-ed together). Results are always scoped to the authenticated user's `store`.
 
 ### Query parameters
-- `from`, `to`: datetime range on `soldAt` (inclusive).
+- `from`, `to`: UTC datetime range on `soldAt` (inclusive); convert local/store calendar bounds to UTC before querying.
 - `saleStatus`: one or more of `COMPLETED`, `IN_PROGRESS`, `VOIDED` (defaults to all except `VOIDED` if not specified, so voided sales don't clutter normal listings unless explicitly requested).
 - `saleType`: one or more of `DEBIT`, `CREDIT`.
 - `customerId`: sales for a specific customer.

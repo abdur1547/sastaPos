@@ -15,7 +15,8 @@ public enum ColumnType {
     NUMERIC("numeric"),
     INTEGER("integer"),
     BOOLEAN("boolean"),
-    TIMESTAMPTZ("timestamptz");
+    TIMESTAMPTZ("timestamptz"),
+    UTC_TIMESTAMP("timestamp");
 
     private final String sqlType;
 
@@ -39,6 +40,11 @@ public enum ColumnType {
                 case INTEGER -> toInteger(raw);
                 case BOOLEAN -> toBoolean(raw);
                 case TIMESTAMPTZ -> raw instanceof OffsetDateTime time ? time : toTimestamp(raw.toString().trim());
+                case UTC_TIMESTAMP -> {
+                    final OffsetDateTime time = raw instanceof OffsetDateTime offset
+                            ? offset : toTimestamp(raw.toString().trim());
+                    yield time.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
+                }
             };
         } catch (final IllegalArgumentException | java.time.DateTimeException e) {
             throw new BulkValidationException(column + " is not a valid " + sqlType);

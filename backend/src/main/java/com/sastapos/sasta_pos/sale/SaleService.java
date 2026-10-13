@@ -38,9 +38,9 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -143,7 +143,7 @@ public class SaleService {
         final SaleStatus target = requireTargetStatus(request, SaleStatus.COMPLETED);
         final Sale sale = new Sale();
         sale.setStatus(target);
-        sale.setSoldAt(now(store));
+        sale.setSoldAt(LocalDateTime.now(ZoneOffset.UTC));
         sale.setInvoiceNumber(draftInvoiceNumber());
         sale.setUser(userRepository.getReferenceById(user.getId()));
         sale.setStore(store);
@@ -165,7 +165,7 @@ public class SaleService {
         }
         final SaleStatus target = requireTargetStatus(request, SaleStatus.IN_PROGRESS);
         if (target == SaleStatus.COMPLETED) {
-            sale.setSoldAt(now(store));
+            sale.setSoldAt(LocalDateTime.now(ZoneOffset.UTC));
         }
         applyRequest(sale, store, request, target);
         return saleMapper.toDTO(sale);
@@ -378,9 +378,11 @@ public class SaleService {
         if (user.getRole() == UserRole.OWNER) {
             return;
         }
+        final ZoneId zone = ZoneId.of(store.getTimezone());
         final boolean ownSaleToday = user.getRole() == UserRole.CASHIER && sale.getUser() != null
                 && sale.getUser().getId().equals(user.getId())
-                && sale.getSoldAt().toLocalDate().equals(now(store).toLocalDate());
+                && sale.getSoldAt().atOffset(ZoneOffset.UTC).atZoneSameInstant(zone).toLocalDate()
+                        .equals(LocalDateTime.now(zone).toLocalDate());
         if (!ownSaleToday) {
             throw new ForbiddenException("Only the store owner, or the cashier who made the sale on the "
                     + "same day, can void a sale");
@@ -390,14 +392,6 @@ public class SaleService {
     private void requireNotVoided(final Sale sale) {
         if (sale.getStatus() == SaleStatus.VOIDED) {
             throw new ConflictException("A VOIDED sale is read-only");
-        }
-    }
-
-    private LocalDateTime now(final Store store) {
-        try {
-            return LocalDateTime.now(ZoneId.of(store.getTimezone()));
-        } catch (final DateTimeException e) {
-            return LocalDateTime.now();
         }
     }
 
