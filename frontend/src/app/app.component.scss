@@ -95,13 +95,15 @@
   color: #fff;
 }
 
-.nav-icon {
+.navigation .nav-icon {
   display: block;
   width: 20px;
   height: 20px;
   max-width: 20px;
   max-height: 20px;
   flex: 0 0 20px;
+  font-size: 20px;
+  line-height: 20px;
   object-fit: contain;
 }
 

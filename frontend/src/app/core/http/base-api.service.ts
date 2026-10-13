@@ -27,6 +27,10 @@ export abstract class BaseApiService {
     return this.http.put<TResponse>(this.url(path), body ?? null).pipe(catchError(this.handleError));
   }
 
+  protected patch<TResponse, TBody = unknown>(path: string, body: TBody): Observable<TResponse> {
+    return this.http.patch<TResponse>(this.url(path), body).pipe(catchError(this.handleError));
+  }
+
   protected delete<TResponse = void>(path: string): Observable<TResponse> {
     return this.http.delete<TResponse>(this.url(path)).pipe(catchError(this.handleError));
   }

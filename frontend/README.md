@@ -98,6 +98,13 @@ yarn test
 
 ## Important architecture notes
 
+- Store settings (`/store-settings`, available to owners) are online-only. The page loads
+  `GET /api/store` and saves changed profile fields with `PATCH /api/store` or invoice/receipt
+  fields with `PATCH /api/store/settings`, using the authenticated HTTP client. No local
+  database writes, offline queue, or PowerSync mutations are used. The two sections save
+  independently; failures retain edits for retry, and leaving with unsaved changes requires
+  confirmation.
+
 - SQLite is managed exclusively by the Rust/Tauri layer.
 - Angular never directly owns or manages the SQLite database.
 - The frontend initializes the local database and then invokes the Rust `connect` command for PowerSync.

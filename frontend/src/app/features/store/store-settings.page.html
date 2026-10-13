@@ -1,0 +1,249 @@
+<header class="page-heading flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <p class="section-label">Workspace / Administration</p>
+    <h1>Store settings</h1>
+    <p class="page-description">
+      Manage your store details, invoice numbering, and receipt message.
+    </p>
+  </div>
+  <span class="online-label inline-flex items-center gap-2">
+    <mat-icon aria-hidden="true">cloud</mat-icon>
+    Online only
+  </span>
+</header>
+
+<app-form-alert tone="warning">
+  An internet connection is required. Changes are saved directly to the server
+  and are not queued offline.
+</app-form-alert>
+
+@if (loading()) {
+<section
+  class="state-panel"
+  aria-label="Loading store settings"
+  aria-busy="true"
+>
+  <mat-progress-bar mode="indeterminate" />
+  <p role="status">Loading store settings...</p>
+</section>
+} @else if (loadError()) {
+<section class="state-panel flex flex-col items-start gap-4">
+  <app-form-alert>{{ loadError() }}</app-form-alert>
+  <button mat-stroked-button type="button" (click)="load()">
+    <mat-icon>refresh</mat-icon>
+    Try again
+  </button>
+</section>
+} @else if (store(); as currentStore) {
+<form
+  [formGroup]="profileForm"
+  (ngSubmit)="saveProfile()"
+  class="settings-section"
+  aria-labelledby="profile-heading"
+>
+  <div
+    class="section-heading flex flex-wrap items-center justify-between gap-3"
+  >
+    <div>
+      <h2 id="profile-heading">Store details</h2>
+      <p>Your store identity and regional preferences.</p>
+    </div>
+    <span
+      class="status-label"
+      [class.inactive]="currentStore.status === 'INACTIVE'"
+    >
+      {{ currentStore.status === 'ACTIVE' ? 'Active store' : 'Inactive store' }}
+    </span>
+  </div>
+  @if (saving() === 'profile') {
+  <mat-progress-bar mode="indeterminate" aria-label="Saving store details" />
+  }
+  <fieldset
+    [disabled]="!!saving()"
+    [attr.inert]="saving() ? '' : null"
+    class="grid grid-cols-1 gap-x-5 gap-y-2 md:grid-cols-2"
+  >
+    <legend class="sr-only">Store profile</legend>
+    <app-form-field [control]="profileForm.controls.name" label="Store name" />
+    <app-form-field
+      [control]="profileForm.controls.ntn"
+      label="National tax number (NTN)"
+    />
+    <mat-form-field appearance="outline" class="md:col-span-2">
+      <mat-label>Store address</mat-label>
+      <textarea
+        matInput
+        formControlName="address"
+        rows="2"
+        maxlength="1000"
+      ></textarea>
+      <mat-error
+        >{{ profileForm.controls.address.hasError('server') ?
+        profileForm.controls.address.getError('server') : 'Use at most 1,000
+        characters.' }}</mat-error
+      >
+    </mat-form-field>
+    <app-form-field
+      [control]="profileForm.controls.currencyCode"
+      label="Currency code"
+      placeholder="e.g. PKR"
+    />
+    <app-form-field
+      [control]="profileForm.controls.timezone"
+      label="Timezone"
+      placeholder="e.g. Asia/Karachi"
+    />
+    <mat-form-field appearance="outline">
+      <mat-label>Store status</mat-label>
+      <mat-select formControlName="status">
+        <mat-option value="ACTIVE">Active</mat-option>
+        <mat-option value="INACTIVE">Inactive</mat-option>
+      </mat-select>
+      <mat-error
+        >{{ profileForm.controls.status.getError('server') }}</mat-error
+      >
+    </mat-form-field>
+    <p class="field-note">
+      Use your store's currency code and IANA timezone. Changing the status to
+      inactive requires confirmation.
+    </p>
+  </fieldset>
+  @if (profileError()) {
+  <app-form-alert>{{ profileError() }}</app-form-alert>
+  }
+  <div
+    class="section-actions flex flex-wrap items-center justify-between gap-3"
+  >
+    <span class="save-status" role="status">
+      {{ saving() === 'profile' ? 'Saving store details...' : profileForm.dirty
+      ? 'Unsaved store details' : 'Store details up to date' }}
+    </span>
+    <div class="flex items-center gap-2">
+      <button
+        mat-button
+        type="button"
+        (click)="resetProfile()"
+        [disabled]="!!saving() || !profileForm.dirty"
+      >
+        Discard
+      </button>
+      <button
+        mat-flat-button
+        type="submit"
+        class="primary-button"
+        [disabled]="!!saving() || !profileForm.dirty"
+      >
+        <mat-icon>save</mat-icon>
+        Save store details
+      </button>
+    </div>
+  </div>
+</form>
+
+<form
+  [formGroup]="settingsForm"
+  (ngSubmit)="saveSettings()"
+  class="settings-section"
+  aria-labelledby="invoice-heading"
+>
+  <div
+    class="section-heading flex flex-wrap items-center justify-between gap-3"
+  >
+    <div>
+      <h2 id="invoice-heading">Invoices &amp; receipts</h2>
+      <p>Configure invoice numbering and the message printed on receipts.</p>
+    </div>
+    <span class="next-invoice"
+      >Next invoice number:
+      <strong>{{ currentStore.storeSettings.nextInvoiceNumber }}</strong></span
+    >
+  </div>
+  @if (saving() === 'settings') {
+  <mat-progress-bar
+    mode="indeterminate"
+    aria-label="Saving invoice and receipt settings"
+  />
+  }
+  <fieldset
+    [disabled]="!!saving()"
+    [attr.inert]="saving() ? '' : null"
+    class="grid grid-cols-1 gap-x-5 gap-y-2 md:grid-cols-2"
+  >
+    <legend class="sr-only">Invoice and receipt settings</legend>
+    <app-form-field
+      [control]="settingsForm.controls.invoicePrefix"
+      label="Invoice prefix"
+    />
+    <mat-form-field appearance="outline">
+      <mat-label>Starting invoice number</mat-label>
+      <input
+        matInput
+        type="number"
+        formControlName="invoiceNumberStart"
+        min="0"
+        max="2147483647"
+        step="1"
+      />
+      <mat-hint>A whole number from 0 to 2,147,483,647.</mat-hint>
+      <mat-error
+        >{{ settingsForm.controls.invoiceNumberStart.hasError('server') ?
+        settingsForm.controls.invoiceNumberStart.getError('server') : 'Enter a
+        whole number from 0 to 2,147,483,647.' }}</mat-error
+      >
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="md:col-span-2">
+      <mat-label>Receipt footer</mat-label>
+      <textarea
+        matInput
+        formControlName="receiptFooter"
+        rows="3"
+        maxlength="1000"
+      ></textarea>
+      <mat-hint align="end"
+        >{{ settingsForm.controls.receiptFooter.value.length }} /
+        1,000</mat-hint
+      >
+      <mat-error
+        >{{ settingsForm.controls.receiptFooter.hasError('server') ?
+        settingsForm.controls.receiptFooter.getError('server') : 'Use at most
+        1,000 characters.' }}</mat-error
+      >
+    </mat-form-field>
+    <p class="field-note md:col-span-2">
+      The next invoice number is read-only and is reported by the server after
+      saving.
+    </p>
+  </fieldset>
+  @if (settingsError()) {
+  <app-form-alert>{{ settingsError() }}</app-form-alert>
+  }
+  <div
+    class="section-actions flex flex-wrap items-center justify-between gap-3"
+  >
+    <span class="save-status" role="status">
+      {{ saving() === 'settings' ? 'Saving invoice and receipt settings...' :
+      settingsForm.dirty ? 'Unsaved invoice and receipt settings' : 'Invoice and
+      receipt settings up to date' }}
+    </span>
+    <div class="flex items-center gap-2">
+      <button
+        mat-button
+        type="button"
+        (click)="resetSettings()"
+        [disabled]="!!saving() || !settingsForm.dirty"
+      >
+        Discard
+      </button>
+      <button
+        mat-flat-button
+        type="submit"
+        class="primary-button"
+        [disabled]="!!saving() || !settingsForm.dirty"
+      >
+        <mat-icon>save</mat-icon>
+        Save invoice settings
+      </button>
+    </div>
+  </div>
+</form>
+}

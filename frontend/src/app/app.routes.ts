@@ -29,6 +29,10 @@ export const routes: Routes = [
         path: 'users',
         loadChildren: () => import('./features/users/users.routes').then((m) => m.USER_ROUTES),
       },
+      {
+        path: 'store-settings',
+        loadChildren: () => import('./features/store/store.routes').then((m) => m.STORE_ROUTES),
+      },
     ],
   },
   { path: '**', redirectTo: 'sell' },
