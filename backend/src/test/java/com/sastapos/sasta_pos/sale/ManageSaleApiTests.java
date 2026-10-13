@@ -240,9 +240,7 @@ class ManageSaleApiTests extends SaleApiTestBase {
     void cashierCannotVoidOwnSaleFromAnotherDay() {
         final String cashier = signupCashierAttachedToStore(owner.storeId());
         final UUID id = createSale(cashier, simpleDebit(product));
-        final Sale sale = saleRepository.findById(id).orElseThrow();
-        sale.setSoldAt(sale.getSoldAt().minusDays(2));
-        saleRepository.save(sale);
+        backdateSale(id, 2);
         assertThat(postJson(voidUrl(id), "{\"voidReason\":\"x\"}", cashier).getStatusCode())
                 .isEqualTo(HttpStatus.FORBIDDEN);
     }

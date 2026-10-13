@@ -4,6 +4,7 @@ import com.sastapos.sasta_pos.payment.PaymentMethod;
 import com.sastapos.sasta_pos.product.dto.PageResponse;
 import com.sastapos.sasta_pos.sale.dto.CreateSaleRequestDTO;
 import com.sastapos.sasta_pos.sale.dto.SaleDTO;
+import com.sastapos.sasta_pos.sale.dto.SaleSummaryDTO;
 import com.sastapos.sasta_pos.sale.dto.UpdateSaleRequestDTO;
 import com.sastapos.sasta_pos.sale.dto.VoidSaleRequestDTO;
 import com.sastapos.sasta_pos.sale.dto.VoidSaleResponse;
@@ -81,13 +82,42 @@ public class SaleResource {
             @RequestParam(required = false) final String search,
             @Parameter(description = "0-indexed page") @RequestParam(defaultValue = "0") final int page,
             @Parameter(description = "Page size, capped at 100") @RequestParam(defaultValue = "20") final int size,
-            @Parameter(description = "soldAt, totalAmount or invoiceNumber")
+            @Parameter(description = "soldAt, totalAmount, remaining or invoiceNumber")
             @RequestParam(defaultValue = "soldAt") final String sortBy,
             @Parameter(description = "asc or desc") @RequestParam(defaultValue = "desc") final String sortDir) {
         final SaleFilter filter = new SaleFilter(from, to, saleStatus, saleType,
                 customerId, userId, invoiceNumber, productId, paymentMethod, minTotalAmount, maxTotalAmount,
                 hasRemaining, search);
         return ResponseEntity.ok(saleService.findAll(user, filter, page, size, sortBy, sortDir));
+    }
+
+    @GetMapping("/summary")
+    @Operation(summary = "Sales register totals for the same filters as the list",
+            description = "Accepts every filter of GET /api/sales (pagination and sorting are ignored). "
+                    + "Money totals cover COMPLETED sales; VOIDED sales are counted separately and "
+                    + "IN_PROGRESS drafts are never included.")
+    @ApiResponse(responseCode = "200", description = "Register totals")
+    @ApiResponse(responseCode = "400", description = "Invalid filter, range or enum value")
+    public ResponseEntity<SaleSummaryDTO> getSalesSummary(
+            @AuthenticationPrincipal final User user,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) final LocalDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) final LocalDateTime to,
+            @Parameter(description = "COMPLETED and/or VOIDED (default: both)")
+            @RequestParam(required = false) final List<SaleStatus> saleStatus,
+            @RequestParam(required = false) final List<SaleType> saleType,
+            @RequestParam(required = false) final UUID customerId,
+            @RequestParam(required = false) final UUID userId,
+            @RequestParam(required = false) final String invoiceNumber,
+            @RequestParam(required = false) final UUID productId,
+            @RequestParam(required = false) final List<PaymentMethod> paymentMethod,
+            @RequestParam(required = false) final BigDecimal minTotalAmount,
+            @RequestParam(required = false) final BigDecimal maxTotalAmount,
+            @RequestParam(required = false) final Boolean hasRemaining,
+            @RequestParam(required = false) final String search) {
+        final SaleFilter filter = new SaleFilter(from, to, saleStatus, saleType,
+                customerId, userId, invoiceNumber, productId, paymentMethod, minTotalAmount, maxTotalAmount,
+                hasRemaining, search);
+        return ResponseEntity.ok(saleService.summarize(user, filter));
     }
 
     @GetMapping("/{id}")

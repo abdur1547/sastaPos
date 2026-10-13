@@ -16,6 +16,7 @@ import com.sastapos.sasta_pos.product.dto.PageResponse;
 import com.sastapos.sasta_pos.sale.dto.CreateSaleRequestDTO;
 import com.sastapos.sasta_pos.sale.dto.SaleDTO;
 import com.sastapos.sasta_pos.sale.dto.SaleItemRequestDTO;
+import com.sastapos.sasta_pos.sale.dto.SaleSummaryDTO;
 import com.sastapos.sasta_pos.sale.dto.SalePaymentRequestDTO;
 import com.sastapos.sasta_pos.sale.dto.UpdateSaleRequestDTO;
 import com.sastapos.sasta_pos.sale.dto.VoidSaleRequestDTO;
@@ -73,6 +74,7 @@ public class SaleService {
     private static final Map<String, String> SORTABLE_FIELDS = Map.of(
             "soldAt", "soldAt",
             "totalAmount", "totalAmount",
+            "remaining", "remaining",
             "invoiceNumber", "invoiceNumber");
 
     private final SaleRepository saleRepository;
@@ -84,16 +86,14 @@ public class SaleService {
     private final LedgerEntryService ledgerEntryService;
     private final LedgerEntryMapper ledgerEntryMapper;
     private final SaleMapper saleMapper;
+    private final SaleSummaryQuery saleSummaryQuery;
     private final EntityManager entityManager;
 
     @Transactional(readOnly = true)
     public PageResponse<SaleDTO> findAll(final User user, final SaleFilter filter, final int page,
             final int size, final String sortBy, final String sortDir) {
         final UUID storeId = requireStoreId(user);
-        if (filter.from() != null && filter.to() != null && filter.from().isAfter(filter.to())) {
-            throw new BadRequestException("from must be <= to");
-        }
-        validateRange(filter.minTotalAmount(), filter.maxTotalAmount());
+        validateFilter(filter);
         if (page < 0) {
             throw new BadRequestException("page must be >= 0");
         }
@@ -114,6 +114,21 @@ public class SaleService {
         final Page<SaleDTO> result = saleRepository.findAll(SaleSpecifications.forStore(storeId, filter), pageable)
                 .map(saleMapper::toDTO);
         return PageResponse.of(result);
+    }
+
+    /** Register totals for the same filters as {@link #findAll}; drafts are never included. */
+    @Transactional(readOnly = true)
+    public SaleSummaryDTO summarize(final User user, final SaleFilter filter) {
+        final UUID storeId = requireStoreId(user);
+        validateFilter(filter);
+        return saleSummaryQuery.summarize(storeId, filter);
+    }
+
+    private void validateFilter(final SaleFilter filter) {
+        if (filter.from() != null && filter.to() != null && filter.from().isAfter(filter.to())) {
+            throw new BadRequestException("from must be <= to");
+        }
+        validateRange(filter.minTotalAmount(), filter.maxTotalAmount());
     }
 
     @Transactional(readOnly = true)

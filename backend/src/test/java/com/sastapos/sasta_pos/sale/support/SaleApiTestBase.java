@@ -7,6 +7,7 @@ import com.sastapos.sasta_pos.customer.Customer;
 import com.sastapos.sasta_pos.customer.CustomerRepository;
 import com.sastapos.sasta_pos.product.support.ProductApiTestBase;
 import java.math.BigDecimal;
+import java.sql.Statement;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -15,6 +16,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.ConnectionCallback;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 public abstract class SaleApiTestBase extends ProductApiTestBase {
 
@@ -22,6 +25,26 @@ public abstract class SaleApiTestBase extends ProductApiTestBase {
 
     @Autowired
     protected CustomerRepository customerRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    /** Fixture-only rewrite of a posted sale's date; bypasses the V7 immutability trigger. */
+    protected void backdateSale(final UUID id, final int days) {
+        jdbcTemplate.execute((ConnectionCallback<Void>) connection -> {
+            final boolean autoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("SET LOCAL session_replication_role = replica");
+                statement.executeUpdate("UPDATE sales SET sold_at = sold_at - interval '" + days
+                        + " days' WHERE id = '" + id + "'");
+                connection.commit();
+            } finally {
+                connection.setAutoCommit(autoCommit);
+            }
+            return null;
+        });
+    }
 
     protected ResponseEntity<String> putJson(final String url, final String body, final String token) {
         final HttpHeaders headers = new HttpHeaders();

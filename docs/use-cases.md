@@ -525,6 +525,12 @@ Hard-deleting a `sale` row (and cascading to `sale_items`/`payments`/`stock_move
 ### Response
 - Return the voided `sale` (including `voidReason`, `voidedAt`, `voidedBy`) plus the generated reversing `stock_movements`/`ledger_entries`, and updated `customer.accountBalance` if applicable.
 
+### Offline void (desktop app)
+The sales register's detail page voids locally in one SQLite transaction (`SaleVoidRepository`) that writes exactly the rows above, then syncs them up. The same permission rule (owner always; a cashier only their own sale on the day it was made) is enforced in the UI, because the sync upload carries no user context.
+
+### Database guard (`V7__sales_register_integrity`)
+Sync uploads bypass `SaleService`, so a `BEFORE UPDATE` trigger on `sales` keeps posted sales immutable: once `COMPLETED`, financial and identity columns cannot change and the only allowed transition is the one-way void (`COMPLETED -> VOIDED` with its void fields). `VOIDED` rows are frozen. Drafts (`IN_PROGRESS`) stay editable, as do rows already written earlier in the same transaction (the server's own completion flow). A rejected sync row fails with a data-integrity error without affecting the rest of the batch.
+
 ## 5c. Get all sales (require auth) — list with filters
 
 All filters are optional and combinable (AND-ed together). Results are always scoped to the authenticated user's `store`.
@@ -542,7 +548,7 @@ All filters are optional and combinable (AND-ed together). Results are always sc
 - `hasRemaining`: boolean — `true` returns sales with `remaining > 0` (outstanding credit), `false` returns fully settled sales.
 - `search`: free-text match across `invoiceNumber` and `customer.name`.
 - `page`, `size`: pagination (0-indexed page, default size e.g. 20, max size capped e.g. 100 to avoid abuse).
-- `sortBy`: one of `soldAt`, `totalAmount`, `invoiceNumber` (default `soldAt`).
+- `sortBy`: one of `soldAt`, `totalAmount`, `invoiceNumber`, `remaining` (default `soldAt`).
 - `sortDir`: `asc` | `desc` (default `desc`, most recent first).
 
 ### Validations
@@ -553,6 +559,17 @@ All filters are optional and combinable (AND-ed together). Results are always sc
 
 ### Response
 - Paginated envelope: `{ content: Sale[], page, size, totalElements, totalPages }`.
+
+### Summary (`GET /api/sales/summary`)
+Accepts the same filters as the list and returns totals for every matching sale, not just one page: `saleCount`, `netSales`, `discountTotal`, `taxTotal`, `collected`, `outstanding`, `averageSale` (money totals cover `COMPLETED` sales only), plus `voidedCount`/`voidedAmount` reported separately. Drafts are never included.
+
+### Sales register (desktop app, `/sales`)
+The register is the store's sales journal, read from the local synced database so it works offline:
+- Lists posted sales only (completed + voided; drafts are bills in progress, not register entries), newest first.
+- Filters: search (invoice, customer name/phone), status, period presets (today, yesterday, last 7 days, this/last month, all time, custom range in local time), sale type, payment method, cashier, and "payment due" only.
+- Sortable by invoice number, date, total and amount due; paged (10/25/50/100). Filters, sort and page survive opening a sale and coming back.
+- A summary strip mirrors `/api/sales/summary` for the current filters.
+- Opening a sale shows it as a read-only document: items, totals, payments, and an audit trail of the stock movements and customer-account entries it caused (including void reversals). The only action is **Void sale**, which needs a reason and previews the stock and balance reversal before confirming.
 
 ## 6. Create customer (require auth)
 

@@ -91,6 +91,63 @@ class ListSalesApiTests extends SaleApiTestBase {
     }
 
     @Test
+    void sortsByRemaining() {
+        assertThat(ids("?size=1&sortBy=remaining&sortDir=desc")).containsExactly(creditId.toString());
+        assertThat(ids("?size=1&sortBy=remaining&sortDir=asc")).containsExactly(debitId.toString());
+    }
+
+    // ---------- summary ----------
+
+    private String summary(final String query) {
+        final ResponseEntity<String> r = getJson(SALES_URL + "/summary" + query, owner.token());
+        assertThat(r.getStatusCode()).as(r.getBody()).isEqualTo(HttpStatus.OK);
+        return r.getBody();
+    }
+
+    private static String money(final String body, final String field) {
+        return new java.math.BigDecimal(JsonPath.read(body, "$." + field).toString()).setScale(2).toPlainString();
+    }
+
+    @Test
+    void summaryTotalsCompletedSalesAndReportsVoidsSeparately() {
+        final String body = summary("");
+        assertThat(JsonPath.<Integer>read(body, "$.saleCount")).isEqualTo(2);
+        assertThat(money(body, "netSales")).isEqualTo("35.00");
+        assertThat(money(body, "collected")).isEqualTo("15.00");
+        assertThat(money(body, "outstanding")).isEqualTo("20.00");
+        assertThat(money(body, "averageSale")).isEqualTo("17.50");
+        assertThat(JsonPath.<Integer>read(body, "$.voidedCount")).isEqualTo(1);
+        assertThat(money(body, "voidedAmount")).isEqualTo("10.00");
+    }
+
+    @Test
+    void summaryHonoursListFiltersAndIgnoresDrafts() {
+        createSale(owner.token(), saleJson("DEBIT", null, null, "IN_PROGRESS", "1", "10.00", "0.00",
+                item(product, "2", "10.00"), ""));
+        assertThat(JsonPath.<Integer>read(summary(""), "$.saleCount")).isEqualTo(2);
+
+        final String credit = summary("?saleType=CREDIT");
+        assertThat(JsonPath.<Integer>read(credit, "$.saleCount")).isEqualTo(1);
+        assertThat(money(credit, "netSales")).isEqualTo("25.00");
+        assertThat(JsonPath.<Integer>read(credit, "$.voidedCount")).isZero();
+
+        final String voided = summary("?saleStatus=VOIDED");
+        assertThat(JsonPath.<Integer>read(voided, "$.saleCount")).isZero();
+        assertThat(JsonPath.<Integer>read(voided, "$.voidedCount")).isEqualTo(1);
+
+        final String empty = summary("?from=2999-01-01T00:00:00");
+        assertThat(JsonPath.<Integer>read(empty, "$.saleCount")).isZero();
+        assertThat(money(empty, "netSales")).isEqualTo("0.00");
+        assertThat(money(empty, "averageSale")).isEqualTo("0.00");
+
+        assertThat(getJson(SALES_URL + "/summary?from=2026-02-01T00:00:00&to=2026-01-01T00:00:00",
+                owner.token()).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        final String other = createStore().token();
+        assertThat(JsonPath.<Integer>read(getJson(SALES_URL + "/summary", other).getBody(), "$.saleCount"))
+                .isZero();
+    }
+
+    @Test
     void oversizedPageIsCapped() {
         final ResponseEntity<String> r = getJson(SALES_URL + "?size=1000", owner.token());
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);

@@ -136,6 +136,42 @@ class SyncSaleUploadApiTests extends ProductApiTestBase {
                 Integer.class, f.settings())).isEqualTo(101);
     }
 
+    private static void assertRejected(final ResponseEntity<String> response, final UUID id) {
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat((List<String>) JsonPath.read(response.getBody(), "$.rejected[*].id")).contains(id.toString());
+    }
+
+    @Test
+    void shouldKeepPostedSalesImmutableExceptForTheirOneWayVoid() {
+        final SaleFixture f = fixture();
+        assertAccepted(upload(f.owner().token(), graph(f)), 8);
+        final String token = f.owner().token();
+
+        assertRejected(upload(token, List.of(op("sales", "PATCH", f.sale(),
+                "{\"total_amount\":\"1.00\",\"subtotal\":\"1.00\",\"taxable_amount\":\"1.00\"}"))), f.sale());
+        assertRejected(upload(token, List.of(op("sales", "PATCH", f.sale(), "{\"status\":\"IN_PROGRESS\"}"))),
+                f.sale());
+        assertRejected(upload(token, List.of(op("sales", "PATCH", f.sale(), "{\"void_reason\":\"sneaky\"}"))),
+                f.sale());
+        assertAccepted(upload(token, List.of(op("sales", "PATCH", f.sale(), "{\"description\":\"gift wrap\"}"))), 1);
+        assertThat(saleRepository.findById(f.sale()).orElseThrow().getTotalAmount()).isEqualByComparingTo("100.00");
+
+        assertAccepted(upload(token, List.of(op("sales", "PATCH", f.sale(), """
+                {"status":"VOIDED","void_reason":"Wrong item","voided_at":"2026-10-10T11:00:00Z",
+                "voided_by":"%s"}""".formatted(f.user())))), 1);
+        assertThat(saleRepository.findById(f.sale()).orElseThrow().getStatus()).isEqualTo(
+                com.sastapos.sasta_pos.sale.SaleStatus.VOIDED);
+
+        assertRejected(upload(token, List.of(op("sales", "PATCH", f.sale(), "{\"status\":\"COMPLETED\"}"))),
+                f.sale());
+        assertRejected(upload(token, List.of(op("sales", "PATCH", f.sale(), "{\"void_reason\":\"changed\"}"))),
+                f.sale());
+        // Retrying the identical void (offline queue replay) is not a change.
+        assertAccepted(upload(token, List.of(op("sales", "PATCH", f.sale(), """
+                {"status":"VOIDED","void_reason":"Wrong item","voided_at":"2026-10-10T11:00:00Z",
+                "voided_by":"%s"}""".formatted(f.user())))), 1);
+    }
+
     @Test
     void shouldAcceptDebitSalesWithoutACustomerOrVoidReferences() {
         final SaleFixture f = fixture();
