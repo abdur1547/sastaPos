@@ -6,7 +6,7 @@ import {
   signal,
 } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
-import { DatePipe } from "@angular/common";
+import { DatePipe, PercentPipe } from "@angular/common";
 import { ActivatedRoute, RouterLink } from "@angular/router";
 import { MatDialog } from "@angular/material/dialog";
 import { MatIconModule } from "@angular/material/icon";
@@ -53,7 +53,7 @@ const LEDGER_LABELS: Record<string, string> = {
  */
 @Component({
   selector: "app-sale-detail-page",
-  imports: [DatePipe, RouterLink, MatIconModule, MatProgressBarModule, MatTooltipModule],
+  imports: [DatePipe, PercentPipe, RouterLink, MatIconModule, MatProgressBarModule, MatTooltipModule],
   templateUrl: "./sale-detail.page.html",
   styleUrl: "./sale-detail.page.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,

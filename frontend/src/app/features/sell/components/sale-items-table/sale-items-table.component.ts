@@ -1,3 +1,4 @@
+import { PercentPipe } from "@angular/common";
 import {
   ChangeDetectionStrategy,
   Component,
@@ -12,7 +13,7 @@ import { SellLineGroup } from "../../state/sell-form.store";
 
 @Component({
   selector: "app-sale-items-table",
-  imports: [ReactiveFormsModule, MatIconModule],
+  imports: [ReactiveFormsModule, MatIconModule, PercentPipe],
   templateUrl: "./sale-items-table.component.html",
   styleUrl: "./sale-items-table.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,

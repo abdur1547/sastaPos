@@ -45,6 +45,74 @@ describe("SaleItemsTableComponent", () => {
     expect(component).toBeTruthy();
   });
 
+  it("places the tax columns and line total before the remove action", () => {
+    fixture.detectChanges();
+    const element: HTMLElement = fixture.nativeElement;
+    const headers = Array.from(element.querySelectorAll("thead th")).map(
+      (header) => header.textContent?.trim(),
+    );
+
+    expect(headers).toEqual([
+      "No",
+      "Product",
+      "Unit price",
+      "Units",
+      "Line subtotal",
+      "Tax %",
+      "Tax amount",
+      "Line total",
+      "",
+    ]);
+    expect(element.querySelector(".empty-row")?.getAttribute("colspan")).toBe(
+      "9",
+    );
+  });
+
+  it.each([
+    [0, "0%", "0.00", "200.00"],
+    [0.175, "17.5%", "35.00", "235.00"],
+    [0.0755, "7.55%", "15.10", "215.10"],
+  ])(
+    "displays the product tax rate %s and calculated line amounts",
+    (taxRate, percentage, amount, total) => {
+      store.addProduct({ ...product, taxRate }, 2);
+      fixture.componentRef.setInput("priced", store.totals().lines);
+      fixture.detectChanges();
+      const element: HTMLElement = fixture.nativeElement;
+      const cells = element.querySelectorAll("tbody td");
+
+      expect(cells[4].textContent?.trim()).toBe("Rs 200.00");
+      expect(cells[5].textContent?.trim()).toBe(percentage);
+      expect(cells[6].textContent?.trim()).toBe(`Rs ${amount}`);
+      expect(cells[7].textContent?.trim()).toBe(`Rs ${total}`);
+      expect(cells[8].querySelector(".remove-button")).not.toBeNull();
+    },
+  );
+
+  it("updates each product's tax amount and line total when its quantity changes", () => {
+    store.addProduct({ ...product, taxRate: 0.1 });
+    store.addProduct({ ...product, id: "p2", taxRate: 0.05 }, 2);
+    fixture.componentRef.setInput("priced", store.totals().lines);
+    fixture.detectChanges();
+
+    const input = quantityInput();
+    input.stepUp();
+    input.dispatchEvent(new Event("input"));
+    fixture.componentRef.setInput("priced", store.totals().lines);
+    fixture.detectChanges();
+    const element: HTMLElement = fixture.nativeElement;
+    const taxAmounts = Array.from(
+      element.querySelectorAll("tbody .col-tax-amount"),
+    ).map((cell) => cell.textContent?.trim());
+
+    expect(taxAmounts).toEqual(["Rs 20.00", "Rs 10.00"]);
+    const lineTotals = Array.from(
+      element.querySelectorAll("tbody .col-total"),
+    ).map((cell) => cell.textContent?.trim());
+
+    expect(lineTotals).toEqual(["Rs 220.00", "Rs 210.00"]);
+  });
+
   it("increments whole-unit quantities by exactly one from the first step", () => {
     store.addProduct(product);
     fixture.detectChanges();

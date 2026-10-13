@@ -115,9 +115,11 @@
         <tr>
           <th>#</th>
           <th class="col-wide">Product</th>
-          <th class="col-number">Qty</th>
           <th class="col-number">Unit price</th>
-          <th class="col-number">Tax</th>
+          <th class="col-number">Units</th>
+          <th class="col-number">Line subtotal</th>
+          <th class="col-number">Tax %</th>
+          <th class="col-number">Tax amount</th>
           <th class="col-number">Line total</th>
         </tr>
       </thead>
@@ -129,13 +131,15 @@
               <span class="strong">{{ item.productName }}</span>
               @if (item.sku) { <span class="hint">SKU {{ item.sku }}</span> }
             </td>
-            <td class="col-number">{{ item.quantity }}</td>
             <td class="col-number">Rs {{ item.unitPrice }}</td>
-            <td class="col-number">{{ item.taxRate }}%</td>
+            <td class="col-number">{{ item.quantity }}</td>
+            <td class="col-number">Rs {{ item.lineSubtotal }}</td>
+            <td class="col-number">{{ item.taxRate | percent: "1.0-2" }}</td>
+            <td class="col-number">Rs {{ item.taxAmount }}</td>
             <td class="col-number strong">Rs {{ item.lineTotal }}</td>
           </tr>
         } @empty {
-          <tr><td colspan="6" class="muted empty-cell">No items recorded.</td></tr>
+          <tr><td colspan="8" class="muted empty-cell">No items recorded.</td></tr>
         }
       </tbody>
     </table>

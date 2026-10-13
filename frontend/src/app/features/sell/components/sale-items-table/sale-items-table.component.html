@@ -4,9 +4,12 @@
       <tr>
         <th class="col-no">No</th>
         <th class="col-product">Product</th>
-        <th class="col-price">Price</th>
-        <th class="col-qty">Quantity</th>
-        <th class="col-subtotal">Subtotal</th>
+        <th class="col-price">Unit price</th>
+        <th class="col-qty">Units</th>
+        <th class="col-subtotal">Line subtotal</th>
+        <th class="col-tax-rate">Tax %</th>
+        <th class="col-tax-amount">Tax amount</th>
+        <th class="col-total">Line total</th>
         <th class="col-actions"></th>
       </tr>
     </thead>
@@ -32,6 +35,9 @@
             />
           </td>
           <td class="col-subtotal">Rs {{ priced()[i]?.taxable }}</td>
+          <td class="col-tax-rate">{{ product.taxRate | percent: "1.0-2" }}</td>
+          <td class="col-tax-amount">Rs {{ priced()[i]?.tax }}</td>
+          <td class="col-total">Rs {{ priced()[i]?.lineTotal }}</td>
           <td class="col-actions">
             <button
               type="button"
@@ -45,7 +51,7 @@
         </tr>
       } @empty {
         <tr>
-          <td class="empty-row" colspan="6">
+          <td class="empty-row" colspan="9">
             No products added yet. Search a product above to start the sale.
           </td>
         </tr>

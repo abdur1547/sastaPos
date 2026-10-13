@@ -3,6 +3,7 @@ import { SqliteRecord } from "@powersync/common";
 import { Observable, combineLatest, map } from "rxjs";
 
 import { DatabaseService } from "../../../core/database/database.service";
+import { fromScaled, toScaled } from "../../sell/domain/decimal";
 import {
   SaleDetail,
   SaleDetailHeader,
@@ -43,7 +44,7 @@ export class SaleDetailRepository {
         [id, storeId],
       ),
       this.database.watch(
-        `SELECT id, product_id, product_name, sku, quantity, unit_price, tax_rate, line_total
+        `SELECT id, product_id, product_name, sku, quantity, unit_price, tax_rate, taxable_amount, line_total
          FROM sale_items WHERE sale_id = ? ORDER BY date_created, id`,
         [id],
       ),
@@ -120,6 +121,8 @@ function toHeader(row: SqliteRecord): SaleDetailHeader {
 }
 
 function toItem(row: SqliteRecord): SaleDetailItem {
+  const lineSubtotal = requiredMoney(row["taxable_amount"], "sale_items.taxable_amount");
+  const lineTotal = requiredMoney(row["line_total"], "sale_items.line_total");
   return {
     id: requiredText(row["id"], "sale_items.id"),
     productId: requiredText(row["product_id"], "sale_items.product_id"),
@@ -128,7 +131,9 @@ function toItem(row: SqliteRecord): SaleDetailItem {
     quantity: requiredDecimal(row["quantity"], "sale_items.quantity"),
     unitPrice: requiredMoney(row["unit_price"], "sale_items.unit_price"),
     taxRate: requiredDecimal(row["tax_rate"], "sale_items.tax_rate"),
-    lineTotal: requiredMoney(row["line_total"], "sale_items.line_total"),
+    lineSubtotal,
+    taxAmount: fromScaled(toScaled(lineTotal, 2) - toScaled(lineSubtotal, 2), 2),
+    lineTotal,
   };
 }
 

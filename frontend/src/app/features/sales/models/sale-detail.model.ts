@@ -35,6 +35,8 @@ export interface SaleDetailItem {
   readonly quantity: string;
   readonly unitPrice: string;
   readonly taxRate: string;
+  readonly lineSubtotal: string;
+  readonly taxAmount: string;
   readonly lineTotal: string;
 }
 
