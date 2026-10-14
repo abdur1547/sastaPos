@@ -104,8 +104,14 @@ The committed configuration is in `src/main/resources/application.yml`. Database
 | --- | --- |
 | `JDBC_DATABASE_URL` | `jdbc:postgresql://localhost:5432/sastaPos` |
 | `JDBC_DATABASE_USERNAME` | `postgres` |
-| `JDBC_DATABASE_PASSWORD` | `<<YOUR_PASSWORD>>` |
+| `JDBC_DATABASE_PASSWORD` | `postgres` (development only) |
 | `CORS_ALLOWED_ORIGINS` | All origins in the `dev` profile; none otherwise |
+
+See [.env.example](.env.example) for the complete variable list, units, defaults
+and production requirements, including JWT lifetime, password-reset lifetime,
+store currency/timezone and Docker migration settings. Spring Boot does not
+automatically read `.env`; export variables to the process or use an IDE/Docker
+environment file. Leave optional variables unset rather than assigning blanks.
 
 Set `CORS_ALLOWED_ORIGINS` to a comma-separated list of exact origins to allow outside development, for example `https://pos.example.com,https://admin.example.com`. Requests from origins not in this list are rejected by the browser's CORS policy. The `dev` profile allows all origins by default; setting `CORS_ALLOWED_ORIGINS` overrides that default.
 
@@ -130,9 +136,77 @@ java -Dserver.port="${PORT:-8080}" -Duser.timezone=UTC \
   -jar target/sastaPos-0.0.1-SNAPSHOT.jar
 ```
 
-The repository does not currently commit a `prod` profile file. Keep production overrides in the deployment environment, and set a production-safe JPA schema/migration strategy before deploying. The current committed configuration uses `spring.jpa.hibernate.ddl-auto: update`; review this for production and prefer controlled migrations once the Flyway migration set is established.
+The committed `application-prod.yml` currently enables Hibernate schema updates and disables Flyway. For JAR deployments, override these settings to use controlled migrations and schema validation. The Docker image below supplies these safer defaults.
 
-To build an OCI image with Spring Boot Buildpacks:
+### Docker Image
+
+From the repository root, build with Docker BuildKit (enabled by default in current Docker releases):
+
+```bash
+docker build --pull -t sasta-pos-backend:latest ./backend
+```
+
+The multi-stage build uses the checked-in Maven Wrapper and Java 25. Only the
+Alpine JRE and extracted Spring Boot application layers reach the runtime image;
+the JDK, Maven cache, source, and test tooling stay in the build stage. Stable
+dependency layers are reused across application changes. The build context
+excludes local configuration, environment files, and common private-key/keystore
+files. Do not put secrets in other source/resource files.
+
+Image builds skip test execution; run `bash ./mvnw test` with Java 25 and Docker
+in CI before publishing. The image runs as UID/GID `10001`, executes Java directly
+so it receives shutdown signals, and defaults to the `prod` profile and port
+`8080`. JVM heap sizing uses up to 75% of the container memory limit, leaving
+headroom for native memory; tune `JAVA_TOOL_OPTIONS` for your workload.
+
+Provide an untracked environment file through your deployment's secret manager
+with these values (never bake it into the image):
+
+```dotenv
+JDBC_DATABASE_URL=jdbc:postgresql://db-host:5432/sastaPos
+JDBC_DATABASE_USERNAME=sasta_pos
+JDBC_DATABASE_PASSWORD=<database-password>
+JWT_SECRET=<random-secret-at-least-32-bytes>
+CORS_ALLOWED_ORIGINS=https://pos.example.com
+```
+
+All JDBC values and a strong `JWT_SECRET` are required for production, even though
+the application has development fallback values. `db-host` must be reachable
+from the container; `localhost` refers to the container, not the Docker host.
+
+```bash
+docker run --detach --name sasta-pos-backend \
+  --env-file /secure/path/backend.env \
+  --publish 8080:8080 \
+  --memory 512m --cpus 1 \
+  --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+  --cap-drop ALL --security-opt no-new-privileges=true \
+  --stop-timeout 30 \
+  sasta-pos-backend:latest
+```
+
+The container enables Flyway at `classpath:db/migration`, disables automatic
+baselining, validates the Hibernate schema, and disables SQL query logging.
+These environment defaults intentionally override the less restrictive production
+profile. New databases are migrated automatically. Existing databases without
+Flyway history must be reviewed and explicitly baselined before deployment;
+do not blindly enable baselining or schema updates. Deployment environment
+variables can override the image defaults. Set `SERVER_PORT` and adjust the port
+mapping if your platform requires a different listening port.
+
+Terminate TLS at your ingress/reverse proxy and configure readiness/liveness
+checks there. The backend does not currently expose an Actuator health endpoint,
+so this image does not declare a misleading HTTP health check. The separate root
+[production Compose stack](../docker-compose.prod.yml) integrates the backend,
+persistent PostgreSQL and PowerSync using only the root [.env.example](../.env.example).
+It checks the existing public `/` endpoint after startup and maps shared database
+credentials without duplicate secrets. See the root
+[deployment instructions](../README.md#production-compose) for TLS, backups,
+initialization and credential rotation.
+For releases, publish immutable application tags and pin the builder/runtime
+base images to approved digests; rebuild regularly for JRE and OS security updates.
+
+Alternatively, build an OCI image with Spring Boot Buildpacks:
 
 ```bash
 bash ./mvnw spring-boot:build-image \

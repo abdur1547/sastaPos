@@ -28,6 +28,7 @@ PowerSync service (Docker, self-hosted)   Spring Boot backend
 ```text
 .
 ├── docker-compose.yml   Postgres + PowerSync (includes powersync/docker-compose.yml)
+├── docker-compose.prod.yml Backend + persistent Postgres + PowerSync for production
 ├── .env                 Postgres / backend vars (copy from .env.example)
 ├── powersync/           PowerSync service.yaml, sync-config.yaml, .env, postgres-init.sh
 ├── backend/             Spring Boot API
@@ -43,7 +44,8 @@ PowerSync service (Docker, self-hosted)   Spring Boot backend
 ### One-time configuration
 
 ```bash
-cp .env.example .env                     # Postgres + backend settings
+cp .env.example .env                     # shared Postgres / backend settings
+cp backend/.env.example backend/.env     # optional standalone backend reference
 cp powersync/.env.example powersync/.env # PowerSync settings
 cp frontend/src-tauri/.env.example frontend/src-tauri/.env
 ```
@@ -53,7 +55,7 @@ Keep these consistent:
 | Value | Where |
 | --- | --- |
 | `POWERSYNC_DB_PASSWORD` (root `.env`) | must equal the password inside `PS_DATA_SOURCE_URI` / `PS_STORAGE_SOURCE_URI` in `powersync/.env` (user `powersync_role`) |
-| `JWT_SECRET` (backend env, default is a dev value) | `PS_JWK_K` in `powersync/.env` must be its base64url encoding: `printf '%s' "$JWT_SECRET" \| base64 -w0 \| tr '+/' '-_' \| tr -d '='` (the `.env.example` value matches the default dev secret) |
+| `JWT_SECRET` (root `.env`, exported to the backend) | `PS_JWK_K` in `powersync/.env` must be its base64url encoding: `printf '%s' "$JWT_SECRET" \| base64 -w0 \| tr '+/' '-_' \| tr -d '='` |
 | `PS_PORT` (`powersync/.env`) | `POWERSYNC_ENDPOINT` in `frontend/src-tauri/.env` (default `8081`) |
 
 ### Run everything (3 terminals)
@@ -71,8 +73,11 @@ The DB init script runs only on a fresh database. If you change the role passwor
 
 ```bash
 cd backend
-set -a && . ../.env && set +a   # exports JDBC_* variables
-./mvnw spring-boot:run
+set -a && . ../.env && set +a
+export JDBC_DATABASE_URL="jdbc:postgresql://localhost:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-sastaPos}"
+export JDBC_DATABASE_USERNAME="${POSTGRES_USER:-postgres}"
+export JDBC_DATABASE_PASSWORD="$POSTGRES_PASSWORD"
+SPRING_PROFILES_ACTIVE=dev bash ./mvnw spring-boot:run
 ```
 
 The `dev` profile creates the tables with Hibernate; the backend must have started once so tables exist (PowerSync picks them up automatically, no restart needed).
@@ -84,6 +89,96 @@ cd frontend
 yarn install
 yarn tauri dev
 ```
+
+### Environment configuration
+
+Every `.env.example` identifies **REQUIRED** values and **NOT REQUIRED** overrides.
+Not required means the documented default is sufficient, so leave the variable
+unset; an empty value is not always equivalent to an unset variable.
+
+| Scope | Reference | How it is loaded |
+| --- | --- | --- |
+| Root infrastructure | [.env.example](.env.example) | Compose interpolation; production maps values into containers |
+| Standalone backend | [backend/.env.example](backend/.env.example) | Export to the process/IDE, or pass to Docker with `--env-file`; Spring does not auto-load `.env` |
+| Angular / TypeScript | [frontend/.env.example](frontend/.env.example) | No `.env` loader; API URL is in `src/environments/environment*.ts` |
+| Rust / Tauri | [frontend/src-tauri/.env.example](frontend/src-tauri/.env.example) | Process environment, then dotenvy working-directory/parent search |
+| Standalone/dev PowerSync | [powersync/.env.example](powersync/.env.example) | PowerSync Compose `env_file` |
+
+Before shipping a remote desktop build, set Angular's `apiBaseUrl` in
+`frontend/src/environments/environment.prod.ts` to the public HTTPS backend URL.
+Set Rust's `API_BASE_URL` to that same URL and `POWERSYNC_ENDPOINT` to the public
+HTTPS PowerSync URL through the desktop launcher environment. The Rust `.env` is
+not embedded in the packaged app. Never distribute server secrets to clients.
+
+## Production Compose
+
+The root [docker-compose.prod.yml](docker-compose.prod.yml) runs the backend,
+PostgreSQL and PowerSync together on one host, without importing the development
+stack or any component `.env` files.
+
+1. Copy `.env.example` to `.env`, then set all required production values:
+   `POSTGRES_PASSWORD`, `POWERSYNC_DB_PASSWORD`, `JWT_SECRET`, `PS_API_TOKEN` and
+   `CORS_ALLOWED_ORIGINS`. Generate each secret independently with
+   `openssl rand -hex 32`; JWT signing needs at least 32 bytes. For CORS, list only
+   the exact origins used by your clients (desktop origins can be
+   `tauri://localhost`, `http://tauri.localhost`, `https://tauri.localhost`).
+   Restrict permissions with `chmod 600 .env`.
+   If manually choosing passwords with `$` or other interpolation characters,
+   single-quote their values in the Compose env file to preserve them literally.
+2. Validate and start from the repository root:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml --env-file .env config --quiet
+   docker compose -f docker-compose.prod.yml --env-file .env up -d --build --wait
+   docker compose -f docker-compose.prod.yml --env-file .env ps
+   ```
+
+3. Configure a TLS reverse proxy to the loopback endpoints
+   `http://127.0.0.1:8090` (backend) and `http://127.0.0.1:8081` (PowerSync).
+   Support streaming/WebSockets for PowerSync and restrict its admin/API routes.
+   Ports and bind address can be overridden in the root env file. PostgreSQL has
+   no published port. Do not publish plaintext services on a public interface.
+
+Shared values are defined once:
+
+| Root variable | Consumers |
+| --- | --- |
+| `POSTGRES_DB` | PostgreSQL, backend JDBC URL, both PowerSync database connections |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` | PostgreSQL owner and backend JDBC credentials |
+| `POWERSYNC_DB_PASSWORD` | PostgreSQL `powersync_role` initialization and both PowerSync database connections |
+| `JWT_SECRET` | Backend signer and automatically derived PowerSync `PS_JWK_K` |
+| `PS_API_TOKEN` | PowerSync admin authentication only |
+
+PowerSync's startup command derives the HS256 JWK from the shared JWT secret.
+Its [production config](powersync/service.prod.yaml) uses explicit database
+credential fields, preserving special-character passwords without URI encoding.
+No duplicate URI/password/key values need to be maintained. The separate
+replication role is intentional; PowerSync does not receive the PostgreSQL
+owner's password. Standalone/dev URI configuration needs URI-safe passwords
+(e.g. random hex) because the pinned PowerSync version does not decode passwords.
+
+PostgreSQL 18 persists to a named volume mounted at `/var/lib/postgresql`.
+Its first-start script enables the replication role/publication; backend Flyway
+migrations and Hibernate validation complete before PowerSync starts. Backend
+health checks use the existing public `/` endpoint (not a full dependency-health
+endpoint); PowerSync uses `/probes/liveness`. Production overrides the permissive
+JPA settings in the `prod` YAML and disables SQL logging.
+
+This is a single-host baseline, not high availability. Database connections use
+`sslmode: disable` only within the private Compose network.
+For databases outside that host/network, configure verified TLS in
+`powersync/service.prod.yaml`. Use backups, monitor replication lag/WAL growth, and
+plan separate PowerSync storage/worker scaling as load grows. PowerSync is pinned
+to an image digest; approve/test updates before overriding `POWERSYNC_IMAGE`.
+Pin PostgreSQL and backend/base images to approved digests in your release process.
+
+Use a fresh production volume, or review and explicitly baseline an existing
+database before enabling Flyway; do not reuse development data blindly. Init
+scripts run only once: editing a password in `.env` does not change existing DB
+roles. Rotate passwords in PostgreSQL and update the env together. Stop with
+`docker compose -f docker-compose.prod.yml down`; **do not add `-v`** unless you
+intend to delete production data. Take and restore-test backups independently.
+Compose validates missing required values but cannot judge secret strength.
 
 ### First-use flow
 
@@ -175,7 +270,8 @@ sales or apply stock movements a second time.
 cd frontend && yarn tauri build
 ```
 
-Set `POWERSYNC_ENDPOINT` for the deployed PowerSync URL; production config (TLS, secrets, `sslmode`) is managed separately.
+Set `POWERSYNC_ENDPOINT` for the deployed PowerSync URL; use the root production
+Compose stack and configure TLS ingress as described above.
 
 ## Component Documentation
 

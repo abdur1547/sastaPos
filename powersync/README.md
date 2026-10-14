@@ -7,9 +7,10 @@ Files in this folder:
 
 | File                  | Purpose                                                              |
 | --------------------- | --------------------------------------------------------------------- |
-| `docker-compose.yaml` | Runs the `journeyapps/powersync-service` container                    |
+| `docker-compose.yml` | Runs the `journeyapps/powersync-service` container                    |
 | `.env.example`        | Template for secrets/config — copy to `.env`                          |
 | `service.yaml`        | PowerSync instance config: DB connection, storage, auth, ports        |
+| `service.prod.yaml`   | Root production stack: explicit DB credentials and production JWT audience |
 | `sync-config.yaml`    | Sync Streams — defines *what* data gets synced to clients             |
 
 ---
@@ -108,11 +109,11 @@ Edit `.env`:
   - Use `host.docker.internal` if Postgres runs directly on your host machine (not in Docker).
     The compose file already maps this for Linux/macOS/Windows via `extra_hosts`.
   - If Postgres runs in Docker on a shared network, use its service/container name instead and
-    add that network to `docker-compose.yaml`.
+    add that network to `docker-compose.yml`.
 - `PS_STORAGE_SOURCE_URI` — where PowerSync stores its own sync state. Simplest: same Postgres,
   same database (isolated automatically in a `powersync` schema). For production, prefer a
   separate database/instance so replication storage I/O doesn't compete with your app.
-- `PS_JWKS_URL` — JWKS endpoint of whatever issues your app's JWTs. See [Authentication](#5-authentication) below if you don't have one yet.
+- `PS_JWK_K` — base64url encoding of the backend's `JWT_SECRET`. See [Authentication](#5-authentication) below.
 - `PS_API_TOKEN` — random secret for PowerSync's own admin routes: `openssl rand -hex 32`.
 
 Edit `sync-config.yaml` to describe your real tables (replace `your_table_name`). Every table
@@ -130,8 +131,8 @@ docker compose up -d
 docker compose logs -f powersync
 ```
 
-- API/sync endpoint: `http://localhost:8080` (or whatever `PS_PORT` you set).
-- Health check: `http://localhost:8080/probes/liveness`
+- API/sync endpoint: `http://localhost:8081` (or whatever `PS_PORT` you set).
+- Health check: `http://localhost:8081/probes/liveness`
 - Stop: `docker compose down` (add `-v` to also wipe any local volumes, though this setup has none
   since Postgres lives outside this compose file).
 
@@ -143,7 +144,26 @@ docker compose restart powersync
 
 ### Production
 
-1. **Don't use `sslmode: disable`** — set `sslmode: verify-ca` or `verify-full` in `service.yaml`
+For this app's integrated single-host production deployment, use the root
+[docker-compose.prod.yml](../docker-compose.prod.yml) and
+[root env example](../.env.example), not this standalone Compose file.
+Only the root `.env` is loaded. It shares the database name, supplies a separate
+`POWERSYNC_DB_PASSWORD` to the PostgreSQL init script and PowerSync's explicit
+credential fields in [service.prod.yaml](service.prod.yaml), and derives `PS_JWK_K` from the same
+`JWT_SECRET` the backend signs with. The [.env.example](.env.example) in this
+folder is only for standalone/development use and marks required values and
+optional defaults. Use URI-safe passwords (e.g. random hex) for standalone URI
+configuration; the pinned service does not decode percent-encoded passwords.
+Production uses explicit fields so special characters work unchanged.
+
+The integrated stack retains unified mode and shared PostgreSQL bucket storage,
+with database SSL disabled only on its private Docker network. Host endpoints
+bind to loopback for a TLS proxy, and the PowerSync image is digest-pinned.
+See [deployment instructions](../README.md#production-compose). The following
+recommendations apply when scaling beyond that single-host setup or connecting
+to external databases:
+
+1. **Don't use `sslmode: disable` for external databases** — set `sslmode: verify-ca` or `verify-full` in `service.yaml`
    for both `replication.connections` and `storage`, and supply `cacert` (and client cert/key if
    your Postgres requires mTLS) via env vars.
 2. **Split services** for independent scaling/restarts instead of the unified container:

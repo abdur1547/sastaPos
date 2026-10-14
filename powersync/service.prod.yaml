@@ -1,0 +1,49 @@
+# Production single-host configuration. Explicit credentials avoid URI password
+# parsing/encoding limitations and consume the root Compose values unchanged.
+_type: self-hosted
+
+telemetry:
+  disable_telemetry_sharing: false
+
+replication:
+  connections:
+    - type: postgresql
+      hostname: postgres
+      port: 5432
+      database: !env PS_POSTGRES_DB
+      username: powersync_role
+      password: !env PS_DATABASE_PASSWORD
+      # PostgreSQL is private to this single-host Compose network.
+      sslmode: disable
+
+storage:
+  type: postgresql
+  hostname: postgres
+  port: 5432
+  database: !env PS_POSTGRES_DB
+  username: powersync_role
+  password: !env PS_DATABASE_PASSWORD
+  sslmode: disable
+
+port: !env PS_PORT
+
+sync_config:
+  path: sync-config.yaml
+
+client_auth:
+  jwks:
+    keys:
+      - kty: oct
+        alg: HS256
+        kid: powersync
+        k: !env PS_JWK_K
+  audience: ["powersync"]
+
+api:
+  tokens:
+    - !env PS_API_TOKEN
+
+system:
+  logging:
+    level: info
+    format: json

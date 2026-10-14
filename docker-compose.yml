@@ -1,6 +1,6 @@
 # Dev-only Docker Compose: local Postgres, reused by both the backend and the
-# imported PowerSync stack (./powersync/docker-compose.yaml).
-# Production infrastructure is managed separately (not via this file).
+# imported PowerSync stack (./powersync/docker-compose.yml).
+# Production uses ./docker-compose.prod.yml (not this development file).
 #
 # Usage:
 #   cp .env.example .env                       # then edit .env (Postgres/backend vars)

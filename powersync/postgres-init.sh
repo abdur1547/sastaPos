@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs once, the first time the dev Postgres container initialises an empty data directory.
+# Runs once, the first time a Postgres container initialises an empty data directory.
 # Creates the replication role + `powersync` publication that the PowerSync service needs.
 set -euo pipefail
 

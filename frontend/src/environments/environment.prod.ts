@@ -1,4 +1,6 @@
+import { env } from "process";
+
 export const environment = {
   production: true,
-  apiBaseUrl: 'http://localhost:8090'
+  apiBaseUrl: env.API_BASE_URL
 };

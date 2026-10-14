@@ -41,6 +41,25 @@ endpoint in the current API. Existing offline-first management pages are unchang
 - PowerSync + Supabase-backed sync
 - Yarn 1.22.22
 
+## Environment configuration
+
+The [TypeScript env reference](.env.example) deliberately contains no assignments:
+Angular does not read `.env` files. Development and production API URLs are
+configured through `apiBaseUrl` in
+[environment.ts](src/environments/environment.ts) and
+[environment.prod.ts](src/environments/environment.prod.ts), respectively.
+Both default to `http://localhost:8090`. Set the production value to the public
+HTTPS backend URL before building a remote desktop client.
+
+The [Rust env example](src-tauri/.env.example) documents `API_BASE_URL` and
+`POWERSYNC_ENDPOINT`. Neither needs setting for local development; remote
+production clients must override both. `API_BASE_URL` must match Angular's
+`apiBaseUrl`. Rust reads the runtime environment and dotenvy searches the launch
+working directory and its parents; `.env` is not bundled or located relative to
+the installed binary automatically. Use a launcher environment for packaged apps.
+Never put database passwords, JWT signing secrets or PowerSync admin tokens in
+the client.
+
 ## Prerequisites
 
 Before building the app for production, install:

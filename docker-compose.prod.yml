@@ -1,0 +1,120 @@
+# Production single-host stack. Uses ONLY the root .env.
+# docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+# Put a TLS reverse proxy in front of backend/PowerSync and restrict admin routes.
+name: sastapos-prod
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:18-alpine}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sastaPos}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in root .env}
+      POWERSYNC_DB_PASSWORD: ${POWERSYNC_DB_PASSWORD:?set POWERSYNC_DB_PASSWORD in root .env}
+    command: ["postgres", "-c", "wal_level=logical"]
+    volumes:
+      # PostgreSQL 18 uses versioned PGDATA beneath /var/lib/postgresql.
+      - postgres_data:/var/lib/postgresql
+      - ./powersync/postgres-init.sh:/docker-entrypoint-initdb.d/10-powersync.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 15s
+    stop_grace_period: 60s
+
+  backend:
+    image: ${BACKEND_IMAGE:-sasta-pos-backend:prod}
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: "8090"
+      JDBC_DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-sastaPos}
+      JDBC_DATABASE_USERNAME: ${POSTGRES_USER:-postgres}
+      JDBC_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in root .env}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in root .env}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?set exact CORS_ALLOWED_ORIGINS in root .env}
+      JWT_EXPIRATION_SECONDS: ${JWT_EXPIRATION_SECONDS:-3600}
+      PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES: ${PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES:-15}
+      DEFAULT_CURRENCY_CODE: ${DEFAULT_CURRENCY_CODE:-PKR}
+      DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-Asia/Karachi}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_JPA_SHOW_SQL: "false"
+      SPRING_FLYWAY_ENABLED: "true"
+      SPRING_FLYWAY_LOCATIONS: classpath:db/migration
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "false"
+    ports:
+      - "${SERVICE_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-8090}:8090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Root endpoint is public and available after startup/migrations, not Actuator.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8090/"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
+    mem_limit: 512m
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+
+  powersync:
+    image: ${POWERSYNC_IMAGE:-journeyapps/powersync-service@sha256:bf46f66e5dcc8f6a084de02ab51155dfa655bc610aa95009fff1c36f949c0acf}
+    restart: unless-stopped
+    environment:
+      POWERSYNC_CONFIG_PATH: /config/service.yaml
+      PS_PORT: "8081"
+      PS_POSTGRES_DB: ${POSTGRES_DB:-sastaPos}
+      PS_DATABASE_PASSWORD: ${POWERSYNC_DB_PASSWORD:?set POWERSYNC_DB_PASSWORD in root .env}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in root .env}
+      PS_API_TOKEN: ${PS_API_TOKEN:?set PS_API_TOKEN in root .env}
+      NODE_OPTIONS: --max-old-space-size=1024
+    # Derive the JWK from the shared raw secret; never duplicate it in .env.
+    # Preserve the pinned image's Node entrypoint and unified worker/API mode.
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        PS_JWK_K="$$(node -e 'process.stdout.write(Buffer.from(process.env.JWT_SECRET).toString("base64url"))')"
+        export PS_JWK_K
+        exec node /app/service/lib/entry.js start -r unified
+    volumes:
+      - ./powersync/service.prod.yaml:/config/service.yaml:ro
+      - ./powersync/sync-config.yaml:/config/sync-config.yaml:ro
+    ports:
+      - "${SERVICE_BIND_ADDRESS:-127.0.0.1}:${PS_PORT:-8081}:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8081/probes/liveness').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    # Node heap is 80% of the 1280 MiB container limit.
+    mem_limit: 1280m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+
+volumes:
+  postgres_data:
