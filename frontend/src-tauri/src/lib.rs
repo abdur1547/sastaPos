@@ -1,6 +1,6 @@
 mod auth;
-#[cfg(any(debug_assertions, test))]
 mod receipt;
+mod printing;
 #[cfg(debug_assertions)]
 mod scanner;
 mod upload;
@@ -86,6 +86,8 @@ async fn connect<R: tauri::Runtime>(
   handle: usize,
 ) -> tauri_plugin_powersync::Result<()> {
   let database = app.powersync().database_from_javascript_handle(handle)?;
+  printing::initialize(&app, database.clone()).await
+    .map_err(|error| powersync::error::PowerSyncError::upload_error(std::io::Error::other(error)))?;
 
   let options = SyncOptions::new(AppBackendConnector {
     db: database.clone(),
@@ -101,7 +103,9 @@ async fn connect<R: tauri::Runtime>(
 pub fn run() {
   dotenvy::dotenv().ok();
 
-  let builder = tauri::Builder::default().plugin(tauri_plugin_powersync::init());
+  let builder = tauri::Builder::default()
+    .manage(printing::PrintQueue::default())
+    .plugin(tauri_plugin_powersync::init());
 
   #[cfg(debug_assertions)]
   let builder = builder
@@ -113,6 +117,11 @@ pub fn run() {
       auth::auth_restore_session,
       auth::auth_get_access_token,
       auth::auth_clear_session,
+      printing::receipt_settings_get,
+      printing::receipt_settings_save,
+      printing::receipt_history,
+      printing::receipt_retry,
+      printing::receipt_reprint,
       receipt::receipt_preview,
       scanner::scanner_simulator_start,
       scanner::scanner_simulator_feed,
@@ -125,7 +134,12 @@ pub fn run() {
     auth::auth_save_session,
     auth::auth_restore_session,
     auth::auth_get_access_token,
-    auth::auth_clear_session
+    auth::auth_clear_session,
+    printing::receipt_settings_get,
+    printing::receipt_settings_save,
+    printing::receipt_history,
+    printing::receipt_retry,
+    printing::receipt_reprint
   ]);
 
   builder

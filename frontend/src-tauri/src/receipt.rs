@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-const MAX_AMOUNT: u64 = 99_999_999_999_999;
+const MAX_AMOUNT: u64 = 999_999_999_999_999_999;
 
-#[derive(Clone, Copy, Deserialize)]
+#[derive(Clone, Copy, Deserialize, Serialize)]
 pub enum PaperProfile {
   #[serde(rename = "58mm")]
   Narrow,
@@ -10,7 +10,7 @@ pub enum PaperProfile {
   Wide,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ReceiptConfig {
   version: u32,
@@ -22,17 +22,85 @@ pub struct ReceiptConfig {
   show_customer: bool,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum ReceiptNumber {
+  Number(u64),
+  Text(String),
+}
+
+impl From<u64> for ReceiptNumber {
+  fn from(value: u64) -> Self {
+    Self::Number(value)
+  }
+}
+
+impl ReceiptNumber {
+  fn minor(&self) -> Result<u64, String> {
+    match self {
+      Self::Number(value) => Ok(*value),
+      Self::Text(value) if !value.is_empty() && value.bytes().all(|b| b.is_ascii_digit()) => value
+        .parse()
+        .map_err(|_| "Receipt amount is too large.".into()),
+      _ => Err("Receipt amounts must be non-negative integer minor units.".into()),
+    }
+  }
+
+  fn quantity(&self) -> Result<(u64, String), String> {
+    match self {
+      Self::Number(value) => Ok((
+        value
+          .checked_mul(100)
+          .ok_or("Receipt quantity is too large.")?,
+        value.to_string(),
+      )),
+      Self::Text(value) => {
+        let (whole, fraction) = value.split_once('.').unwrap_or((value, ""));
+        if whole.is_empty()
+          || fraction.len() > 2
+          || !whole
+            .bytes()
+            .chain(fraction.bytes())
+            .all(|b| b.is_ascii_digit())
+        {
+          return Err(
+            "Receipt quantity must be a non-negative decimal with at most two places.".into(),
+          );
+        }
+        let whole: u64 = whole
+          .parse()
+          .map_err(|_| "Receipt quantity is too large.")?;
+        let fraction: u64 = format!("{fraction:0<2}")
+          .parse()
+          .map_err(|_| "Invalid quantity.")?;
+        let scaled = whole
+          .checked_mul(100)
+          .and_then(|v| v.checked_add(fraction))
+          .ok_or("Receipt quantity is too large.")?;
+        let label = if fraction == 0 {
+          whole.to_string()
+        } else {
+          format!("{whole}.{fraction:02}")
+            .trim_end_matches('0')
+            .to_string()
+        };
+        Ok((scaled, label))
+      }
+    }
+  }
+}
+
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ReceiptItem {
   name: String,
   sku: Option<String>,
   barcode: Option<String>,
-  quantity: u32,
-  unit_price_minor: u64,
+  quantity: ReceiptNumber,
+  unit_price_minor: ReceiptNumber,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ReceiptData {
   invoice_number: String,
@@ -40,19 +108,19 @@ pub struct ReceiptData {
   currency: String,
   customer: Option<String>,
   items: Vec<ReceiptItem>,
-  discount_minor: u64,
-  tax_minor: u64,
-  paid_minor: u64,
-  is_copy: bool,
+  discount_minor: ReceiptNumber,
+  tax_minor: ReceiptNumber,
+  paid_minor: ReceiptNumber,
+  pub is_copy: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReceiptLayout {
   version: u32,
-  paper_width_mm: u32,
+  pub paper_width_mm: u32,
   columns: usize,
-  lines: Vec<String>,
+  pub lines: Vec<String>,
 }
 
 fn validate_text(value: &str, label: &str, max: usize, multiline: bool) -> Result<(), String> {
@@ -120,12 +188,17 @@ fn pair(lines: &mut Vec<String>, left: &str, right: &str, columns: usize) {
   }
 }
 
-pub fn render(data: &ReceiptData, config: &ReceiptConfig) -> Result<ReceiptLayout, String> {
+pub fn validate_config(config: &ReceiptConfig) -> Result<(), String> {
   if config.version != 1 {
     return Err("Unsupported receipt configuration version.".into());
   }
   validate_text(&config.header, "Header", 1000, true)?;
   validate_text(&config.footer, "Footer", 1000, true)?;
+  Ok(())
+}
+
+pub fn render(data: &ReceiptData, config: &ReceiptConfig) -> Result<ReceiptLayout, String> {
+  validate_config(config)?;
   required_text(&data.invoice_number, "Invoice number", 100)?;
   required_text(&data.issued_at, "Issue date", 100)?;
   if data.currency.len() != 3 || !data.currency.bytes().all(|byte| byte.is_ascii_uppercase()) {
@@ -138,6 +211,7 @@ pub fn render(data: &ReceiptData, config: &ReceiptConfig) -> Result<ReceiptLayou
     return Err("Receipt must contain between 1 and 200 items.".into());
   }
   let mut subtotal = 0_u64;
+  let mut priced_items = Vec::new();
   for item in &data.items {
     required_text(&item.name, "Product name", 255)?;
     for (value, label) in [(&item.sku, "SKU"), (&item.barcode, "Barcode")] {
@@ -145,21 +219,27 @@ pub fn render(data: &ReceiptData, config: &ReceiptConfig) -> Result<ReceiptLayou
         validate_text(value, label, 255, false)?;
       }
     }
-    if item.quantity == 0 || item.quantity > 1_000_000 || item.unit_price_minor > MAX_AMOUNT {
+    let (quantity, label) = item.quantity.quantity()?;
+    let price = item.unit_price_minor.minor()?;
+    if quantity == 0 || price > MAX_AMOUNT {
       return Err("Item quantity or price is outside the supported range.".into());
     }
-    subtotal = item
-      .unit_price_minor
-      .checked_mul(u64::from(item.quantity))
-      .and_then(|line| subtotal.checked_add(line))
+    let line = (u128::from(price) * u128::from(quantity) + 50) / 100;
+    let line = u64::try_from(line).map_err(|_| "Receipt line exceeds the supported range.")?;
+    subtotal = subtotal
+      .checked_add(line)
       .filter(|total| *total <= MAX_AMOUNT)
       .ok_or("Receipt subtotal exceeds the supported range.")?;
+    priced_items.push((label, price, line));
   }
-  if data.discount_minor > subtotal || data.tax_minor > MAX_AMOUNT || data.paid_minor > MAX_AMOUNT {
+  let discount = data.discount_minor.minor()?;
+  let tax = data.tax_minor.minor()?;
+  let paid = data.paid_minor.minor()?;
+  if discount > subtotal || tax > MAX_AMOUNT || paid > MAX_AMOUNT {
     return Err("Discount, tax, or payment is outside the supported range.".into());
   }
-  let total = (subtotal - data.discount_minor)
-    .checked_add(data.tax_minor)
+  let total = (subtotal - discount)
+    .checked_add(tax)
     .filter(|total| *total <= MAX_AMOUNT)
     .ok_or("Receipt total exceeds the supported range.")?;
   // These are explicit text/font profiles, not a claim about every physical printer.
@@ -185,7 +265,7 @@ pub fn render(data: &ReceiptData, config: &ReceiptConfig) -> Result<ReceiptLayou
   }
   let separator = "-".repeat(columns);
   lines.push(separator.clone());
-  for item in &data.items {
+  for (item, (quantity, price, line)) in data.items.iter().zip(priced_items) {
     lines.extend(wrap(&item.name, columns));
     if config.show_sku {
       if let Some(sku) = &item.sku {
@@ -199,18 +279,18 @@ pub fn render(data: &ReceiptData, config: &ReceiptConfig) -> Result<ReceiptLayou
     }
     pair(
       &mut lines,
-      &format!("{} x {}", item.quantity, amount(item.unit_price_minor)),
-      &amount(item.unit_price_minor * u64::from(item.quantity)),
+      &format!("{quantity} x {}", amount(price)),
+      &amount(line),
       columns,
     );
   }
   lines.push(separator);
   for (label, value) in [
     ("Subtotal", subtotal),
-    ("Discount", data.discount_minor),
-    ("Tax", data.tax_minor),
+    ("Discount", discount),
+    ("Tax", tax),
     ("TOTAL", total),
-    ("Paid", data.paid_minor),
+    ("Paid", paid),
   ] {
     pair(
       &mut lines,
@@ -219,10 +299,10 @@ pub fn render(data: &ReceiptData, config: &ReceiptConfig) -> Result<ReceiptLayou
       columns,
     );
   }
-  let (label, balance) = if data.paid_minor > total {
-    ("Change", data.paid_minor - total)
+  let (label, balance) = if paid > total {
+    ("Change", paid - total)
   } else {
-    ("Outstanding", total - data.paid_minor)
+    ("Outstanding", total - paid)
   };
   pair(
     &mut lines,
@@ -263,12 +343,12 @@ mod tests {
           name: "A very long product name that must wrap across receipt lines".into(),
           sku: Some("SKU-1".into()),
           barcode: Some("036000291452".into()),
-          quantity: 2,
-          unit_price_minor: 12550,
+          quantity: 2.into(),
+          unit_price_minor: 12550.into(),
         }],
-        discount_minor: 1000,
-        tax_minor: 500,
-        paid_minor: 10000,
+        discount_minor: 1000.into(),
+        tax_minor: 500.into(),
+        paid_minor: 10000.into(),
         is_copy: false,
       },
       ReceiptConfig {
@@ -309,7 +389,7 @@ mod tests {
     config.show_customer = true;
     config.show_barcode = false;
     data.is_copy = true;
-    data.paid_minor = 30000;
+    data.paid_minor = 30000.into();
     let text = render(&data, &config).unwrap().lines.join("\n");
     for value in ["COPY", "SKU-1", "Sample customer", "Change", "PKR 54.00"] {
       assert!(text.contains(value));
@@ -321,10 +401,10 @@ mod tests {
   fn splits_unbroken_names_and_large_amounts_within_exact_width() {
     let (mut data, config) = fixture();
     data.items[0].name = "A".repeat(255);
-    data.items[0].unit_price_minor = MAX_AMOUNT / 2;
+    data.items[0].unit_price_minor = (MAX_AMOUNT / 2).into();
     let layout = render(&data, &config).unwrap();
     assert!(layout.lines.iter().all(|line| line.len() <= 32));
-    assert!(layout.lines.join("\n").contains("999999999999.98"));
+    assert!(layout.lines.join("\n").contains("9999999999999999.98"));
   }
 
   #[test]
@@ -336,15 +416,42 @@ mod tests {
     config.header = "Non ASCII: \u{0627}".into();
     assert!(render(&data, &config).is_err());
     config.header.clear();
-    data.items[0].quantity = 0;
+    data.items[0].quantity = 0.into();
     assert!(render(&data, &config).is_err());
-    data.items[0].quantity = 2;
-    data.items[0].unit_price_minor = MAX_AMOUNT;
+    data.items[0].quantity = 2.into();
+    data.items[0].unit_price_minor = MAX_AMOUNT.into();
     assert!(render(&data, &config).is_err());
-    data.items[0].unit_price_minor = 100;
+    data.items[0].unit_price_minor = 100.into();
     assert!(render(&data, &config).is_err()); // Discount exceeds subtotal.
-    data.discount_minor = 0;
+    data.discount_minor = 0.into();
     data.items[0].name = "control\tcharacter".into();
+    assert!(render(&data, &config).is_err());
+  }
+
+  #[test]
+  fn decimal_string_snapshots_preserve_fractional_quantities_and_large_minor_units() {
+    let (mut data, config) = fixture();
+    data.items[0].quantity = ReceiptNumber::Text("1.50".into());
+    data.items[0].unit_price_minor = ReceiptNumber::Text("12550".into());
+    data.discount_minor = ReceiptNumber::Text("825".into());
+    data.tax_minor = ReceiptNumber::Text("500".into());
+    data.paid_minor = ReceiptNumber::Text("10000".into());
+    let text = render(&data, &config).unwrap().lines.join("\n");
+    for value in ["1.5 x 125.50", "PKR 188.25", "PKR 185.00", "PKR 85.00"] {
+      assert!(text.contains(value), "{text}");
+    }
+    data.items[0].quantity = ReceiptNumber::Text("1.00".into());
+    data.items[0].unit_price_minor = ReceiptNumber::Text(MAX_AMOUNT.to_string());
+    data.discount_minor = 0.into();
+    data.tax_minor = 0.into();
+    assert!(render(&data, &config)
+      .unwrap()
+      .lines
+      .join("\n")
+      .contains("9999999999999999.99"));
+    data.items[0].quantity = ReceiptNumber::Text("1.001".into());
+    assert!(render(&data, &config).is_err());
+    data.items[0].quantity = ReceiptNumber::Text("-1.00".into());
     assert!(render(&data, &config).is_err());
   }
 

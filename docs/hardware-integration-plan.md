@@ -1,6 +1,6 @@
 # Scanner and Receipt Printing Implementation Plan
 
-Status: agreed scope; milestones 1, 2, and 3 implemented; milestone 4 (serial scanner) skipped for now; milestone 5 implemented as a basic text-only Rust receipt preview.
+Status: milestones 1, 2, 3, 5, and 6 implemented. Milestone 4 (serial scanner) remains skipped. Physical printer integration remains deferred.
 
 Decision date: 2026-10-14.
 
@@ -98,6 +98,57 @@ Rust renderer and mock-IPC tests cover widths, wrapping, optional fields, amount
 and errors. Jest tests cover gateway gating, exact output presentation, invalid
 input, and asynchronous lifecycle. See the
 [manual preview instructions](../frontend/README.md#development-only-receipt-preview).
+
+### Milestone 6: Atomic receipts and durable local print jobs
+
+The **Receipts** screen is available in the desktop app at `/receipts`. Rust
+creates ordinary, terminal-local SQLite tables in the existing PowerSync database;
+they are not registered as synchronized tables and do not produce upload entries.
+Rust also installs a receipt commit view and trigger. The sale repository inserts
+the completed sale ID into that view as the last operation of its existing sale
+transaction. This captures an immutable version-1 receipt snapshot and, when
+auto-print is enabled, its initial job in the same commit as stock, payments, and
+ledger writes. A snapshot/job failure rolls back the transaction. Drafts do not
+create snapshots or jobs.
+
+Snapshots preserve original product names, SKU/barcode, decimal quantities and
+prices, totals, customer/store identity, payments, issue time, layout, and copy
+count. Blank terminal header/footer overrides use the store name/address and
+receipt footer at checkout. Later catalogue, store, and terminal-layout edits do
+not change existing receipts. The renderer accepts decimal-string snapshots,
+fractional quantities, and backend-sized monetary values without floating-point
+conversion. Unsupported text/layout fails the print job, not the completed sale.
+
+Rust validates and persists the current basic layout, auto-print flag (default
+on), copy count (1-5), printer selection, and development simulation outcome.
+The default connection is **No printer connected**, not a simulator. Without a
+printer, jobs explicitly fail as definitely not sent. The development-only
+virtual printer must be selected explicitly; it uses the production layout
+pipeline and saves generated text/ESC/POS bytes for inspection. There are no
+cutter or vendor-specific commands. Virtual output is never labeled physically
+printed. Release builds reject virtual printer selection and simulation controls.
+
+A separate Rust worker polls committed pending jobs. It persists each attempt
+before delivery, never blocks checkout on printing, and never automatically
+retries failed or uncertain jobs. At startup, interrupted sending jobs/attempts
+become uncertain. Retrying uncertain delivery requires explicit confirmation;
+retries preserve attempt history. Explicit reprints create COPY jobs using the
+original snapshot/layout/copy count and current printer connection. Neither
+retry nor reprint creates a sale or changes stock, payments, or ledger records.
+
+The Receipts screen refreshes status while open and shows the latest 100 receipts
+and jobs for the signed-in store, including errors and attempt output. Older
+history remains in SQLite. Sales completed before this milestone have no local
+snapshot and cannot be reconstructed as an original receipt by this feature.
+Physical USB delivery, platform/device acceptance, logos, and advanced layout
+features remain future work.
+
+Tests cover the actual PowerSync SQLite extension's atomic rollback and upload
+isolation, immutable data/layout, fractional and large amounts, manual retry,
+COPY rendering, disk reopen, interrupted recovery, and mock-runtime Tauri IPC.
+Jest covers gateways, UI confirmations/errors, output presentation, settings,
+navigation cleanup, and sale integration. Native-webview and physical-device
+acceptance remain manual.
 
 ## 1. Ownership and platform scope
 

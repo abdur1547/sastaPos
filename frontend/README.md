@@ -158,7 +158,76 @@ and return to Sell. Scan twice and verify one cart line with quantity 2. Try an
 unknown barcode and duplicate barcodes on two active products: the cart must
 stay unchanged. Open payment, cancel it, and verify scanning resumes without
 adding ignored scans. Navigate to another page and back: no stale scan should
-change the cart. Real serial scanning and receipt printing remain deferred.
+change the cart. Real serial scanning and physical receipt printing remain deferred.
+
+## Durable receipts and print jobs
+
+Open **Receipts** in the sidebar (`/receipts`) in the Tauri desktop app.
+Terminal receipt settings are persisted by Rust and are separate from synced
+store settings. Blank header/footer overrides use the store name/address and
+receipt footer at the moment a sale is completed.
+
+- Auto-print is enabled by default. Copy count is restricted to 1-5.
+- **No printer connected** is the default: jobs fail explicitly as not sent.
+  There is no automatic simulator fallback and no physical printer adapter yet.
+- Completed sales capture an immutable receipt snapshot and their initial job
+  inside the sale transaction. Pending bills do not queue receipts.
+- Printing runs after commit in Rust. Print failures do not undo checkout.
+  Checkout notifications direct the cashier to Receipts for print status.
+- Changing terminal layout or store/catalogue data does not change old receipts.
+- Failed jobs require manual retry. Uncertain jobs require confirmation because
+  output may already exist. Sending jobs cannot be retried until recovery.
+- **Queue COPY** uses the original saved data, layout, and copy count with the
+  current printer connection. It does not repeat a sale, stock movement, payment,
+  or ledger entry.
+- Receipt data, jobs, settings, and attempt history stay on this terminal and
+  are not uploaded or synced to another terminal. Keep the local database backed
+  up; this feature is not a remote receipt archive.
+- The screen shows the latest 100 receipts/jobs for the current store; all
+  historical records remain stored locally. Earlier sales without a snapshot
+  are not retroactively reconstructed.
+
+### Development virtual printer acceptance
+
+1. Run the desktop app with `yarn tauri dev`, open **Receipts**, select
+   **Virtual printer (development only)** and **Save virtual output**, and save.
+2. Complete a sale, including a fractional-quantity product if available.
+   Checkout should clear the cart normally. In Receipts, wait for
+   **Virtual output saved - NOT physically printed**, then inspect the exact
+   Rust layout and generated ESC/POS bytes. Nothing is physically printed.
+3. Change catalogue/store content and terminal paper profile/header. Queue a
+   COPY of the earlier receipt: original text, totals, and profile must remain,
+   with COPY added. The original sale/payments/stock must remain unchanged.
+4. Select **Disconnected** or **Write failure**, save, and complete a new sale.
+   Verify its not-sent error, successful checkout, and retained snapshot.
+   Change the outcome to success and manually retry; the old attempt must remain.
+5. Select **Connection lost (uncertain)**. Retry must warn about possible duplicate
+   output; cancel must leave the job untouched.
+6. Select **Interrupted**, save, and complete a sale. Its job remains sending.
+   Restart the desktop app: it must become uncertain, not auto-retry. Change the
+   test outcome to success, save, and confirm retry only after inspecting output.
+7. Disable auto-print, save, and complete a sale: it must have a saved receipt
+   but no initial print job. Queue COPY should still work.
+8. Save **No printer connected**: new jobs must explicitly fail as not sent,
+   never silently generate successful virtual output.
+
+Release builds hide virtual controls and Rust rejects virtual settings. If a
+development-selected virtual printer persists into a release run, pending jobs
+fail explicitly as unavailable. Select **No printer connected** and save to clear
+that development selection. Real printer acceptance is deferred to its adapter
+milestone. ASCII text is still the supported initial rendering scope; non-ASCII
+sale content is preserved in the snapshot but its print attempt fails explicitly.
+
+Focused validation:
+
+```bash
+cargo test --manifest-path src-tauri/Cargo.toml --lib -- --test-threads=1
+yarn test --runInBand --runTestsByPath \
+  src/app/core/hardware/printing.gateway.spec.ts \
+  src/app/features/hardware/receipt-jobs.page.spec.ts \
+  src/app/features/sell/data/sale.repository.spec.ts \
+  src/app/features/sell/sell.page.spec.ts
+```
 
 ## Production build
 

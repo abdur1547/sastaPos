@@ -15,6 +15,11 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'sell' },
       { path: 'sell', component: SellPage, title: 'Sell | Counter' },
+      {
+        path: 'receipts',
+        title: 'Receipts | Counter',
+        loadComponent: () => import('./features/hardware/receipt-jobs.page').then((m) => m.ReceiptJobsPage),
+      },
       ...HARDWARE_ROUTES,
       {
         path: 'sales',

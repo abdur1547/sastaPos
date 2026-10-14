@@ -232,9 +232,13 @@ describe("SellPage scanner", () => {
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
     await render();
     expect(store.isEmpty()).toBe(true);
-    expect(notify).toHaveBeenCalledWith("Sale INV-1 completed.", "Dismiss", {
-      duration: 5000,
-    });
+    expect(notify).toHaveBeenCalledWith(
+      "Sale INV-1 completed. Receipt saved; check Receipts for print status.",
+      "Dismiss",
+      {
+        duration: 5000,
+      },
+    );
     scan(product.barcode!, "1:5");
     expect(store.items()[0].quantity).toBe(1);
   });

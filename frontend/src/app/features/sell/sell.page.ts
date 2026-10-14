@@ -364,7 +364,9 @@ export class SellPage implements OnInit, OnDestroy {
           this.store.checkoutInput(result.payment),
         );
         this.store.reset();
-        this.notify(`Sale ${receipt.invoiceNumber} completed.`);
+        this.notify(
+          `Sale ${receipt.invoiceNumber} completed. Receipt saved; check Receipts for print status.`,
+        );
       });
     } finally {
       this.paying.set(false);

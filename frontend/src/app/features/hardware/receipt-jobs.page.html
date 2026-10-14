@@ -1,0 +1,231 @@
+<section class="flex flex-col gap-6 p-6">
+  <header>
+    <p class="text-xs font-extrabold uppercase tracking-widest text-teal-700">
+      Terminal hardware
+    </p>
+    <h1 class="mt-2 text-3xl font-extrabold text-slate-900">
+      Receipts &amp; print jobs
+    </h1>
+    <p class="mt-3 text-sm text-slate-600">
+      Receipts and jobs are saved locally with the completed sale. Printing
+      never repeats checkout. Physical printers are not implemented yet. Virtual
+      output is NOT proof of physical printing.
+    </p>
+  </header>
+  @if (error()) {
+  <p role="alert" class="border-l-4 border-red-500 bg-red-50 p-3 text-red-800">
+    {{ error() }}
+  </p>
+  } @if (history()?.workerError) {
+  <p role="alert" class="border-l-4 border-red-500 bg-red-50 p-3 text-red-800">
+    Receipt worker: {{ history()?.workerError }}. Inspect jobs before restarting
+    or retrying.
+  </p>
+  } @if (notice()) {
+  <p
+    role="status"
+    class="border-l-4 border-teal-500 bg-teal-50 p-3 text-teal-900"
+  >
+    {{ notice() }}
+  </p>
+  } @if (ready()) {
+  <form
+    [formGroup]="form"
+    (ngSubmit)="save()"
+    class="grid gap-3 border-y border-slate-200 py-4 md:grid-cols-2"
+  >
+    <h2 class="text-lg font-extrabold md:col-span-2">
+      Local terminal settings
+    </h2>
+    <mat-form-field appearance="outline">
+      <mat-label>Paper profile</mat-label>
+      <mat-select formControlName="paperProfile">
+        <mat-option value="58mm">58 mm / 32 columns</mat-option>
+        <mat-option value="80mm">80 mm / 48 columns</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Printer</mat-label>
+      <mat-select formControlName="printer">
+        <mat-option value="none">No printer connected</mat-option>
+        @if (development) {
+        <mat-option value="virtual"
+          >Virtual printer (development only)</mat-option
+        >
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Header override</mat-label>
+      <textarea matInput formControlName="header" rows="3"></textarea>
+      <mat-hint
+        >Blank uses store name/address. ASCII, up to 1000 characters.</mat-hint
+      >
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Footer override</mat-label>
+      <textarea matInput formControlName="footer" rows="3"></textarea>
+      <mat-hint
+        >Blank uses store receipt footer. ASCII, up to 1000
+        characters.</mat-hint
+      >
+    </mat-form-field>
+    <mat-checkbox formControlName="showSku">Show SKU</mat-checkbox>
+    <mat-checkbox formControlName="showBarcode">Show barcode</mat-checkbox>
+    <mat-checkbox formControlName="showCustomer">Show customer</mat-checkbox>
+    <mat-checkbox formControlName="autoPrint"
+      >Automatically queue completed sales</mat-checkbox
+    >
+    <mat-form-field appearance="outline">
+      <mat-label>Copies (1-5)</mat-label>
+      <input
+        matInput
+        type="number"
+        min="1"
+        max="5"
+        step="1"
+        formControlName="copyCount"
+      />
+    </mat-form-field>
+    @if (development) {
+    <mat-form-field appearance="outline">
+      <mat-label>Virtual printer test outcome</mat-label>
+      <mat-select formControlName="virtualOutcome">
+        <mat-option value="success">Save virtual output</mat-option>
+        <mat-option value="disconnected">Disconnected (not sent)</mat-option>
+        <mat-option value="write_failure">Write failure (not sent)</mat-option>
+        <mat-option value="uncertain">Connection lost (uncertain)</mat-option>
+        <mat-option value="interrupted"
+          >Interrupted (restart to recover)</mat-option
+        >
+      </mat-select>
+    </mat-form-field>
+    }
+    <button
+      mat-flat-button
+      type="submit"
+      [disabled]="busy()"
+      class="justify-self-start"
+    >
+      Save terminal settings
+    </button>
+  </form>
+  }
+  <div class="flex items-center justify-between gap-3">
+    <h2 class="text-lg font-extrabold">Recent print jobs</h2>
+    <button mat-button type="button" (click)="refresh()" [disabled]="busy()">
+      Refresh
+    </button>
+  </div>
+  <p class="text-sm text-slate-600">
+    Latest 100 jobs and receipts for this store. All history remains stored on
+    this terminal. Failed jobs are never automatically retried.
+  </p>
+  <div class="overflow-x-auto">
+    <table class="w-full text-left text-sm">
+      <thead class="bg-slate-100 text-xs uppercase tracking-wide">
+        <tr>
+          <th class="p-3">Invoice</th>
+          <th class="p-3">Status</th>
+          <th class="p-3">Attempts</th>
+          <th class="p-3">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (job of history()?.jobs ?? []; track job.id) {
+        <tr class="border-b border-slate-200">
+          <td class="p-3 font-bold">
+            {{ job.invoiceNumber }} {{ job.isCopy ? "COPY" : "Original" }}<br /><span
+              class="font-normal"
+              >{{ job.copyCount }} copies / {{ job.createdAt }}</span
+            >
+          </td>
+          <td class="p-3">
+            {{ statusLabel(job.status) }} @if (job.error) {
+            <p class="mt-1 text-red-800">{{ job.error }}</p>
+            }
+          </td>
+          <td class="p-3">
+            @for (attempt of job.attempts; track attempt.id) {
+            <div class="mb-2">
+              <p>{{ attempt.printer }}: {{ statusLabel(attempt.status) }}</p>
+              @if (attempt.error) {
+              <p class="text-red-800">{{ attempt.error }}</p>
+              } @if (attempt.layout) {
+              <button mat-button type="button" (click)="inspect(attempt)">
+                Inspect generated output #{{ attempt.id }}
+              </button>
+              }
+            </div>
+            }
+          </td>
+          <td class="p-3">
+            @if (job.status === "failed_not_sent" || job.status === "uncertain")
+            {
+            <button
+              mat-button
+              type="button"
+              [disabled]="busy()"
+              (click)="retry(job)"
+            >
+              Retry receipt only
+            </button>
+            }
+          </td>
+        </tr>
+        } @empty {
+        <tr>
+          <td colspan="4" class="p-3">No print jobs yet.</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (selectedAttempt(); as attempt) { @if (attempt.layout; as receipt) {
+  <div class="overflow-x-auto border border-slate-200 bg-slate-100 p-4">
+    <p class="mb-3 font-bold">
+      Generated output - {{ statusLabel(attempt.status) }} / {{
+      receipt.paperWidthMm }} mm
+    </p>
+    <pre
+      class="m-0 box-content whitespace-pre bg-white p-4 font-mono text-sm leading-5"
+      [style.width.ch]="receipt.columns"
+      [textContent]="receipt.lines.join('\n')"
+    ></pre>
+    <details class="mt-3">
+      <summary>
+        Generated ESC/POS bytes (not a delivery acknowledgement)
+      </summary>
+      <pre
+        class="whitespace-pre-wrap break-all text-xs"
+        [textContent]="attempt.escpos?.join(' ')"
+      ></pre>
+    </details>
+  </div>
+  } }
+  <h2 class="text-lg font-extrabold">Saved receipts</h2>
+  <p class="text-sm text-slate-600">
+    Includes sales with auto-print disabled. Copies use the original data,
+    layout, and copy count with the current printer connection.
+  </p>
+  <div class="flex flex-col divide-y divide-slate-200">
+    @for (receipt of history()?.receipts ?? []; track receipt.saleId) {
+    <div class="flex items-center justify-between gap-3 py-2">
+      <span>{{ receipt.invoiceNumber }} / {{ receipt.createdAt }}</span>
+      <button
+        mat-button
+        type="button"
+        [disabled]="busy()"
+        (click)="reprint(receipt.saleId)"
+      >
+        Queue COPY
+      </button>
+    </div>
+    } @empty {
+    <p class="py-3">
+      No local receipt snapshots yet. Earlier sales are not retroactively
+      captured.
+    </p>
+    }
+  </div>
+</section>

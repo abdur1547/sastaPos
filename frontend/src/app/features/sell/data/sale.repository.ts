@@ -154,6 +154,11 @@ export class SaleRepository {
         now,
       });
     }
+    if (completing) {
+      await tx.execute("INSERT INTO receipt_commits (sale_id) VALUES (?)", [
+        saleId,
+      ]);
+    }
 
     return {
       id: saleId,

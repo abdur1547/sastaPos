@@ -141,12 +141,15 @@ dependencies = [
  "log",
  "powersync",
  "reqwest",
+ "rusqlite",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-log",
  "tauri-plugin-powersync",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]

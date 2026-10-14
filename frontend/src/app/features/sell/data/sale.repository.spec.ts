@@ -212,6 +212,26 @@ describe("SaleRepository invoice allocation", () => {
     );
   });
 
+  it("captures the receipt through the native view in the same sale transaction, after all writes", async () => {
+    const receipt = await repository.submit(request, context);
+    expect(execute.mock.calls.at(-1)).toEqual([
+      "INSERT INTO receipt_commits (sale_id) VALUES (?)",
+      [receipt.id],
+    ]);
+  });
+
+  it("propagates receipt persistence failure so the sale transaction rolls back", async () => {
+    execute.mockImplementation(async (sql: string) => {
+      if (sql.includes("receipt_commits")) {
+        throw new Error("Receipt storage failed");
+      }
+      return { rows: [], rowsAffected: 1 };
+    });
+    await expect(repository.submit(request, context)).rejects.toThrow(
+      "Receipt storage failed",
+    );
+  });
+
   it("allows the last counter that can still be incremented within a backend integer", async () => {
     findSettings.mockResolvedValue({
       ...settings,
@@ -280,6 +300,10 @@ describe("SaleRepository invoice allocation", () => {
     expect(findSettings).not.toHaveBeenCalled();
     expect(execute).not.toHaveBeenCalledWith(
       expect.stringContaining("UPDATE business_settings"),
+      expect.anything(),
+    );
+    expect(execute).not.toHaveBeenCalledWith(
+      expect.stringContaining("receipt_commits"),
       expect.anything(),
     );
   });
