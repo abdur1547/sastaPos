@@ -97,12 +97,41 @@ navigation; ignored scans are not replayed. Manual input continues to work.
 Parser/command failures appear in the simulator panel without replacing
 product-save errors. Browser-only development shows the desktop-app requirement
 instead of providing a fake scanner. Production hides this panel and does not
-open a simulator session. Real serial scanning and cart scanning remain deferred.
+open a simulator session. Real serial scanning remains deferred.
 
 For manual review, test both Add and Edit: scan `036000291452`, verify the leading
 zero, save, and reopen to confirm normal product persistence. Also try an empty
 simulated value (an error, no barcode change), saving while a scan is in flight,
 and leaving/reopening the page (no stale scan or unfinished frame).
+
+### Development-only Sell barcode scans
+
+In `yarn tauri dev`, open **Sell** and use its **Simulated scanner (dev)**
+panel. Enter the exact barcode of an active product in the current store, then
+click **Scan Once** or press Enter in the simulator input. Input goes through the
+existing Rust CR-framed parser before adding the matched product to the cart.
+No physical scanner is connected.
+
+- Scans work regardless of focus on Sell. Distinct scans of the same barcode
+  increment quantity; duplicate delivery of one scan record does not.
+- Barcode matching preserves case, spaces, and leading zeros. It does not use
+  SKU or fuzzy fallback. Ordinary product search keeps its existing behavior.
+- Unknown barcodes show **Product not found**. Duplicate catalogue barcodes show
+  an ambiguity error. Neither changes the cart.
+- Scans are ignored during any Material dialog and while saving, resuming,
+  discarding, or completing a sale. Ignored scans are never queued or replayed.
+- Leaving Sell closes its simulator session and releases its consumer. Late
+  events cannot update the cart on another page.
+- Startup/parser/send failures appear in the scanner panel, separately from
+  checkout notifications. Browser-only mode does not simulate native events.
+  Production hides the controls and does not start a simulator session.
+
+For manual review, create or edit an active product with barcode `036000291452`
+and return to Sell. Scan twice and verify one cart line with quantity 2. Try an
+unknown barcode and duplicate barcodes on two active products: the cart must
+stay unchanged. Open payment, cancel it, and verify scanning resumes without
+adding ignored scans. Navigate to another page and back: no stale scan should
+change the cart. Real serial scanning and receipt printing remain deferred.
 
 ## Production build
 

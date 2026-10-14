@@ -63,4 +63,30 @@ describe("ScanConsumerService", () => {
     expect(error).toHaveBeenCalledWith("Invalid frame");
     expect(receive).not.toHaveBeenCalled();
   });
+
+  it("drops suspended records permanently while preserving deduplication", () => {
+    const receive = jest.fn();
+    const error = jest.fn();
+    let enabled = true;
+    const consumer = TestBed.inject(ScanConsumerService).activate(
+      receive,
+      error,
+      () => enabled,
+    );
+    consumer.receive(scan);
+    enabled = false;
+    consumer.receive({ ...scan, scanId: "1:2" });
+    consumer.receive({
+      type: "error",
+      sessionId: "1",
+      message: "Suspended error",
+    });
+    enabled = true;
+    consumer.receive(scan);
+    consumer.receive({ ...scan, scanId: "1:2" });
+    expect(receive).toHaveBeenCalledTimes(1);
+    expect(error).not.toHaveBeenCalled();
+    consumer.receive({ ...scan, scanId: "1:3" });
+    expect(receive).toHaveBeenCalledTimes(2);
+  });
 });

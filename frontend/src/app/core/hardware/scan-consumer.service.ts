@@ -15,6 +15,7 @@ export class ScanConsumerService {
   activate(
     onBarcode: (barcode: string) => void,
     onError: (message: string) => void,
+    isEnabled: () => boolean = () => true,
   ): ScanConsumer {
     const seen = new Set<string>();
     const consumer: ScanConsumer = {
@@ -23,13 +24,17 @@ export class ScanConsumerService {
           return;
         }
         if (event.type === "error") {
-          onError(event.message);
+          if (isEnabled()) {
+            onError(event.message);
+          }
           return;
         }
         const key = JSON.stringify([event.sessionId, event.scanId]);
         if (!seen.has(key)) {
           seen.add(key);
-          onBarcode(event.barcode);
+          if (isEnabled()) {
+            onBarcode(event.barcode);
+          }
         }
       },
       release: () => {

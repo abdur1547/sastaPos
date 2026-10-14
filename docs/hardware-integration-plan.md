@@ -1,11 +1,11 @@
 # Scanner and Receipt Printing Implementation Plan
 
-Status: agreed scope; milestones 1 (Test Scan simulator) and 2 (focused product barcode consumption) implemented.
+Status: agreed scope; milestones 1 (Test Scan simulator), 2 (focused product barcode consumption), and 3 (Sell-page simulated scans) implemented.
 
 Decision date: 2026-10-14.
 
 This document records the agreed hardware integration requirements for future
-implementation. Except for the milestone described below, it describes planned
+implementation. Except for the milestones described below, it describes planned
 behavior, not capabilities already present in the application.
 
 ### Milestone 1: Test Scan simulator
@@ -21,8 +21,8 @@ It accepts printable ASCII barcodes up to 255 bytes and input chunks up to
 Navigation cleanup removes the listener and stops the session. Simulator
 commands are compiled/registered only in debug Rust builds; the Angular route
 and navigation are excluded from production builds. There is no browser fallback.
-No cart, sale, database, or real hardware integration is included yet.
-Other terminators, connection simulation, cart consumers,
+The Test Scan screen does not mutate carts, sales, or the database.
+Other terminators, connection simulation,
 hardware settings, and printer functionality remain future work.
 
 See [development review instructions](../frontend/README.md#development-only-test-scan)
@@ -44,12 +44,38 @@ the test value plus CR to Rust, and waits for its parsed event before updating
 the form. Parser/start/send errors are shown separately from product-save errors.
 Manual barcode entry remains available if native simulation cannot start.
 Production builds do not open simulator sessions or show simulation controls.
-Real scanner adapters and Sell-page consumption are not implemented.
+Real scanner adapters are not implemented.
 
 Jest specs cover focus, blur, dirty state, Add/Edit behavior, duplicate records,
 saving/disabled guards, simulation, production gating, and asynchronous cleanup.
 The existing Rust parser/IPC tests remain applicable; real native-webview
 acceptance still requires manual desktop testing.
+
+### Milestone 3: Sell-page simulated scans
+
+Sell opens its own development-only Rust simulator session through the existing
+gateway and routes events through the same single-active-consumer service.
+Scanning works regardless of which Sell field is focused. Products are resolved
+against the current store's active Sell catalogue using verbatim, exact barcode
+matching; manual product search retains its existing SKU/fuzzy behavior.
+
+A unique match uses the existing cart-add operation, so separate scans increment
+quantity. Duplicate deliveries of the same record are ignored throughout the
+page lifetime, including across pauses. Unknown and ambiguous barcodes leave the
+cart unchanged and show explicit errors in the simulator panel.
+
+All scans are dropped while a Material dialog is open or a sale operation is
+running, including the transition from payment-dialog closure to sale submission.
+Nothing is buffered for later cart mutation. Navigation releases the consumer
+and stops the session; late events cannot change the persistent cart. Simulator
+startup, parser, and send failures are shown separately from sale notifications.
+Production hides simulator controls and does not start a simulator session.
+Real scanner adapters and receipt printing remain deferred.
+
+Focused Jest specs cover exact matching, duplicate/unknown/ambiguous scans,
+focus independence, dialog/submission guards, manual search, simulator controls,
+production gating, and asynchronous cleanup. They use a mocked gateway; manual
+native-desktop acceptance is still required for this Sell integration.
 
 ## 1. Ownership and platform scope
 

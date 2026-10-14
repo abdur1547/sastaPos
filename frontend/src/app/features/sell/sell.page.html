@@ -23,6 +23,39 @@
     (createReturn)="onCreateReturn()"
   />
 
+  @if (development) {
+  <section class="section">
+    <h2 class="text-sm font-bold">Simulated scanner (dev)</h2>
+    <p class="mb-3 text-sm">
+      No physical device connected. Scans add exact barcode matches anywhere on
+      Sell. Scanning pauses during dialogs and sale operations.
+    </p>
+    @if (scannerError()) {
+    <app-form-alert>{{ scannerError() }}</app-form-alert>
+    }
+    <div class="flex flex-wrap items-center gap-4">
+      <mat-form-field appearance="outline">
+        <mat-label>Simulated barcode</mat-label>
+        <input
+          matInput
+          [formControl]="simulatedBarcode"
+          autocomplete="off"
+          [readonly]="!scanningAllowed()"
+          (keydown.enter)="$event.preventDefault(); simulateScan()"
+        />
+      </mat-form-field>
+      <button
+        mat-stroked-button
+        type="button"
+        [disabled]="!scannerReady() || scannerBusy() || !scanningAllowed()"
+        (click)="simulateScan()"
+      >
+        Scan Once
+      </button>
+    </div>
+  </section>
+  }
+
   <app-sale-items-table
     class="section"
     [lines]="store.lines"

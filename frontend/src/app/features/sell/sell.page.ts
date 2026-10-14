@@ -2,6 +2,9 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ErrorHandler,
+  OnDestroy,
+  OnInit,
   computed,
   effect,
   inject,
@@ -9,12 +12,26 @@ import {
   untracked,
 } from "@angular/core";
 import { takeUntilDestroyed, toSignal } from "@angular/core/rxjs-interop";
+import { FormControl, ReactiveFormsModule } from "@angular/forms";
+import { MatButtonModule } from "@angular/material/button";
 import { MatDialog } from "@angular/material/dialog";
+import { MatFormFieldModule } from "@angular/material/form-field";
+import { MatInputModule } from "@angular/material/input";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { ActivatedRoute, Router } from "@angular/router";
 import { firstValueFrom } from "rxjs";
 
+import { environment } from "../../../environments/environment";
+import {
+  ScanConsumer,
+  ScanConsumerService,
+} from "../../core/hardware/scan-consumer.service";
+import {
+  ScannerGateway,
+  ScannerSimulation,
+} from "../../core/hardware/scanner.gateway";
 import { RETURN_TO_PARAM } from "../../core/navigation/return-navigation";
+import { FormAlertComponent } from "../../shared/components/form-alert/form-alert.component";
 import { CustomerToolbarComponent } from "./components/customer-toolbar/customer-toolbar.component";
 import {
   PaymentDialogComponent,
@@ -41,17 +58,37 @@ const SELL_URL = "/sell";
     SaleActionsComponent,
     SaleItemsTableComponent,
     SaleSummaryComponent,
+    ReactiveFormsModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatInputModule,
+    FormAlertComponent,
   ],
   templateUrl: "./sell.page.html",
   styleUrl: "./sell.page.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SellPage {
+export class SellPage implements OnInit, OnDestroy {
   private readonly sales = inject(SaleService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly scanner = inject(ScannerGateway);
+  private readonly consumers = inject(ScanConsumerService);
+  private readonly errorHandler = inject(ErrorHandler);
+  private simulation: ScannerSimulation | null = null;
+  private consumer: ScanConsumer | null = null;
+  private destroyed = false;
+
+  protected readonly development = !environment.production;
+  protected readonly simulatedBarcode = new FormControl("036000291452", {
+    nonNullable: true,
+  });
+  protected readonly scannerReady = signal(false);
+  protected readonly scannerBusy = signal(false);
+  protected readonly scannerError = signal("");
+  private readonly paying = signal(false);
 
   protected readonly store = inject(SellFormStore);
 
@@ -67,7 +104,11 @@ export class SellPage {
 
   protected readonly busy = signal(false);
   protected readonly canSubmit = computed(
-    () => !this.store.isEmpty() && this.store.valid() && !this.busy(),
+    () =>
+      !this.store.isEmpty() &&
+      this.store.valid() &&
+      !this.busy() &&
+      !this.paying(),
   );
 
   // Ids handed back by the product/customer editors, resolved once the local DB emits them.
@@ -117,6 +158,99 @@ export class SellPage {
         });
       }
     });
+  }
+
+  async ngOnInit(): Promise<void> {
+    if (!this.development) {
+      return;
+    }
+    this.consumer = this.consumers.activate(
+      (barcode) => this.addScannedProduct(barcode),
+      (message) => this.scannerError.set(message),
+      () => this.scanningAllowed(),
+    );
+    try {
+      const simulation = await this.scanner.openSimulator((event) => {
+        this.consumer?.receive(event);
+      });
+      if (this.destroyed) {
+        await simulation.close();
+        return;
+      }
+      this.simulation = simulation;
+      this.scannerReady.set(true);
+    } catch (error) {
+      this.reportScannerError(error);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.destroyed = true;
+    this.consumer?.release();
+    this.consumer = null;
+    if (this.simulation) {
+      void this.simulation
+        .close()
+        .catch((error: unknown) => this.errorHandler.handleError(error));
+      this.simulation = null;
+    }
+  }
+
+  protected scanningAllowed(): boolean {
+    return (
+      !this.destroyed &&
+      !this.busy() &&
+      !this.paying() &&
+      this.dialog.openDialogs.length === 0
+    );
+  }
+
+  protected async simulateScan(): Promise<void> {
+    if (
+      !this.simulation ||
+      !this.scannerReady() ||
+      this.scannerBusy() ||
+      !this.scanningAllowed()
+    ) {
+      return;
+    }
+    this.scannerBusy.set(true);
+    this.scannerError.set("");
+    try {
+      await this.simulation.sendChunk(`${this.simulatedBarcode.value}\r`);
+    } catch (error) {
+      this.reportScannerError(error);
+    } finally {
+      this.scannerBusy.set(false);
+    }
+  }
+
+  private addScannedProduct(barcode: string): void {
+    const matches = this.products().filter(
+      (product) => product.barcode === barcode,
+    );
+    if (matches.length === 0) {
+      this.scannerError.set("Product not found");
+      return;
+    }
+    if (matches.length > 1) {
+      this.scannerError.set(
+        "Multiple products have this barcode. Resolve the duplicate before scanning.",
+      );
+      return;
+    }
+    this.store.addProduct(matches[0]);
+    this.scannerError.set("");
+  }
+
+  private reportScannerError(error: unknown): void {
+    if (this.destroyed) {
+      this.errorHandler.handleError(error);
+      return;
+    }
+    this.scannerError.set(
+      error instanceof Error ? error.message : String(error),
+    );
   }
 
   protected onCustomerSelected(customer: SellCustomer): void {
@@ -204,32 +338,37 @@ export class SellPage {
     if (!this.canSubmit()) {
       return;
     }
-    const data: PaymentDialogData = {
-      total: this.store.totals().total,
-      customer: this.store.customer(),
-      customers: this.customers(),
-    };
-    const result = await firstValueFrom(
-      this.dialog
-        .open<PaymentDialogComponent, PaymentDialogData, PaymentDialogResult>(
-          PaymentDialogComponent,
-          { data, autoFocus: "first-tabbable" },
-        )
-        .afterClosed(),
-    );
-    if (!result) {
-      return;
-    }
-    if (result.customer && result.customer.id !== this.store.customer()?.id) {
-      this.store.setCustomer(result.customer);
-    }
-    await this.run(async () => {
-      const receipt = await this.sales.complete(
-        this.store.checkoutInput(result.payment),
+    this.paying.set(true);
+    try {
+      const data: PaymentDialogData = {
+        total: this.store.totals().total,
+        customer: this.store.customer(),
+        customers: this.customers(),
+      };
+      const result = await firstValueFrom(
+        this.dialog
+          .open<PaymentDialogComponent, PaymentDialogData, PaymentDialogResult>(
+            PaymentDialogComponent,
+            { data, autoFocus: "first-tabbable" },
+          )
+          .afterClosed(),
       );
-      this.store.reset();
-      this.notify(`Sale ${receipt.invoiceNumber} completed.`);
-    });
+      if (!result) {
+        return;
+      }
+      if (result.customer && result.customer.id !== this.store.customer()?.id) {
+        this.store.setCustomer(result.customer);
+      }
+      await this.run(async () => {
+        const receipt = await this.sales.complete(
+          this.store.checkoutInput(result.payment),
+        );
+        this.store.reset();
+        this.notify(`Sale ${receipt.invoiceNumber} completed.`);
+      });
+    } finally {
+      this.paying.set(false);
+    }
   }
 
   private async run(action: () => Promise<void>): Promise<void> {
