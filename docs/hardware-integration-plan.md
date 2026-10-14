@@ -1,6 +1,6 @@
 # Scanner and Receipt Printing Implementation Plan
 
-Status: agreed scope; milestones 1 (Test Scan simulator), 2 (focused product barcode consumption), and 3 (Sell-page simulated scans) implemented.
+Status: agreed scope; milestones 1, 2, and 3 implemented; milestone 4 (serial scanner) skipped for now; milestone 5 implemented as a basic text-only Rust receipt preview.
 
 Decision date: 2026-10-14.
 
@@ -76,6 +76,28 @@ Focused Jest specs cover exact matching, duplicate/unknown/ambiguous scans,
 focus independence, dialog/submission guards, manual search, simulator controls,
 production gating, and asynchronous cleanup. They use a mocked gateway; manual
 native-desktop acceptance is still required for this Sell integration.
+
+### Milestone 5: Basic text-only Rust receipt preview
+
+A development-only **Receipt Preview (dev)** screen sends structured sample data
+and version-1 settings to Rust. The shared text layout returns exact lines for
+Angular to display, using explicit 58 mm / 32-column and 80 mm / 48-column profiles.
+Basic settings include ASCII header/footer and customer, SKU, and barcode visibility.
+Rust wraps long names and unbroken text and calculates subtotal, discount, tax,
+total, paid, and outstanding/change using integer minor units with two decimals.
+The renderer supports COPY marking; the screen renders an original sample only.
+
+Settings are temporary, with no persistence or store-settings connection yet.
+There is no sale integration, immutable persisted snapshot, print queue, ESC/POS
+encoding, or physical printing. These remain future milestones, along with
+logos, emphasis, and advanced layout settings. Virtual preview does not certify
+physical printer/font compatibility. Browser-only mode fails explicitly rather
+than bypassing Rust, and production omits the route and preview command.
+
+Rust renderer and mock-IPC tests cover widths, wrapping, optional fields, amounts,
+and errors. Jest tests cover gateway gating, exact output presentation, invalid
+input, and asynchronous lifecycle. See the
+[manual preview instructions](../frontend/README.md#development-only-receipt-preview).
 
 ## 1. Ownership and platform scope
 

@@ -42,6 +42,33 @@ or run the desktop app with Tauri:
 yarn tauri dev
 ```
 
+### Development-only Receipt Preview
+
+Run `yarn tauri dev`, sign in, and select **Receipt Preview (dev)** in the sidebar
+(`/dev/receipt-preview`). Select a 58 mm / 32-column or 80 mm / 48-column text
+profile, edit the ASCII header/footer, and toggle customer, SKU, and barcode
+visibility. Click **Render sample receipt**.
+
+Rust validates structured input, wraps text, calculates totals with integer
+minor units (two decimal places), and returns the shared layout. Angular displays
+those exact lines in a monospace paper preview; it does not format receipt totals
+or wrap text independently. The sample includes a long product name, discount,
+tax, partial payment, and an outstanding balance. Settings are temporary,
+not persisted or synchronized, and reset when the page is reopened.
+
+No real sale or print job is created, and no physical receipt is printed.
+The renderer does not yet produce ESC/POS bytes, logos, emphasis, or multilingual
+output. Text profiles are explicit preview assumptions, not verified printable
+widths for every device. There is no browser fallback. Production Angular builds
+omit the route/navigation; release Rust builds omit the preview command.
+
+For manual review, render both widths and confirm wrapping changes while totals
+remain `PKR 396.00` with `PKR 96.00` outstanding. Show barcode to verify
+`036000291452` retains its leading zero. Toggle fields and render again; modify
+settings to confirm the old preview clears. Try non-ASCII header text to see an
+explicit error. Native mock-IPC and Jest tests cover the command contract and
+presentation, but do not certify physical printing or a real native webview.
+
 ### Development-only Test Scan
 
 Run `yarn tauri dev`, sign in, and select **Test Scan (dev)** in the sidebar

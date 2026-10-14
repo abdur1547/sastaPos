@@ -50,6 +50,8 @@ describe('AppComponent', () => {
     fixture.detectChanges();
     const link: HTMLAnchorElement = fixture.nativeElement.querySelector('a[href="/dev/test-scan"]');
     expect(link?.textContent).toContain('Test Scan (dev)');
+    const receipt: HTMLAnchorElement = fixture.nativeElement.querySelector('a[href="/dev/receipt-preview"]');
+    expect(receipt?.textContent).toContain('Receipt Preview (dev)');
   });
 
   it('omits Test Scan navigation in production', () => {
@@ -59,6 +61,7 @@ describe('AppComponent', () => {
       const fixture = TestBed.createComponent(AppComponent);
       fixture.detectChanges();
       expect(fixture.nativeElement.querySelector('a[href="/dev/test-scan"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('a[href="/dev/receipt-preview"]')).toBeNull();
     } finally {
       environment.production = originalProduction;
     }

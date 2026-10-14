@@ -1,4 +1,6 @@
 mod auth;
+#[cfg(any(debug_assertions, test))]
+mod receipt;
 #[cfg(debug_assertions)]
 mod scanner;
 mod upload;
@@ -111,6 +113,7 @@ pub fn run() {
       auth::auth_restore_session,
       auth::auth_get_access_token,
       auth::auth_clear_session,
+      receipt::receipt_preview,
       scanner::scanner_simulator_start,
       scanner::scanner_simulator_feed,
       scanner::scanner_simulator_stop
