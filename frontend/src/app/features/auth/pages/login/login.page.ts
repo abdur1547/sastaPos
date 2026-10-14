@@ -5,6 +5,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../../core/auth/auth.service';
+import { OnboardingProgressService } from '../../../../core/onboarding/onboarding-progress.service';
 import { FormAlertComponent } from '../../../../shared/components/form-alert/form-alert.component';
 import { FormFieldComponent } from '../../../../shared/components/form-field/form-field.component';
 import { AuthShellComponent } from '../../components/auth-shell/auth-shell.component';
@@ -27,6 +28,7 @@ import { applyApiError } from '../../utils/auth-form.utils';
 export class LoginPage {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly onboarding = inject(OnboardingProgressService);
 
   protected readonly notice = this.auth.notice;
   protected readonly submitting = signal(false);
@@ -51,7 +53,7 @@ export class LoginPage {
     try {
       const { email, password } = this.form.getRawValue();
       await this.auth.login({ email: email.trim(), password });
-      await this.router.navigate(['/sell']);
+      await this.router.navigate([this.onboarding.required() ? '/onboarding' : '/sell']);
     } catch (error) {
       this.formError.set(applyApiError(this.form, error));
     } finally {

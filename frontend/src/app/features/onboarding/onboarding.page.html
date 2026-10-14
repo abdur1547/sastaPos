@@ -1,0 +1,231 @@
+<div class="onboarding-page mx-auto max-w-6xl">
+  <header class="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <p class="text-xs font-extrabold uppercase tracking-widest text-teal-700">
+        Welcome to Counter
+      </p>
+      <h1 class="mt-2 text-3xl font-extrabold">Set up your store</h1>
+      <p class="mt-2 text-slate-600">
+        Step {{ step() + 1 }} of 5. Create your store, then make it ready for
+        your first sale.
+      </p>
+    </div>
+    <span class="flex items-center gap-2 text-sm font-bold"
+      ><mat-icon>cloud</mat-icon> Online only</span
+    >
+  </header>
+
+  <ol
+    aria-label="Store setup progress"
+    class="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5"
+  >
+    @for (label of labels; track label; let index = $index) {
+    <li
+      class="flex items-center gap-3 border-b-2 border-slate-200 pb-3 text-sm font-bold"
+      [class.border-teal-600]="step() >= index"
+      [class.text-teal-700]="step() >= index"
+      [attr.aria-current]="step() === index ? 'step' : null"
+    >
+      <span
+        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100"
+        [class.bg-teal-100]="step() >= index"
+      >
+        @if (step() > index) { <mat-icon aria-hidden="true">check</mat-icon> }
+        @else { {{ index + 1 }} }
+      </span>
+      <span
+        >{{ label }} @if (index >= 2) {
+        <span class="block text-xs font-normal text-slate-500">Optional</span>
+        }</span
+      >
+      @if (step() > index) { <span class="sr-only">Completed</span> }
+    </li>
+    }
+  </ol>
+
+  @if (!network.online()) {
+  <app-form-alert tone="warning"
+    >You are offline. Reconnect to continue setup. No requests or records are
+    queued offline.</app-form-alert
+  >
+  } @if (loading()) {
+  <mat-progress-bar mode="indeterminate" aria-label="Loading setup data" />
+  } @if (loadError()) {
+  <app-form-alert>{{ loadError() }}</app-form-alert>
+  <button
+    mat-stroked-button
+    class="secondary-action"
+    type="button"
+    (click)="load()"
+    [disabled]="busy() || !network.online()"
+  >
+    Retry loading
+  </button>
+  } @if (step() === 1 && error()) {
+  <app-form-alert>{{ error() }}</app-form-alert>
+  }
+  <div
+    [attr.inert]="!network.online() || loading() || loadError() ? '' : null"
+    [attr.aria-busy]="busy()"
+  >
+    @switch (step()) { @case (0) {
+    <section class="border border-slate-200 bg-white p-6">
+      <h2 class="mb-2 text-xl font-extrabold">Create your store</h2>
+      <p class="mb-6 text-slate-600">
+        Store details are saved securely to the server. You can update them
+        later.
+      </p>
+      @if (storeCreated()) {
+      <p role="status" class="mb-4">
+        Your store has been created. Continue to save the updated session and
+        configure settings.
+      </p>
+      @if (error()) { <app-form-alert>{{ error() }}</app-form-alert> }
+      <button
+        mat-flat-button
+        class="primary-action"
+        type="button"
+        (click)="createStore()"
+        [disabled]="busy()"
+      >
+        Continue to store settings
+      </button>
+      } @else {
+      <form [formGroup]="storeForm" (ngSubmit)="createStore()">
+        <fieldset
+          [disabled]="saving()"
+          [attr.inert]="saving() ? '' : null"
+          class="grid grid-cols-1 gap-4 md:grid-cols-2"
+        >
+          <legend class="sr-only">Store details</legend>
+          <app-form-field
+            [control]="storeForm.controls.name"
+            label="Store name"
+          />
+          <app-form-field
+            [control]="storeForm.controls.ntn"
+            label="National tax number (NTN)"
+          />
+          <app-form-field
+            [control]="storeForm.controls.address"
+            label="Store address"
+          />
+          <app-form-field
+            [control]="storeForm.controls.currencyCode"
+            label="Currency code"
+          />
+          <app-form-field
+            [control]="storeForm.controls.timezone"
+            label="Timezone"
+          />
+        </fieldset>
+        @if (error()) { <app-form-alert>{{ error() }}</app-form-alert> }
+        <div class="mt-4 flex justify-end">
+          <button
+            mat-flat-button
+            class="primary-action"
+            type="submit"
+            [disabled]="busy()"
+          >
+            {{ saving() ? 'Creating store...' : 'Create store & continue' }}
+          </button>
+        </div>
+      </form>
+      }
+    </section>
+    } @case (1) {
+    <app-store-settings-page [onboarding]="true" (completed)="next()" />
+    } @case (2) {
+    <h2 class="mb-2 text-xl font-extrabold">Invite your team</h2>
+    <p class="mb-4 text-slate-600">
+      Create one staff member at a time. New staff members are cashiers. You can
+      also skip this step.
+    </p>
+    <div [attr.inert]="saving() ? '' : null">
+      <app-user-form
+        [saving]="saving()"
+        [errorMessage]="error()"
+        (submitted)="createStaff($event)"
+        (cancelled)="resetForm()"
+      />
+    </div>
+    <h3 class="my-4 font-extrabold">Store staff ({{ users().length }})</h3>
+    <app-user-table [users]="users()" [selectable]="false" />
+    } @case (3) {
+    <h2 class="mb-2 text-xl font-extrabold">Add your customers</h2>
+    <p class="mb-4 text-slate-600">
+      Create one customer at a time, or skip and add customers later.
+    </p>
+    <div [attr.inert]="saving() ? '' : null">
+      <app-customer-form
+        [saving]="saving()"
+        [errorMessage]="error()"
+        (submitted)="createCustomer($event)"
+        (cancelled)="resetForm()"
+      />
+    </div>
+    <h3 class="my-4 font-extrabold">
+      Store customers ({{ customers().length }})
+    </h3>
+    <app-customer-table [customers]="customers()" [selectable]="false" />
+    } @case (4) {
+    <h2 class="mb-2 text-xl font-extrabold">Build your product catalog</h2>
+    <p class="mb-4 text-slate-600">
+      Create one product at a time, or skip and add products later. Assign tax
+      categories later in the regular product editor.
+    </p>
+    @if (!units().length) {
+    <app-form-alert tone="warning"
+      >No active units of measure are available from the server. Ask your
+      administrator to configure them, or skip this step.</app-form-alert
+    >
+    }
+    <div [attr.inert]="saving() || !units().length ? '' : null">
+      <app-product-form
+        [unitsOfMeasure]="units()"
+        [showTaxes]="false"
+        [saving]="saving()"
+        [errorMessage]="error()"
+        (submitted)="createProduct($event)"
+        (cancelled)="resetForm()"
+      />
+    </div>
+    <h3 class="my-4 font-extrabold">
+      Store products ({{ products().length }})
+    </h3>
+    <app-product-table [products]="productRows()" [selectable]="false" />
+    } }
+  </div>
+  @if (step() >= 2 && step() < 5) {
+  <footer
+    class="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 py-5"
+  >
+    <p class="text-sm text-slate-600" role="status">
+      {{ saving() ? 'Saving to server...' : 'Created records are saved. You can
+      add more later.' }}
+    </p>
+    <div class="flex gap-3">
+      <button
+        mat-stroked-button
+        class="secondary-action"
+        type="button"
+        (click)="next()"
+        [disabled]="busy() || !network.online()"
+      >
+        {{ step() === 4 ? 'Skip & finish setup' : 'Skip this step' }}
+      </button>
+      <button
+        mat-flat-button
+        class="primary-action"
+        type="button"
+        (click)="next()"
+        [disabled]="busy() || !network.online()"
+      >
+        {{ step() === 4 ? 'Finish setup' : 'Next step' }}<mat-icon
+          >arrow_forward</mat-icon
+        >
+      </button>
+    </div>
+  </footer>
+  }
+</div>

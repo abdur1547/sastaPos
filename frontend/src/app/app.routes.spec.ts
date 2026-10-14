@@ -35,6 +35,7 @@ describe('startup routing', () => {
           provide: AuthService,
           useValue: {
             session: () => (signedIn ? { expiresAt: Date.now() + 60_000 } : null),
+            user: () => (signedIn ? { role: 'CASHIER', storeId: 'store' } : null),
             expireSession: jest.fn().mockResolvedValue(undefined),
           },
         },

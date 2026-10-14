@@ -5,7 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { ApiError } from '../http/api-error.model';
 import { AuthApiService } from './auth-api.service';
 import { AuthSessionGateway } from './auth-session.gateway';
-import { AuthResponse, AuthSession, LoginRequest, SignupRequest } from './auth.model';
+import { AuthenticatedUser, AuthResponse, AuthSession, LoginRequest, SignupRequest } from './auth.model';
 
 export type SessionNotice = 'expired' | null;
 
@@ -70,6 +70,29 @@ export class AuthService {
 
   clearNotice(): void {
     this.noticeState.set(null);
+  }
+
+  async refreshUser(): Promise<void> {
+    await this.updateUser(await firstValueFrom(this.api.getCurrentUser()));
+  }
+
+  async updateUser(user: AuthenticatedUser): Promise<void> {
+    const session = this.session();
+    const accessToken = await this.gateway.getAccessToken();
+    if (!session || !accessToken || session.expiresAt <= Date.now()) {
+      throw new Error('Your session expired. Sign in again to continue setup.');
+    }
+    try {
+      const updated = await this.gateway.save({
+        accessToken,
+        expiresIn: Math.floor((session.expiresAt - Date.now()) / 1000),
+        user,
+      });
+      this.setSession(updated);
+    } catch (error) {
+      console.error('[Auth] failed to update stored user', error);
+      throw new ApiError('unknown', 0, 'Your store is saved, but the updated session could not be stored securely. Retry to continue.');
+    }
   }
 
   private async establishSession(response: AuthResponse): Promise<void> {

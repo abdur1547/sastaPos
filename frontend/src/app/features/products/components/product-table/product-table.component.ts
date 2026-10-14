@@ -14,6 +14,7 @@ export const LOW_STOCK_LIMIT = 5;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductTableComponent {
+  readonly selectable = input(true);
   readonly products = input<readonly ProductListItem[]>([]);
   readonly loading = input(false);
   readonly selectProduct = output<ProductListItem>();

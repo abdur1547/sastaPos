@@ -1,6 +1,8 @@
 <header class="page-heading flex flex-wrap items-start justify-between gap-4">
   <div>
-    <p class="section-label">Workspace / Administration</p>
+    <p class="section-label">
+      {{ onboarding() ? 'Setup / Preferences' : 'Workspace / Administration' }}
+    </p>
     <h1>Store settings</h1>
     <p class="page-description">
       Manage your store details, invoice numbering, and receipt message.
@@ -246,4 +248,16 @@
     </div>
   </div>
 </form>
-}
+@if (onboarding()) {
+<div class="flex justify-end py-5">
+  <button
+    mat-flat-button
+    type="button"
+    (click)="continueSetup()"
+    [disabled]="!!saving() || !network.online()"
+  >
+    Save settings &amp; continue
+    <mat-icon>arrow_forward</mat-icon>
+  </button>
+</div>
+} }

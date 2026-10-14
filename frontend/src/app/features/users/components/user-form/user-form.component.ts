@@ -1,15 +1,19 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
   input,
   output,
+  viewChild,
 } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import {
   AbstractControl,
   FormBuilder,
+  FormGroupDirective,
   ReactiveFormsModule,
   ValidationErrors,
   Validators,
@@ -50,6 +54,7 @@ export class UserFormComponent {
   readonly errorMessage = input("");
 
   readonly submitted = output<UserFormValue>();
+  private readonly formDirective = viewChild(FormGroupDirective);
   readonly cancelled = output<void>();
   readonly removed = output<void>();
 
@@ -58,24 +63,36 @@ export class UserFormComponent {
   private readonly formBuilder = inject(FormBuilder).nonNullable;
   protected readonly form = this.formBuilder.group({
     name: ["", [Validators.required, Validators.maxLength(MAX_TEXT)]],
-    email: ["", [Validators.required, Validators.email, Validators.maxLength(MAX_TEXT)]],
+    email: [
+      "",
+      [Validators.required, Validators.email, Validators.maxLength(MAX_TEXT)],
+    ],
     password: ["", this.passwordValidators()],
     confirmPassword: [""],
   });
 
   constructor() {
-    this.form.controls.password.valueChanges.subscribe(() =>
-      this.form.controls.confirmPassword.updateValueAndValidity(),
-    );
+    this.form.controls.password.valueChanges
+      .pipe(takeUntilDestroyed(inject(DestroyRef)))
+      .subscribe(() =>
+        this.form.controls.confirmPassword.updateValueAndValidity(),
+      );
 
     effect(() => {
       const user = this.user();
       const { password, confirmPassword } = this.form.controls;
       // Passwords are only collected on creation.
       password.setValidators(user ? [] : this.passwordValidators());
-      confirmPassword.setValidators(user ? [] : [Validators.required, (c) => this.matchesPassword(c)]);
+      confirmPassword.setValidators(
+        user ? [] : [Validators.required, (c) => this.matchesPassword(c)],
+      );
       if (user) {
-        this.form.reset({ name: user.name, email: user.email, password: "", confirmPassword: "" });
+        this.form.reset({
+          name: user.name,
+          email: user.email,
+          password: "",
+          confirmPassword: "",
+        });
       } else {
         password.updateValueAndValidity();
         confirmPassword.updateValueAndValidity();
@@ -84,12 +101,28 @@ export class UserFormComponent {
   }
 
   protected submit(): void {
+    if (this.saving()) return;
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
+
     const { name, email, password } = this.form.getRawValue();
     this.submitted.emit({ name, email, password });
+  }
+
+  reset(): void {
+    // resetForm() also clears the directive's submitted flag so errors don't reappear.
+    const directive = this.formDirective();
+    if (directive) {
+      directive.resetForm();
+    } else {
+      this.form.reset();
+    }
+  }
+
+  hasDraft(): boolean {
+    return this.form.dirty;
   }
 
   protected fieldError(control: AbstractControl): string {
@@ -124,11 +157,15 @@ export class UserFormComponent {
       Validators.minLength(MIN_PASSWORD),
       Validators.maxLength(MAX_PASSWORD),
       (control: AbstractControl): ValidationErrors | null =>
-        /[A-Za-z]/.test(control.value) && /\d/.test(control.value) ? null : { password: true },
+        /[A-Za-z]/.test(control.value) && /\d/.test(control.value)
+          ? null
+          : { password: true },
     ];
   }
 
   private matchesPassword(control: AbstractControl): ValidationErrors | null {
-    return control.value === this.form?.controls.password.value ? null : { mismatch: true };
+    return control.value === this.form?.controls.password.value
+      ? null
+      : { mismatch: true };
   }
 }

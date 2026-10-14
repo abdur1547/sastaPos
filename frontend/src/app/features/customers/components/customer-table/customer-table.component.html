@@ -16,12 +16,13 @@
     <tbody>
       @for (customer of customers(); track customer.id) {
         <tr
-          tabindex="0"
-          role="link"
-          [attr.aria-label]="'Edit ' + customer.name"
-          (click)="selectCustomer.emit(customer)"
-          (keydown.enter)="selectCustomer.emit(customer)"
-          (keydown.space)="$event.preventDefault(); selectCustomer.emit(customer)"
+          [style.cursor]="selectable() ? null : 'default'"
+          [attr.tabindex]="selectable() ? 0 : null"
+          [attr.role]="selectable() ? 'link' : null"
+          [attr.aria-label]="selectable() ? 'Edit ' + customer.name : null"
+          (click)="selectable() && selectCustomer.emit(customer)"
+          (keydown.enter)="selectable() && selectCustomer.emit(customer)"
+          (keydown.space)="selectable() && $event.preventDefault(); selectable() && selectCustomer.emit(customer)"
         >
           <td class="col-name">
             <span class="customer-name">{{ customer.name }}</span>

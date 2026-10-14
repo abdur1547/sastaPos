@@ -2,7 +2,35 @@
 
 A desktop point-of-sale application built with Angular 22 for the frontend and Tauri 2 for the native desktop shell. The app uses a local SQLite database owned by the Rust/Tauri side, with PowerSync handling remote synchronization.
 
-On startup, the app restores the locally stored session. Users with a valid session open on the Sell page; users with an expired or missing session are directed to sign in. Authentication pages also redirect users with a valid session to Sell.
+On startup, the app restores the locally stored session. Signed-in users who need
+store setup open onboarding; other valid sessions open Sell. Users with an expired
+or missing session are directed to sign in. Login and authentication-page redirects
+use the same setup requirement.
+
+### New-owner onboarding
+
+After signup, users complete a five-step setup at `/onboarding`: create a store,
+configure store/invoice settings, then optionally create staff, customers, and
+products. Owners without a store or with an unfinished setup checkpoint are
+redirected to setup before entering the workspace. Signup creates a storeless
+`CASHIER` account; it can enter onboarding and becomes an `OWNER` when the backend
+creates the store. Creating a store advances to settings, not Sell. Sell is
+available after completing or skipping the remaining setup steps.
+
+Setup is online-only. All reads and creates go directly to the backend; no local
+database writes or offline mutation queue are used. Each record is created
+individually and immediately shown in the reused management table. PowerSync
+downloads server records independently. Only a per-user step checkpoint is kept
+on the device, not records or form drafts. Interrupted store creation checks for
+an existing server store before offering another create.
+Recovery reloads the user's role and store from `/api/auth/me` and persists the
+updated session, so an interrupted role promotion does not leave them as a cashier.
+
+Store settings reuse the administration page, with suggested invoice prefix and
+receipt footer when unset. Staff, customer, and product steps have separate
+create and next/skip controls. Product units come from the backend; tax assignment
+is deferred to the normal product editor because there is no tax-category lookup
+endpoint in the current API. Existing offline-first management pages are unchanged.
 
 ## Stack
 

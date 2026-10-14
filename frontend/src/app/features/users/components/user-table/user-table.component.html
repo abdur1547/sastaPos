@@ -14,12 +14,13 @@
     <tbody>
       @for (user of users(); track user.id) {
         <tr
-          tabindex="0"
-          role="link"
-          [attr.aria-label]="'Edit ' + user.name"
-          (click)="selectUser.emit(user)"
-          (keydown.enter)="selectUser.emit(user)"
-          (keydown.space)="$event.preventDefault(); selectUser.emit(user)"
+          [style.cursor]="selectable() ? null : 'default'"
+          [attr.tabindex]="selectable() ? 0 : null"
+          [attr.role]="selectable() ? 'link' : null"
+          [attr.aria-label]="selectable() ? 'Edit ' + user.name : null"
+          (click)="selectable() && selectUser.emit(user)"
+          (keydown.enter)="selectable() && selectUser.emit(user)"
+          (keydown.space)="selectable() && $event.preventDefault(); selectable() && selectUser.emit(user)"
         >
           <td class="col-name">
             <span class="user-name">{{ user.name }}</span>

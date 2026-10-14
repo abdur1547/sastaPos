@@ -12,6 +12,7 @@ import { CustomerListItem } from "../../customer-query.model";
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CustomerTableComponent {
+  readonly selectable = input(true);
   readonly customers = input<readonly CustomerListItem[]>([]);
   readonly loading = input(false);
   readonly selectCustomer = output<CustomerListItem>();

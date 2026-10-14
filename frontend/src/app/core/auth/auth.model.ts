@@ -8,7 +8,7 @@ export interface AuthenticatedUser {
   readonly email: string;
   readonly role: UserRole;
   readonly status: UserStatus;
-  /** Null until the owner creates a store (e.g. right after signup). */
+  /** Signup accounts are CASHIERs with no store until store creation promotes them to OWNER. */
   readonly storeId: string | null;
 }
 

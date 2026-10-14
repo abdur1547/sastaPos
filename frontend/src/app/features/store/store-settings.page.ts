@@ -4,6 +4,8 @@ import {
   HostListener,
   OnInit,
   inject,
+  input,
+  output,
   signal,
 } from "@angular/core";
 import {
@@ -23,6 +25,7 @@ import { MatSnackBar } from "@angular/material/snack-bar";
 import { firstValueFrom } from "rxjs";
 
 import { AuthService } from "../../core/auth/auth.service";
+import { OnlineService } from "../../core/network/online.service";
 import { applyApiError } from "../../core/http/api-form-error";
 import { FormAlertComponent } from "../../shared/components/form-alert/form-alert.component";
 import { FormFieldComponent } from "../../shared/components/form-field/form-field.component";
@@ -57,6 +60,9 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StoreSettingsPage implements OnInit {
+  readonly onboarding = input(false);
+  readonly completed = output<void>();
+  protected readonly network = inject(OnlineService);
   private readonly api = inject(StoreApiService);
   private readonly auth = inject(AuthService);
   private readonly snackBar = inject(MatSnackBar);
@@ -120,10 +126,23 @@ export class StoreSettingsPage implements OnInit {
     this.loading.set(true);
     this.loadError.set("");
     try {
+      if (this.onboarding()) this.network.requireOnline();
       const store = await firstValueFrom(this.api.getStore());
       this.store.set(store);
       this.resetProfile();
       this.resetSettings();
+      if (this.onboarding()) {
+        if (!store.storeSettings.invoicePrefix) {
+          this.settingsForm.controls.invoicePrefix.setValue("INV-");
+          this.settingsForm.controls.invoicePrefix.markAsDirty();
+        }
+        if (!store.storeSettings.receiptFooter) {
+          this.settingsForm.controls.receiptFooter.setValue(
+            "Thank you for shopping with us!",
+          );
+          this.settingsForm.controls.receiptFooter.markAsDirty();
+        }
+      }
     } catch (error) {
       this.loadError.set(
         error instanceof Error
@@ -173,6 +192,7 @@ export class StoreSettingsPage implements OnInit {
     this.saving.set("profile");
     this.profileError.set("");
     try {
+      if (this.onboarding()) this.network.requireOnline();
       if (
         store.status !== "INACTIVE" &&
         this.profileForm.controls.status.value === "INACTIVE"
@@ -222,6 +242,7 @@ export class StoreSettingsPage implements OnInit {
     this.saving.set("settings");
     this.settingsError.set("");
     try {
+      if (this.onboarding()) this.network.requireOnline();
       const controls = this.settingsForm.controls;
       const values = this.settingsForm.getRawValue();
       const request: UpdateStoreSettingsRequest = {
@@ -263,6 +284,19 @@ export class StoreSettingsPage implements OnInit {
         "Your changes have not been saved to the server. Leave this page and discard them?",
       confirmLabel: "Discard changes",
     });
+  }
+
+  protected async continueSetup(): Promise<void> {
+    if (this.saving() || this.loading() || !this.store()) return;
+    if (!this.network.online()) {
+      this.settingsError.set("Reconnect to continue store setup.");
+      return;
+    }
+    if (this.profileForm.dirty) await this.saveProfile();
+    if (this.profileForm.dirty || this.profileError()) return;
+    if (this.settingsForm.dirty) await this.saveSettings();
+    if (!this.settingsForm.dirty && !this.settingsError())
+      this.completed.emit();
   }
 
   @HostListener("window:beforeunload", ["$event"])

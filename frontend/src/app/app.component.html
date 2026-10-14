@@ -1,81 +1,93 @@
 @if (auth.isAuthenticated()) {
-<div class="app-shell">
-  <aside class="sidebar" aria-label="Primary navigation">
-    <a class="brand" routerLink="/sell" aria-label="Counter home">
-      <span class="brand-mark"><img src="assets/icons/counter.png" alt="" /></span>
-      <span>Counter</span>
-    </a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Primary navigation">
+      <a class="brand" routerLink="/sell" aria-label="Counter home">
+        <span class="brand-mark"><img src="assets/icons/counter.png" alt="" /></span>
+        <span>Counter</span>
+      </a>
 
-    <nav class="navigation">
-      <p class="navigation-label">Workspace</p>
-      <a routerLink="/sell" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">
-        <mat-icon class="nav-icon" aria-hidden="true">point_of_sale</mat-icon>
-        Sell
-      </a>
-      <a routerLink="/sales" routerLinkActive="is-active">
-        <mat-icon class="nav-icon" aria-hidden="true">receipt_long</mat-icon>
-        Sales
-      </a>
-      <a routerLink="/receipts" routerLinkActive="is-active">
-        <mat-icon class="nav-icon" aria-hidden="true">print</mat-icon>
-        Receipts
-      </a>
-      <a routerLink="/customers" routerLinkActive="is-active">
-        <mat-icon class="nav-icon" aria-hidden="true">groups</mat-icon>
-        Customers
-      </a>
-      <a routerLink="/products" routerLinkActive="is-active">
-        <mat-icon class="nav-icon" aria-hidden="true">inventory_2</mat-icon>
-        Products
-      </a>
-      @if (auth.user()?.role === 'OWNER') {
-        <a routerLink="/users" routerLinkActive="is-active">
-          <mat-icon class="nav-icon" aria-hidden="true">badge</mat-icon>
-          Staff
-        </a>
-        <a routerLink="/store-settings" routerLinkActive="is-active">
-          <mat-icon class="nav-icon" aria-hidden="true">settings</mat-icon>
-          Store settings
-        </a>
+      @if (onboarding.required()) {
+        <nav class="navigation">
+          <p class="navigation-label">Getting started</p>
+          <a routerLink="/onboarding" routerLinkActive="is-active">
+            <mat-icon class="nav-icon" aria-hidden="true">checklist</mat-icon>
+            Store setup
+          </a>
+        </nav>
+      } @else {
+        <nav class="navigation">
+          <p class="navigation-label">Workspace</p>
+          <a routerLink="/sell" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">
+            <mat-icon class="nav-icon" aria-hidden="true">point_of_sale</mat-icon>
+            Sell
+          </a>
+          <a routerLink="/sales" routerLinkActive="is-active">
+            <mat-icon class="nav-icon" aria-hidden="true">receipt_long</mat-icon>
+            Sales
+          </a>
+          <a routerLink="/receipts" routerLinkActive="is-active">
+            <mat-icon class="nav-icon" aria-hidden="true">print</mat-icon>
+            Receipts
+          </a>
+          <a routerLink="/customers" routerLinkActive="is-active">
+            <mat-icon class="nav-icon" aria-hidden="true">groups</mat-icon>
+            Customers
+          </a>
+          <a routerLink="/products" routerLinkActive="is-active">
+            <mat-icon class="nav-icon" aria-hidden="true">inventory_2</mat-icon>
+            Products
+          </a>
+          @if (auth.user()?.role === 'OWNER') {
+            <a routerLink="/users" routerLinkActive="is-active">
+              <mat-icon class="nav-icon" aria-hidden="true">badge</mat-icon>
+              Staff
+            </a>
+            <a routerLink="/store-settings" routerLinkActive="is-active">
+              <mat-icon class="nav-icon" aria-hidden="true">settings</mat-icon>
+              Store settings
+            </a>
+          }
+          @if (development) {
+            <a routerLink="/dev/test-scan" routerLinkActive="is-active">
+              <mat-icon class="nav-icon" aria-hidden="true">qr_code_scanner</mat-icon>
+              Test Scan (dev)
+            </a>
+            <a routerLink="/dev/receipt-preview" routerLinkActive="is-active">
+              <mat-icon class="nav-icon" aria-hidden="true">receipt_long</mat-icon>
+              Receipt Preview (dev)
+            </a>
+          }
+        </nav>
       }
-      @if (development) {
-        <a routerLink="/dev/test-scan" routerLinkActive="is-active">
-          <mat-icon class="nav-icon" aria-hidden="true">qr_code_scanner</mat-icon>
-          Test Scan (dev)
-        </a>
-        <a routerLink="/dev/receipt-preview" routerLinkActive="is-active">
-          <mat-icon class="nav-icon" aria-hidden="true">receipt_long</mat-icon>
-          Receipt Preview (dev)
-        </a>
-      }
-    </nav>
 
-    <div class="sidebar-footer">
-      <div class="store-status">
-        <span class="status-dot" aria-hidden="true"></span>
-        <span>Store is open</span>
+      <div class="sidebar-footer">
+        <div class="store-status">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>{{ onboarding.required() ? 'Setup in progress' : 'Store is open' }}</span>
+        </div>
+        <button mat-button type="button" class="location-button">Main counter</button>
       </div>
-      <button mat-button type="button" class="location-button">Main counter</button>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div></div>
+        <div class="topbar-actions">
+          <span class="profile-button inline-flex items-center px-2 font-extrabold">
+            <span class="avatar">{{ initial() }}</span>
+            <span class="profile-name">{{ auth.user()?.name }}</span>
+          </span>
+          <button mat-button type="button" class="sign-out-button" (click)="signOut()">Sign out</button>
+        </div>
+      </header>
+
+      <div class="workspace-scroll" cdkScrollable>
+        <main class="page-content">
+          <router-outlet />
+        </main>
+      </div>
     </div>
-  </aside>
-
-  <div class="workspace">
-    <header class="topbar">
-      <div></div>
-      <div class="topbar-actions">
-        <span class="profile-button inline-flex items-center px-2 font-extrabold">
-          <span class="avatar">{{ initial() }}</span>
-          <span class="profile-name">{{ auth.user()?.name }}</span>
-        </span>
-        <button mat-button type="button" class="sign-out-button" (click)="signOut()">Sign out</button>
-      </div>
-    </header>
-
-    <main class="page-content">
-      <router-outlet />
-    </main>
   </div>
-</div>
 } @else {
   <router-outlet />
 }

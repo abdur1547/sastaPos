@@ -16,6 +16,7 @@ import {
 import {
   AbstractControl,
   FormBuilder,
+  FormGroupDirective,
   FormControl,
   ReactiveFormsModule,
   Validators,
@@ -70,10 +71,12 @@ export class ProductFormComponent implements OnInit, OnDestroy {
   readonly product = input<Product | null>(null);
   readonly unitsOfMeasure = input<readonly UnitOfMeasureOption[]>([]);
   readonly taxCategories = input<readonly TaxCategoryOption[]>([]);
+  readonly showTaxes = input(true);
   readonly saving = input(false);
   readonly errorMessage = input("");
 
   readonly submitted = output<ProductFormValue>();
+  private readonly formDirective = viewChild(FormGroupDirective);
   readonly cancelled = output<void>();
 
   protected readonly isEdit = computed(() => this.product() !== null);
@@ -267,6 +270,7 @@ export class ProductFormComponent implements OnInit, OnDestroy {
     if (!errors) {
       return "";
     }
+
     if (errors["required"]) {
       return "This field is required.";
     }
@@ -277,5 +281,19 @@ export class ProductFormComponent implements OnInit, OnDestroy {
       return "Enter a non-negative amount with up to 2 decimals.";
     }
     return "This value is invalid.";
+  }
+
+  reset(): void {
+    // resetForm() also clears the directive's submitted flag so errors don't reappear.
+    const directive = this.formDirective();
+    if (directive) {
+      directive.resetForm();
+    } else {
+      this.form.reset();
+    }
+  }
+
+  hasDraft(): boolean {
+    return this.form.dirty;
   }
 }

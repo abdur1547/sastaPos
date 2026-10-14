@@ -3,6 +3,7 @@ import { Observable } from 'rxjs';
 
 import { BaseApiService } from '../http/base-api.service';
 import {
+  AuthenticatedUser,
   AuthResponse,
   LoginRequest,
   MessageResponse,
@@ -14,6 +15,10 @@ import {
 /** HTTP-only access to `/api/auth/*`; holds no state. */
 @Injectable({ providedIn: 'root' })
 export class AuthApiService extends BaseApiService {
+  getCurrentUser(): Observable<AuthenticatedUser> {
+    return this.get<AuthenticatedUser>('/api/auth/me');
+  }
+
   login(request: LoginRequest): Observable<AuthResponse> {
     return this.post<AuthResponse, LoginRequest>('/api/auth/login', request);
   }

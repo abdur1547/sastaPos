@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { authGuard } from './core/auth/auth.guard';
+import { onboardingAccessGuard, setupRequiredGuard } from './core/onboarding/onboarding.guard';
 import { SellPage } from './features/sell/sell.page';
 import { HARDWARE_ROUTES } from './features/hardware/hardware.routes';
 
@@ -12,7 +13,15 @@ export const routes: Routes = [
   {
     path: '',
     canActivate: [authGuard],
+    canActivateChild: [setupRequiredGuard],
     children: [
+      {
+        path: 'onboarding',
+        canActivate: [onboardingAccessGuard],
+        loadComponent: () => import('./features/onboarding/onboarding.page').then((m) => m.OnboardingPage),
+        canDeactivate: [(page: { canLeave(): boolean | Promise<boolean> }) => page.canLeave()],
+        title: 'Store setup | Counter',
+      },
       { path: '', pathMatch: 'full', redirectTo: 'sell' },
       { path: 'sell', component: SellPage, title: 'Sell | Counter' },
       {

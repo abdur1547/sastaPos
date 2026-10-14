@@ -12,6 +12,7 @@ import { UserListItem } from "../../user-query.model";
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UserTableComponent {
+  readonly selectable = input(true);
   readonly users = input<readonly UserListItem[]>([]);
   readonly loading = input(false);
   readonly selectUser = output<UserListItem>();

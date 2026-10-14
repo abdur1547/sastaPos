@@ -51,10 +51,7 @@
   @if (development) {
     <section class="form-section">
       <h2>Simulated scanner (dev)</h2>
-      <p>
-        No physical device connected. Scan Once focuses the barcode field and
-        sends input through Rust.
-      </p>
+      <p>No physical device connected. Scan Once focuses the barcode field and sends input through Rust.</p>
       @if (scannerError()) {
         <app-form-alert>{{ scannerError() }}</app-form-alert>
       }
@@ -72,12 +69,7 @@
         <button
           mat-stroked-button
           type="button"
-          [disabled]="
-            !scannerReady() ||
-            scannerBusy() ||
-            saving() ||
-            form.controls.barcode.disabled
-          "
+          [disabled]="!scannerReady() || scannerBusy() || saving() || form.controls.barcode.disabled"
           (click)="simulateScan()"
         >
           Scan Once
@@ -115,14 +107,16 @@
         <mat-error>{{ fieldError(form.controls.unitsOfMeasureId) }}</mat-error>
       </mat-form-field>
 
-      <mat-form-field appearance="outline" class="span-3">
-        <mat-label>Tax categories</mat-label>
-        <mat-select formControlName="taxCategoryIds" multiple>
-          @for (tax of taxCategories(); track tax.id) {
-            <mat-option [value]="tax.id">{{ tax.name }} ({{ tax.rate }}%)</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
+      @if (showTaxes()) {
+        <mat-form-field appearance="outline" class="span-3">
+          <mat-label>Tax categories</mat-label>
+          <mat-select formControlName="taxCategoryIds" multiple>
+            @for (tax of taxCategories(); track tax.id) {
+              <mat-option [value]="tax.id">{{ tax.name }} ({{ tax.rate }}%)</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
     </div>
   </section>
 

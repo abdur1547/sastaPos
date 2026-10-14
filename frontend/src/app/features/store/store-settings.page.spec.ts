@@ -281,4 +281,73 @@ describe("StoreSettingsPage", () => {
     expect(page.profile.dirty).toBe(false);
     expect(page.invoices.dirty).toBe(true);
   });
+
+  it("prefills onboarding suggestions, saves them, then emits completion", async () => {
+    api.getStore.mockReturnValue(
+      of({
+        ...STORE,
+        storeSettings: {
+          ...STORE.storeSettings,
+          invoicePrefix: null,
+          receiptFooter: null,
+        },
+      }),
+    );
+    const fixture = TestBed.createComponent(StoreSettingsPage);
+    fixture.componentRef.setInput("onboarding", true);
+    const completed = jest.fn();
+    fixture.componentInstance.completed.subscribe(completed);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const root: HTMLElement = fixture.nativeElement;
+    expect(
+      root.querySelector<HTMLInputElement>(
+        'app-form-field[label="Invoice prefix"] input',
+      )?.value,
+    ).toBe("INV-");
+    expect(
+      root.querySelector<HTMLTextAreaElement>(
+        'textarea[formControlName="receiptFooter"]',
+      )?.value,
+    ).toBe("Thank you for shopping with us!");
+    const button = Array.from(
+      root.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((element) => element.textContent?.includes("continue"))!;
+    button.click();
+    await fixture.whenStable();
+    await Promise.resolve();
+    expect(api.updateSettings).toHaveBeenCalledWith({
+      invoicePrefix: "INV-",
+      receiptFooter: "Thank you for shopping with us!",
+    });
+    expect(completed).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not advance onboarding when settings fail to save", async () => {
+    api.getStore.mockReturnValue(
+      of({
+        ...STORE,
+        storeSettings: { ...STORE.storeSettings, invoicePrefix: null },
+      }),
+    );
+    api.updateSettings.mockReturnValue(
+      throwError(() => new ApiError("server", 500, "Unable to save")),
+    );
+    const fixture = TestBed.createComponent(StoreSettingsPage);
+    fixture.componentRef.setInput("onboarding", true);
+    const completed = jest.fn();
+    fixture.componentInstance.completed.subscribe(completed);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const root: HTMLElement = fixture.nativeElement;
+    Array.from(root.querySelectorAll<HTMLButtonElement>("button"))
+      .find((element) => element.textContent?.includes("continue"))!
+      .click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(completed).not.toHaveBeenCalled();
+    expect(root.textContent).toContain("Unable to save");
+  });
 });

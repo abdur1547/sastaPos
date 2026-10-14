@@ -6,8 +6,15 @@ import {
   inject,
   input,
   output,
+  viewChild,
 } from "@angular/core";
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from "@angular/forms";
+import {
+  AbstractControl,
+  FormBuilder,
+  FormGroupDirective,
+  ReactiveFormsModule,
+  Validators,
+} from "@angular/forms";
 import { MatButtonModule } from "@angular/material/button";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatIconModule } from "@angular/material/icon";
@@ -44,6 +51,7 @@ export class CustomerFormComponent {
   readonly errorMessage = input("");
 
   readonly submitted = output<CustomerFormValue>();
+  private readonly formDirective = viewChild(FormGroupDirective);
   readonly cancelled = output<void>();
 
   protected readonly isEdit = computed(() => this.customer() !== null);
@@ -81,12 +89,31 @@ export class CustomerFormComponent {
   }
 
   protected submit(): void {
+    if (this.saving()) return;
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
+
     const value = this.form.getRawValue();
-    this.submitted.emit({ ...value, status: value.status ? "ACTIVE" : "INACTIVE" });
+    this.submitted.emit({
+      ...value,
+      status: value.status ? "ACTIVE" : "INACTIVE",
+    });
+  }
+
+  reset(): void {
+    // resetForm() also clears the directive's submitted flag so errors don't reappear.
+    const directive = this.formDirective();
+    if (directive) {
+      directive.resetForm();
+    } else {
+      this.form.reset();
+    }
+  }
+
+  hasDraft(): boolean {
+    return this.form.dirty;
   }
 
   protected fieldError(control: AbstractControl): string {

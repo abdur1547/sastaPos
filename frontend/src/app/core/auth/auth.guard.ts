@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 
 import { AuthService } from './auth.service';
+import { OnboardingProgressService } from '../onboarding/onboarding-progress.service';
 
 /** Protects the POS workspace; valid sessions work offline. */
 export const authGuard: CanActivateFn = () => {
@@ -18,6 +19,6 @@ export const authGuard: CanActivateFn = () => {
 export const guestGuard: CanActivateFn = () => {
   const session = inject(AuthService).session();
   return session && session.expiresAt > Date.now()
-    ? inject(Router).createUrlTree(['/sell'])
+    ? inject(Router).createUrlTree([inject(OnboardingProgressService).required() ? '/onboarding' : '/sell'])
     : true;
 };

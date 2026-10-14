@@ -19,12 +19,13 @@
     <tbody>
       @for (product of products(); track product.id) {
         <tr
-          tabindex="0"
-          role="link"
-          [attr.aria-label]="'Edit ' + product.name"
-          (click)="selectProduct.emit(product)"
-          (keydown.enter)="selectProduct.emit(product)"
-          (keydown.space)="$event.preventDefault(); selectProduct.emit(product)"
+          [style.cursor]="selectable() ? null : 'default'"
+          [attr.tabindex]="selectable() ? 0 : null"
+          [attr.role]="selectable() ? 'link' : null"
+          [attr.aria-label]="selectable() ? 'Edit ' + product.name : null"
+          (click)="selectable() && selectProduct.emit(product)"
+          (keydown.enter)="selectable() && selectProduct.emit(product)"
+          (keydown.space)="selectable() && $event.preventDefault(); selectable() && selectProduct.emit(product)"
         >
           <td class="col-name">
             <span class="product-name">{{ product.name }}</span>

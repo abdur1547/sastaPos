@@ -13,7 +13,7 @@ const response: AuthResponse = { accessToken: 't', tokenType: 'Bearer', expiresI
 
 describe('AuthService', () => {
   const gateway = { save: jest.fn(), restore: jest.fn(), getAccessToken: jest.fn(), clear: jest.fn() };
-  const api = { login: jest.fn(), signup: jest.fn(), logout: jest.fn() };
+  const api = { login: jest.fn(), signup: jest.fn(), logout: jest.fn(), getCurrentUser: jest.fn() };
   const router = { navigate: jest.fn() };
   let service: AuthService;
 
@@ -60,5 +60,34 @@ describe('AuthService', () => {
     expect(gateway.clear).toHaveBeenCalled();
     expect(service.isAuthenticated()).toBe(false);
     expect(router.navigate).toHaveBeenCalledWith(['/auth/login']);
+  });
+
+  it('persists the store-associated user through Rust without extending token lifetime', async () => {
+    gateway.restore.mockResolvedValue({ state: 'valid', session });
+    gateway.getAccessToken.mockResolvedValue('t');
+    const updatedUser = { ...user, storeId: 'new-store' };
+    gateway.save.mockResolvedValue({ ...session, user: updatedUser });
+    await service.restoreSession();
+    await service.updateUser(updatedUser);
+    expect(gateway.save).toHaveBeenCalledWith({
+      accessToken: 't',
+      expiresIn: expect.any(Number),
+      user: updatedUser,
+    });
+    expect(gateway.save.mock.calls[0][0].expiresIn).toBeLessThanOrEqual(60);
+    expect(service.user()?.storeId).toBe('new-store');
+  });
+
+  it('recovers the server-assigned owner role and store after interrupted store creation', async () => {
+    gateway.restore.mockResolvedValue({ state: 'valid', session: { ...session, user: { ...user, storeId: null } } });
+    gateway.getAccessToken.mockResolvedValue('t');
+    const owner = { ...user, role: 'OWNER', storeId: 'new-store' } as const;
+    api.getCurrentUser.mockReturnValue(of(owner));
+    gateway.save.mockResolvedValue({ ...session, user: owner });
+    await service.restoreSession();
+    await service.refreshUser();
+    expect(api.getCurrentUser).toHaveBeenCalledTimes(1);
+    expect(service.user()).toEqual(owner);
+    expect(gateway.save).toHaveBeenCalledWith(expect.objectContaining({ user: owner }));
   });
 });

@@ -1,3 +1,5 @@
+import { AuthenticatedUser } from "../../core/auth/auth.model";
+
 /** Contracts from the backend Store OpenAPI schemas. */
 export type StoreStatus = "ACTIVE" | "INACTIVE";
 
@@ -27,6 +29,19 @@ export interface UpdateStoreRequest {
   readonly currencyCode?: string;
   readonly timezone?: string;
   readonly status?: StoreStatus;
+}
+
+export interface CreateStoreRequest {
+  readonly name: string;
+  readonly ntn: string;
+  readonly address?: string;
+  readonly currencyCode?: string;
+  readonly timezone?: string;
+}
+
+export interface CreateStoreResponse {
+  readonly store: Store;
+  readonly user: AuthenticatedUser;
 }
 
 export interface UpdateStoreSettingsRequest {

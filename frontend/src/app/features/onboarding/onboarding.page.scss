@@ -1,0 +1,16 @@
+:host {
+  display: block;
+}
+
+.onboarding-page .mat-mdc-button-base {
+  font-weight: 500;
+}
+
+.primary-action:not(:disabled) {
+  background: var(--accent-teal) !important;
+  color: #fff !important;
+}
+
+.secondary-action {
+  color: var(--ink-strong) !important;
+}
