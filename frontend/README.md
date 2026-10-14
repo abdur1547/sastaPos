@@ -82,6 +82,28 @@ compile or register simulator commands. Desktop packaging uses `yarn build:prod`
 to keep these gates aligned. Neither simulator input nor sessions are persisted
 or synchronized.
 
+### Development-only product barcode scans
+
+In `yarn tauri dev`, open **Add Product** or edit a product. The **Simulated
+scanner (dev)** panel has its own test barcode and **Scan Once** button. Clicking
+it (or pressing Enter in the simulator input) focuses the product barcode field
+and sends CR-framed input through the existing Rust parser. The field changes
+only after Rust returns a scan, preserves
+leading zeros and spaces, and is marked dirty. Scanning does not save the product.
+
+The barcode consumer ignores scans while another field is focused, during saving,
+or when the barcode control is disabled. It releases on blur, submission, and
+navigation; ignored scans are not replayed. Manual input continues to work.
+Parser/command failures appear in the simulator panel without replacing
+product-save errors. Browser-only development shows the desktop-app requirement
+instead of providing a fake scanner. Production hides this panel and does not
+open a simulator session. Real serial scanning and cart scanning remain deferred.
+
+For manual review, test both Add and Edit: scan `036000291452`, verify the leading
+zero, save, and reopen to confirm normal product persistence. Also try an empty
+simulated value (an error, no barcode change), saving while a scan is in flight,
+and leaving/reopening the page (no stale scan or unfinished frame).
+
 ## Production build
 
 ### 1) Build the Angular frontend

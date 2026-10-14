@@ -1,6 +1,6 @@
 # Scanner and Receipt Printing Implementation Plan
 
-Status: agreed scope; milestone 1 (development-only Test Scan simulator) implemented.
+Status: agreed scope; milestones 1 (Test Scan simulator) and 2 (focused product barcode consumption) implemented.
 
 Decision date: 2026-10-14.
 
@@ -21,14 +21,35 @@ It accepts printable ASCII barcodes up to 255 bytes and input chunks up to
 Navigation cleanup removes the listener and stops the session. Simulator
 commands are compiled/registered only in debug Rust builds; the Angular route
 and navigation are excluded from production builds. There is no browser fallback.
-No product, cart, sale, database, or real hardware integration is included yet.
-Other terminators, connection simulation, reusable product/cart consumers,
+No cart, sale, database, or real hardware integration is included yet.
+Other terminators, connection simulation, cart consumers,
 hardware settings, and printer functionality remain future work.
 
 See [development review instructions](../frontend/README.md#development-only-test-scan)
 for manual examples. Rust tests cover parser behavior and Tauri mock-runtime
 IPC/event delivery; Jest tests cover the typed gateway and screen lifecycle.
 These tests do not certify a real native webview or physical device.
+
+### Milestone 2: Focused Add/Edit Product barcode consumption
+
+Add/Edit Product uses a reusable, single-active-consumer service. Scans populate
+the barcode field verbatim and mark it dirty only while that field is focused
+and enabled. Blur, submission, saving, and destruction suspend or release the
+consumer; suspended scans are not replayed. Duplicate records are ignored, but
+distinct scans containing the same barcode remain valid.
+
+A development-only simulator panel on the product form opens a Rust session
+through the existing gateway. **Scan Once** focuses the barcode field, sends
+the test value plus CR to Rust, and waits for its parsed event before updating
+the form. Parser/start/send errors are shown separately from product-save errors.
+Manual barcode entry remains available if native simulation cannot start.
+Production builds do not open simulator sessions or show simulation controls.
+Real scanner adapters and Sell-page consumption are not implemented.
+
+Jest specs cover focus, blur, dirty state, Add/Edit behavior, duplicate records,
+saving/disabled guards, simulation, production gating, and asynchronous cleanup.
+The existing Rust parser/IPC tests remain applicable; real native-webview
+acceptance still requires manual desktop testing.
 
 ## 1. Ownership and platform scope
 

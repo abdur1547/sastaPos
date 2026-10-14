@@ -21,7 +21,16 @@
       <mat-form-field appearance="outline">
         <mat-label>Barcode</mat-label>
         <mat-icon matPrefix>qr_code_scanner</mat-icon>
-        <input matInput formControlName="barcode" autocomplete="off" />
+        <input
+          #barcodeInput
+          matInput
+          formControlName="barcode"
+          autocomplete="off"
+          [readonly]="saving()"
+          (focus)="focusBarcode()"
+          (blur)="blurBarcode()"
+        />
+        <mat-hint>Scans fill this field only while it is focused.</mat-hint>
         <mat-error>{{ fieldError(form.controls.barcode) }}</mat-error>
       </mat-form-field>
 
@@ -38,6 +47,44 @@
       </mat-form-field>
     </div>
   </section>
+
+  @if (development) {
+    <section class="form-section">
+      <h2>Simulated scanner (dev)</h2>
+      <p>
+        No physical device connected. Scan Once focuses the barcode field and
+        sends input through Rust.
+      </p>
+      @if (scannerError()) {
+        <app-form-alert>{{ scannerError() }}</app-form-alert>
+      }
+      <div class="flex flex-wrap items-center gap-4">
+        <mat-form-field appearance="outline">
+          <mat-label>Simulated barcode</mat-label>
+          <input
+            matInput
+            [formControl]="simulatedBarcode"
+            autocomplete="off"
+            [readonly]="saving()"
+            (keydown.enter)="$event.preventDefault(); simulateScan()"
+          />
+        </mat-form-field>
+        <button
+          mat-stroked-button
+          type="button"
+          [disabled]="
+            !scannerReady() ||
+            scannerBusy() ||
+            saving() ||
+            form.controls.barcode.disabled
+          "
+          (click)="simulateScan()"
+        >
+          Scan Once
+        </button>
+      </div>
+    </section>
+  }
 
   <section class="form-section">
     <h2>Pricing &amp; stock</h2>
