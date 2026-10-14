@@ -31,3 +31,6 @@ dotenvy = "0.15.7"
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
 base64 = "0.22"
 reqwest = { version = "0.13", features = ["json"] }
+
+[dev-dependencies]
+tauri = { version = "2.11.3", features = ["test"] }

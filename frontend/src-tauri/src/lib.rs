@@ -1,4 +1,6 @@
 mod auth;
+#[cfg(debug_assertions)]
+mod scanner;
 mod upload;
 
 use async_trait::async_trait;
@@ -97,15 +99,33 @@ async fn connect<R: tauri::Runtime>(
 pub fn run() {
   dotenvy::dotenv().ok();
 
-  tauri::Builder::default()
-    .plugin(tauri_plugin_powersync::init())
+  let builder = tauri::Builder::default().plugin(tauri_plugin_powersync::init());
+
+  #[cfg(debug_assertions)]
+  let builder = builder
+    .manage(scanner::ScannerSimulator::default())
+    .on_window_event(scanner::on_window_event)
     .invoke_handler(tauri::generate_handler![
       connect,
       auth::auth_save_session,
       auth::auth_restore_session,
       auth::auth_get_access_token,
-      auth::auth_clear_session
-    ])
+      auth::auth_clear_session,
+      scanner::scanner_simulator_start,
+      scanner::scanner_simulator_feed,
+      scanner::scanner_simulator_stop
+    ]);
+
+  #[cfg(not(debug_assertions))]
+  let builder = builder.invoke_handler(tauri::generate_handler![
+    connect,
+    auth::auth_save_session,
+    auth::auth_restore_session,
+    auth::auth_get_access_token,
+    auth::auth_clear_session
+  ]);
+
+  builder
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

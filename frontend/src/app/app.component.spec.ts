@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { AppComponent } from './app.component';
 import { AuthService } from './core/auth/auth.service';
+import { environment } from '../environments/environment';
 
 describe('AppComponent', () => {
   const logout = jest.fn();
@@ -42,5 +43,24 @@ describe('AppComponent', () => {
     expect(signOut?.textContent).toContain('Sign out');
     signOut?.click();
     expect(logout).toHaveBeenCalledTimes(1);
+  });
+
+  it('exposes the development Test Scan screen in navigation', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const link: HTMLAnchorElement = fixture.nativeElement.querySelector('a[href="/dev/test-scan"]');
+    expect(link?.textContent).toContain('Test Scan (dev)');
+  });
+
+  it('omits Test Scan navigation in production', () => {
+    const originalProduction = environment.production;
+    environment.production = true;
+    try {
+      const fixture = TestBed.createComponent(AppComponent);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('a[href="/dev/test-scan"]')).toBeNull();
+    } finally {
+      environment.production = originalProduction;
+    }
   });
 });

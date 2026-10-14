@@ -10,7 +10,7 @@
 ## Architecture Rules
 
 - Angular is UI and application orchestration. Follow the installed `angular-developer` skill for Angular work.
-- All hardware integration, including barcode scanners and printers, must be implemented in Rust. Angular calls Rust through Tauri commands only.
+- All hardware integration, including barcode scanners and printers, must be implemented in Rust. Angular uses typed gateway services for Tauri commands. Window-targeted Rust-to-TypeScript events for scans and hardware status are the agreed hardware-only exception; components must not call Tauri directly.
 - PowerSync synchronizes the Rust-managed local SQLite database with PowerSync Cloud backed by Supabase. Use the native Tauri integration (`@powersync/tauri-plugin` and Rust `tauri-plugin-powersync`), not `@powersync/web` or IndexedDB.
 - Sync connection state belongs in Rust and is shared across Tauri windows. The frontend initializes the database then invokes Rust's `connect` command.
 - `@powersync/common` must remain exactly `2.0.0` to match the Tauri plugin and avoid duplicate schema types.

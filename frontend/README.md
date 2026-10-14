@@ -42,6 +42,46 @@ or run the desktop app with Tauri:
 yarn tauri dev
 ```
 
+### Development-only Test Scan
+
+Run `yarn tauri dev`, sign in, and select **Test Scan (dev)** in the sidebar
+(`/dev/test-scan`). The screen is explicitly simulated: it does not connect a
+physical scanner, look up products, or change carts.
+
+- **Scan Once** sends the barcode plus CR (carriage return) to Rust.
+- Rust buffers partial input until CR, then emits a scan or an explicit error
+  only to the requesting webview window. Every completed scan has its own ID,
+  even if its barcode is identical to the previous scan.
+- The typed Angular gateway displays events from its active Rust session only.
+  Leaving the screen removes the listener and stops the session, discarding
+  unfinished input.
+- Barcodes preserve leading zeros and spaces. This milestone accepts printable
+  ASCII, rejects empty/space-only frames, and limits barcodes to 255 bytes and
+  individual input chunks to 4096 bytes. No EAN/UPC checksum is required.
+- On malformed or oversized barcode input, the parser discards through the next
+  CR before accepting a new frame. An oversized input *chunk* is rejected before
+  parsing and leaves previously buffered input unchanged.
+
+Review examples:
+
+1. Scan `036000291452` twice: the leading zero remains, the count increases
+   twice, and the scan ID changes.
+2. Expand **Advanced**, send `036000`, then `291452`, then **Send CR**:
+   no scan is produced until CR; the final barcode is `036000291452`.
+3. Send the literal chunk `A\rB\r`: two scans arrive. Only literal `\r` is
+   decoded into CR; other characters are sent unchanged.
+4. Scan an empty barcode or send a chunk containing a newline: an error appears,
+   not a successful scan. Send CR to finish a rejected partial frame.
+5. Send partial input, leave the screen, and reopen it: the previous partial
+   input must not carry over.
+
+`yarn start` alone cannot exercise native parsing; the page reports that the
+Tauri desktop app is required rather than falling back to browser simulation.
+Production Angular builds omit the route/navigation. Release Rust builds do not
+compile or register simulator commands. Desktop packaging uses `yarn build:prod`
+to keep these gates aligned. Neither simulator input nor sessions are persisted
+or synchronized.
+
 ## Production build
 
 ### 1) Build the Angular frontend

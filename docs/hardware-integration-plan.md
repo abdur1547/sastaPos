@@ -1,12 +1,34 @@
 # Scanner and Receipt Printing Implementation Plan
 
-Status: agreed scope; implementation not started.
+Status: agreed scope; milestone 1 (development-only Test Scan simulator) implemented.
 
 Decision date: 2026-10-14.
 
 This document records the agreed hardware integration requirements for future
-implementation. It describes planned behavior, not capabilities already present
-in the application.
+implementation. Except for the milestone described below, it describes planned
+behavior, not capabilities already present in the application.
+
+### Milestone 1: Test Scan simulator
+
+The development desktop app includes a **Test Scan (dev)** screen. A typed
+gateway sends input chunks to a Rust-owned, per-window session and CR-framed
+parser. Window-targeted scan/error events return to that screen. The parser
+preserves payloads and leading zeros, handles partial/multiple frames, assigns
+distinct scan IDs, and rejects empty, malformed, and oversized input explicitly.
+It accepts printable ASCII barcodes up to 255 bytes and input chunks up to
+4096 bytes. On an invalid frame it discards through the next CR to resynchronize.
+
+Navigation cleanup removes the listener and stops the session. Simulator
+commands are compiled/registered only in debug Rust builds; the Angular route
+and navigation are excluded from production builds. There is no browser fallback.
+No product, cart, sale, database, or real hardware integration is included yet.
+Other terminators, connection simulation, reusable product/cart consumers,
+hardware settings, and printer functionality remain future work.
+
+See [development review instructions](../frontend/README.md#development-only-test-scan)
+for manual examples. Rust tests cover parser behavior and Tauri mock-runtime
+IPC/event delivery; Jest tests cover the typed gateway and screen lifecycle.
+These tests do not certify a real native webview or physical device.
 
 ## 1. Ownership and platform scope
 

@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 
 import { authGuard } from './core/auth/auth.guard';
 import { SellPage } from './features/sell/sell.page';
+import { HARDWARE_ROUTES } from './features/hardware/hardware.routes';
 
 export const routes: Routes = [
   {
@@ -14,6 +15,7 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'sell' },
       { path: 'sell', component: SellPage, title: 'Sell | Counter' },
+      ...HARDWARE_ROUTES,
       {
         path: 'sales',
         loadChildren: () => import('./features/sales/sales.routes').then((m) => m.SALE_ROUTES),

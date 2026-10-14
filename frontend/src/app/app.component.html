@@ -34,6 +34,12 @@
           Store settings
         </a>
       }
+      @if (development) {
+        <a routerLink="/dev/test-scan" routerLinkActive="is-active">
+          <mat-icon class="nav-icon" aria-hidden="true">qr_code_scanner</mat-icon>
+          Test Scan (dev)
+        </a>
+      }
     </nav>
 
     <div class="sidebar-footer">

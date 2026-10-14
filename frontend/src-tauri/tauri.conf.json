@@ -7,7 +7,7 @@
     "frontendDist": "../dist/angular-starter/browser",
     "devUrl": "http://localhost:4200",
     "beforeDevCommand": "yarn start",
-    "beforeBuildCommand": "yarn build"
+    "beforeBuildCommand": "yarn build:prod"
   },
   "app": {
     "windows": [
