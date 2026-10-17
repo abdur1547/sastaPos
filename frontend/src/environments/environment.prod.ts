@@ -1,6 +1,6 @@
-import { env } from "process";
+import { buildEnvironment } from "./environment.generated";
 
 export const environment = {
   production: true,
-  apiBaseUrl: env.API_BASE_URL
+  ...buildEnvironment,
 };

@@ -47,6 +47,7 @@ PowerSync service (Docker, self-hosted)   Spring Boot backend
 cp .env.example .env                     # shared Postgres / backend settings
 cp backend/.env.example backend/.env     # optional standalone backend reference
 cp powersync/.env.example powersync/.env # PowerSync settings
+cp frontend/.env.example frontend/.env   # Angular build-time API URL
 cp frontend/src-tauri/.env.example frontend/src-tauri/.env
 ```
 
@@ -100,12 +101,13 @@ unset; an empty value is not always equivalent to an unset variable.
 | --- | --- | --- |
 | Root infrastructure | [.env.example](.env.example) | Compose interpolation; production maps values into containers |
 | Standalone backend | [backend/.env.example](backend/.env.example) | Export to the process/IDE, or pass to Docker with `--env-file`; Spring does not auto-load `.env` |
-| Angular / TypeScript | [frontend/.env.example](frontend/.env.example) | No `.env` loader; API URL is in `src/environments/environment*.ts` |
+| Angular / TypeScript | [frontend/.env.example](frontend/.env.example) | Yarn start/build/test/Storybook scripts generate build-time config from `frontend/.env`; process environment takes precedence |
 | Rust / Tauri | [frontend/src-tauri/.env.example](frontend/src-tauri/.env.example) | Process environment, then dotenvy working-directory/parent search |
 | Standalone/dev PowerSync | [powersync/.env.example](powersync/.env.example) | PowerSync Compose `env_file` |
 
-Before shipping a remote desktop build, set Angular's `apiBaseUrl` in
-`frontend/src/environments/environment.prod.ts` to the public HTTPS backend URL.
+Before shipping a remote desktop build, set `API_BASE_URL` in `frontend/.env`
+or the build process environment to the public HTTPS backend URL, then run
+`yarn build:prod` from `frontend/`. The URL is embedded in the Angular bundle.
 Set Rust's `API_BASE_URL` to that same URL and `POWERSYNC_ENDPOINT` to the public
 HTTPS PowerSync URL through the desktop launcher environment. The Rust `.env` is
 not embedded in the packaged app. Never distribute server secrets to clients.

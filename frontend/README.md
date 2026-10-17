@@ -43,13 +43,25 @@ endpoint in the current API. Existing offline-first management pages are unchang
 
 ## Environment configuration
 
-The [TypeScript env reference](.env.example) deliberately contains no assignments:
-Angular does not read `.env` files. Development and production API URLs are
-configured through `apiBaseUrl` in
-[environment.ts](src/environments/environment.ts) and
-[environment.prod.ts](src/environments/environment.prod.ts), respectively.
-Both default to `http://localhost:8090`. Set the production value to the public
-HTTPS backend URL before building a remote desktop client.
+Copy the [TypeScript env example](.env.example) to `frontend/.env`:
+
+```sh
+cp .env.example .env
+yarn build:prod
+```
+
+Run these commands from `frontend/`. Set the required `API_BASE_URL` to the public
+HTTPS backend URL before building a remote desktop client. The example uses
+`http://localhost:8090` for local development. Exported process variables override
+the `.env` value, so CI can also use `API_BASE_URL=https://api.example.com yarn build:prod`.
+
+Yarn start, build, test, and Storybook scripts generate the ignored
+`src/environments/environment.generated.ts` file before invoking their tools.
+Both development and production environments use this generated configuration.
+Only `API_BASE_URL` is included; missing or invalid values stop generation.
+Changing `.env` requires restarting the dev server or rebuilding. For direct
+Angular CLI commands, run `yarn env:generate` first. Run `yarn test:env` to test
+the generator. Node.js 22.23.2 or newer is required by the frontend toolchain.
 
 The [Rust env example](src-tauri/.env.example) documents `API_BASE_URL` and
 `POWERSYNC_ENDPOINT`. Neither needs setting for local development; remote

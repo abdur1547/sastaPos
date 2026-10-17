@@ -1,4 +1,5 @@
 .env
+frontend/src/environments/environment.generated.ts
 .agents
 .claude
 .angular
