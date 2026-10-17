@@ -182,6 +182,40 @@ roles. Rotate passwords in PostgreSQL and update the env together. Stop with
 intend to delete production data. Take and restore-test backups independently.
 Compose validates missing required values but cannot judge secret strength.
 
+### Packaged desktop and services on the same machine
+
+The production Compose services bind to loopback by default. A desktop app on
+that same machine can use `API_BASE_URL=http://localhost:8090` in
+`frontend/.env`; build it with `cd frontend && yarn tauri build`.
+Rust's default backend and PowerSync URLs are `http://localhost:8090` and
+`http://localhost:8081`, so no launcher overrides are needed for this setup.
+`POWERSYNC_ENDPOINT` in `frontend/.env` is not embedded in the Angular bundle,
+and a packaged app does not bundle the Rust `.env`.
+
+The packaged webview has a different origin from `yarn tauri dev`. On Linux,
+allow `tauri://localhost` in the root `.env`'s `CORS_ALLOWED_ORIGINS`. Retain
+`http://localhost:4200` only if development clients should also access this
+backend. Windows clients normally need `http://tauri.localhost` instead
+(`https://tauri.localhost` when configured to use HTTPS).
+
+After changing the root `.env`, recreate the backend to apply it; a container
+restart alone does not reload Compose environment values:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env up -d --no-deps --wait backend
+curl -i -X OPTIONS http://localhost:8090/api/auth/login \
+  -H 'Origin: tauri://localhost' \
+  -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: content-type'
+```
+
+Expect HTTP 200 and `Access-Control-Allow-Origin: tauri://localhost`. HTTP 403
+with `Invalid CORS request` means the backend rejected the webview origin, not
+that Docker networking failed. Retry sign-in in the already running desktop app;
+a CORS-only server configuration change does not require rebuilding it.
+Keep these plaintext ports bound to loopback. A desktop installed on another
+machine needs reachable HTTPS service URLs, not `localhost`.
+
 ### First-use flow
 
 1. Sign up in the app (or `POST /api/auth/signup`), then create a store (`POST /api/store`).
