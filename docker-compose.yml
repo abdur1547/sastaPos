@@ -1,45 +1,62 @@
-# Dev-only Docker Compose: local Postgres, reused by both the backend and the
-# imported PowerSync stack (./powersync/docker-compose.yml).
+# Dev-only Docker Compose: PostgreSQL + PowerSync. Run the backend separately.
 # Production uses ./docker-compose.prod.yml (not this development file).
+# Credentials are intentionally hardcoded for local development only.
 #
 # Usage:
-#   cp .env.example .env                       # then edit .env (Postgres/backend vars)
-#   cp powersync/.env.example powersync/.env    # then edit powersync/.env (PowerSync vars)
 #   docker compose up -d
 #   docker compose logs -f powersync
 
-include:
-  - path: powersync/docker-compose.yml
-
 services:
   postgres:
-    image: postgres:18.6
-    container_name: sastapos-postgres
+    image: postgres:18-alpine
+    container_name: postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-sastaPos}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-P4ssword!}
-      POWERSYNC_DB_PASSWORD: ${POWERSYNC_DB_PASSWORD:?set POWERSYNC_DB_PASSWORD in .env}
+      POSTGRES_DB: sastaPos
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POWERSYNC_DB_PASSWORD: powersync
     # PowerSync replicates via logical replication.
     command: ["postgres", "-c", "wal_level=logical"]
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "5432:5432"
     volumes:
       # Creates the powersync_role + `powersync` publication on first start of an empty DB.
       - ./powersync/postgres-init.sh:/docker-entrypoint-initdb.d/10-powersync.sh:ro
-      # - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-sastaPos}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sastaPos"]
       interval: 5s
       timeout: 5s
       retries: 15
 
-  # Extend the imported powersync service: wait for the local Postgres above.
   powersync:
+    image: journeyapps/powersync-service:latest
+    container_name: powersync
+    restart: unless-stopped
+    command: ["start", "-r", "unified"]
+    environment:
+      POWERSYNC_CONFIG_PATH: /config/service.yaml
+      PS_PORT: "8081"
+      PS_DATA_SOURCE_URI: postgresql://powersync_role:powersync@postgres:5432/sastaPos
+      PS_STORAGE_SOURCE_URI: postgresql://powersync_role:powersync@postgres:5432/sastaPos
+      # base64url of the backend's default development JWT_SECRET.
+      PS_JWK_K: ZGV2LW9ubHktY2hhbmdlLW1lLWluLXByb2R1Y3Rpb24tcGxlYXNlLXBsZWFzZS1wbGVhc2U
+      PS_API_TOKEN: dev-only-powersync-api-token
+      NODE_OPTIONS: --max-old-space-size=1000
+    volumes:
+      - ./powersync/service.yaml:/config/service.yaml:ro
+      - ./powersync/sync-config.yaml:/config/sync-config.yaml:ro
+    ports:
+      - "8081:8081"
     depends_on:
       postgres:
         condition: service_healthy
-
-# volumes:
-#   postgres_data:
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:8081/probes/liveness').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 15

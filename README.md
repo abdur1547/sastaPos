@@ -27,10 +27,10 @@ PowerSync service (Docker, self-hosted)   Spring Boot backend
 
 ```text
 .
-├── docker-compose.yml   Postgres + PowerSync (includes powersync/docker-compose.yml)
+├── docker-compose.yml   Development Postgres + PowerSync (hardcoded local settings)
 ├── docker-compose.prod.yml Backend + persistent Postgres + PowerSync for production
-├── .env                 Postgres / backend vars (copy from .env.example)
-├── powersync/           PowerSync service.yaml, sync-config.yaml, .env, postgres-init.sh
+├── .env.example         Production infrastructure settings
+├── powersync/           PowerSync service.yaml, sync-config.yaml, postgres-init.sh
 ├── backend/             Spring Boot API
 └── frontend/            Angular app and Tauri project (src-tauri/)
 ```
@@ -44,20 +44,19 @@ PowerSync service (Docker, self-hosted)   Spring Boot backend
 ### One-time configuration
 
 ```bash
-cp .env.example .env                     # shared Postgres / backend settings
-cp backend/.env.example backend/.env     # optional standalone backend reference
-cp powersync/.env.example powersync/.env # PowerSync settings
 cp frontend/.env.example frontend/.env   # Angular build-time API URL
 cp frontend/src-tauri/.env.example frontend/src-tauri/.env
 ```
 
-Keep these consistent:
-
-| Value | Where |
-| --- | --- |
-| `POWERSYNC_DB_PASSWORD` (root `.env`) | must equal the password inside `PS_DATA_SOURCE_URI` / `PS_STORAGE_SOURCE_URI` in `powersync/.env` (user `powersync_role`) |
-| `JWT_SECRET` (root `.env`, exported to the backend) | `PS_JWK_K` in `powersync/.env` must be its base64url encoding: `printf '%s' "$JWT_SECRET" \| base64 -w0 \| tr '+/' '-_' \| tr -d '='` |
-| `PS_PORT` (`powersync/.env`) | `POWERSYNC_ENDPOINT` in `frontend/src-tauri/.env` (default `8081`) |
+Development infrastructure needs no `.env` files. The root
+[docker-compose.yml](docker-compose.yml) runs only PostgreSQL and PowerSync with
+hardcoded local credentials: database `sastaPos`, owner `postgres` / `postgres`,
+and replication role `powersync_role` / `powersync`. Ports are fixed at `5432`
+and `8081`. PowerSync's JWT key matches the backend's default development secret;
+do not override `JWT_SECRET` unless you also update `PS_JWK_K` in Compose.
+Keep `POWERSYNC_ENDPOINT` in `frontend/src-tauri/.env` at `http://localhost:8081`.
+These credentials are for local development only; production uses its separate
+Compose file and root `.env`.
 
 ### Run everything (3 terminals)
 
@@ -65,22 +64,22 @@ Keep these consistent:
 
 ```bash
 docker compose up -d
-docker compose logs -f powersync     # wait for "Activated new replication stream"
+docker compose ps                  # both services should become healthy
+docker compose logs -f powersync
 ```
 
-The DB init script runs only on a fresh database. If you change the role password or start from an old container: `docker compose down -v && docker compose up -d`.
+The DB init script runs only on a fresh database. The dev stack has no named
+database volume. To discard local data and reinitialize after changing credentials,
+run `docker compose down -v && docker compose up -d` (deletes development data).
 
 **2. Backend** (listens on <http://localhost:8090>, Swagger at `/swagger-ui/index.html`)
 
 ```bash
 cd backend
-set -a && . ../.env && set +a
-export JDBC_DATABASE_URL="jdbc:postgresql://localhost:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-sastaPos}"
-export JDBC_DATABASE_USERNAME="${POSTGRES_USER:-postgres}"
-export JDBC_DATABASE_PASSWORD="$POSTGRES_PASSWORD"
 SPRING_PROFILES_ACTIVE=dev bash ./mvnw spring-boot:run
 ```
 
+The backend runs independently, using its default local database credentials.
 The `dev` profile creates the tables with Hibernate; the backend must have started once so tables exist (PowerSync picks them up automatically, no restart needed).
 
 **3. Desktop app**
@@ -99,11 +98,11 @@ unset; an empty value is not always equivalent to an unset variable.
 
 | Scope | Reference | How it is loaded |
 | --- | --- | --- |
-| Root infrastructure | [.env.example](.env.example) | Compose interpolation; production maps values into containers |
+| Production infrastructure | [.env.example](.env.example) | Production Compose interpolation and container environment; development uses hardcoded settings |
 | Standalone backend | [backend/.env.example](backend/.env.example) | Export to the process/IDE, or pass to Docker with `--env-file`; Spring does not auto-load `.env` |
 | Angular / TypeScript | [frontend/.env.example](frontend/.env.example) | Yarn start/build/test/Storybook scripts generate build-time config from `frontend/.env`; process environment takes precedence |
 | Rust / Tauri | [frontend/src-tauri/.env.example](frontend/src-tauri/.env.example) | Process environment, then dotenvy working-directory/parent search |
-| Standalone/dev PowerSync | [powersync/.env.example](powersync/.env.example) | PowerSync Compose `env_file` |
+| Custom PowerSync deployments | [powersync/.env.example](powersync/.env.example) | Reference only; neither root Compose file loads this file |
 
 Before shipping a remote desktop build, set `API_BASE_URL` in `frontend/.env`
 or the build process environment to the public HTTPS backend URL, then run

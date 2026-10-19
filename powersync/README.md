@@ -1,14 +1,15 @@
-# Self-Hosted PowerSync (standalone)
+# Self-Hosted PowerSync
 
-A self-contained setup for running the **PowerSync Service** with Docker, connecting to a
-**Postgres database you already run yourself** (this folder does not start Postgres).
+The root [docker-compose.yml](../docker-compose.yml) runs **PostgreSQL and PowerSync**
+for local development. The backend runs independently. No environment files are needed:
+development credentials and ports are hardcoded in the root Compose file.
 
 Files in this folder:
 
 | File                  | Purpose                                                              |
 | --------------------- | --------------------------------------------------------------------- |
-| `docker-compose.yml` | Runs the `journeyapps/powersync-service` container                    |
-| `.env.example`        | Template for secrets/config — copy to `.env`                          |
+| `postgres-init.sh`    | Creates the replication role and publication on a fresh database     |
+| `.env.example`        | Environment reference for custom deployments; not loaded by root Compose |
 | `service.yaml`        | PowerSync instance config: DB connection, storage, auth, ports        |
 | `service.prod.yaml`   | Root production stack: explicit DB credentials and production JWT audience |
 | `sync-config.yaml`    | Sync Streams — defines *what* data gets synced to clients             |
@@ -64,10 +65,17 @@ sits between your Postgres and your app's PowerSync SDK.
 
 ---
 
-## 2. Prepare your existing Postgres
+## 2. Postgres setup
 
-Run these once against **your existing** Postgres database (adjust names as you like, `powersync`
-is required for the publication name).
+The development stack enables logical replication and runs
+[postgres-init.sh](postgres-init.sh) automatically on a fresh database. It creates
+`powersync_role` with password `powersync`, grants replication/storage permissions,
+and creates the `powersync` publication. The database is `sastaPos`; the owner is
+`postgres` with password `postgres`.
+
+Only for a custom deployment connecting to an existing database, run the equivalent
+setup below (adjust names and use a real password; `powersync` is required for the
+publication name).
 
 ```sql
 -- 1. Enable logical replication (requires a Postgres restart)
@@ -76,6 +84,8 @@ ALTER SYSTEM SET wal_level = logical;
 
 -- 2. Create a role for PowerSync (read-only + replication)
 CREATE ROLE powersync_role WITH REPLICATION BYPASSRLS LOGIN PASSWORD 'CHANGE_ME';
+GRANT CREATE ON DATABASE your_database TO powersync_role;
+GRANT USAGE ON SCHEMA public TO powersync_role;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO powersync_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO powersync_role;
 
@@ -95,28 +105,41 @@ Check requirements:
 
 ---
 
-## 3. Configure this folder
+## 3. Configuration
 
-```bash
-cd powersync
-cp .env.example .env
-```
+### Local development
 
-Edit `.env`:
+All service environment values are defined directly in the root
+[docker-compose.yml](../docker-compose.yml):
+
+- Both database URIs use `postgres:5432/sastaPos` with `powersync_role` / `powersync`.
+  Bucket storage is isolated in the database's `powersync` schema.
+- `PS_PORT` is `8081`.
+- `PS_JWK_K` encodes the backend's default development `JWT_SECRET`
+  (`dev-only-change-me-in-production-please-please-please`). If you override the
+  backend secret, update this key too; see [Authentication](#5-authentication).
+- `PS_API_TOKEN` is `dev-only-powersync-api-token`, for local development only.
+
+### Custom deployments
+
+Neither root Compose file loads this folder's `.env`. The
+[.env.example](.env.example) is only an environment reference for custom deployments
+using [service.yaml](service.yaml). Supply these variables through your own
+deployment's container environment:
 
 - `PS_DATA_SOURCE_URI` — connection string to your existing Postgres, e.g.
   `postgresql://powersync_role:CHANGE_ME@host.docker.internal:5432/your_database`
   - Use `host.docker.internal` if Postgres runs directly on your host machine (not in Docker).
-    The compose file already maps this for Linux/macOS/Windows via `extra_hosts`.
+    Add `host.docker.internal:host-gateway` to your deployment's `extra_hosts`.
   - If Postgres runs in Docker on a shared network, use its service/container name instead and
-    add that network to `docker-compose.yml`.
+    add that network to your deployment.
 - `PS_STORAGE_SOURCE_URI` — where PowerSync stores its own sync state. Simplest: same Postgres,
   same database (isolated automatically in a `powersync` schema). For production, prefer a
   separate database/instance so replication storage I/O doesn't compete with your app.
 - `PS_JWK_K` — base64url encoding of the backend's `JWT_SECRET`. See [Authentication](#5-authentication) below.
 - `PS_API_TOKEN` — random secret for PowerSync's own admin routes: `openssl rand -hex 32`.
 
-Edit `sync-config.yaml` to describe your real tables (replace `your_table_name`). Every table
+Edit [sync-config.yaml](sync-config.yaml) to change which tables are synced. Every table
 referenced here must be included in the `powersync` publication created above.
 
 ---
@@ -126,15 +149,20 @@ referenced here must be included in the `powersync` publication created above.
 ### Local development
 
 ```bash
-cd powersync
+# Run from the repository root.
 docker compose up -d
 docker compose logs -f powersync
 ```
 
-- API/sync endpoint: `http://localhost:8081` (or whatever `PS_PORT` you set).
+- API/sync endpoint: `http://localhost:8081`.
 - Health check: `http://localhost:8081/probes/liveness`
-- Stop: `docker compose down` (add `-v` to also wipe any local volumes, though this setup has none
-  since Postgres lives outside this compose file).
+- Stop: `docker compose down`. There is no named database volume in development.
+  To discard development data and reinitialize, use `docker compose down -v`
+  before starting again.
+
+Run the backend separately with its `dev` profile to create the application tables;
+see the [root quickstart](../README.md#run-everything-3-terminals). PowerSync only
+depends on PostgreSQL in Compose, not on the backend process.
 
 After changing `sync-config.yaml`, restart the container to pick up changes:
 
@@ -146,13 +174,13 @@ docker compose restart powersync
 
 For this app's integrated single-host production deployment, use the root
 [docker-compose.prod.yml](../docker-compose.prod.yml) and
-[root env example](../.env.example), not this standalone Compose file.
+[root env example](../.env.example), not the development Compose file.
 Only the root `.env` is loaded. It shares the database name, supplies a separate
 `POWERSYNC_DB_PASSWORD` to the PostgreSQL init script and PowerSync's explicit
 credential fields in [service.prod.yaml](service.prod.yaml), and derives `PS_JWK_K` from the same
 `JWT_SECRET` the backend signs with. The [.env.example](.env.example) in this
-folder is only for standalone/development use and marks required values and
-optional defaults. Use URI-safe passwords (e.g. random hex) for standalone URI
+folder is only a custom-deployment reference and marks required values and
+optional defaults. Use URI-safe passwords (e.g. random hex) for custom URI
 configuration; the pinned service does not decode percent-encoded passwords.
 Production uses explicit fields so special characters work unchanged.
 
