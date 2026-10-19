@@ -32,7 +32,7 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SERVER_PORT: "8090"
+      SERVER_PORT: "${BACKEND_PORT:-8090}"
       JDBC_DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-sastaPos}
       JDBC_DATABASE_USERNAME: ${POSTGRES_USER:-postgres}
       JDBC_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in root .env}
@@ -48,13 +48,13 @@ services:
       SPRING_FLYWAY_LOCATIONS: classpath:db/migration
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: "false"
     ports:
-      - "${SERVICE_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-8090}:8090"
+      - "${SERVICE_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-8090}:${BACKEND_PORT:-8090}"
     depends_on:
       postgres:
         condition: service_healthy
     # Root endpoint is public and available after startup/migrations, not Actuator.
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8090/"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:${BACKEND_PORT:-8090}/"]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -74,7 +74,7 @@ services:
     restart: unless-stopped
     environment:
       POWERSYNC_CONFIG_PATH: /config/service.yaml
-      PS_PORT: "8081"
+      PS_PORT: "${PS_PORT:-8081}"
       PS_POSTGRES_DB: ${POSTGRES_DB:-sastaPos}
       PS_DATABASE_PASSWORD: ${POWERSYNC_DB_PASSWORD:?set POWERSYNC_DB_PASSWORD in root .env}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in root .env}
@@ -92,7 +92,7 @@ services:
       - ./powersync/service.prod.yaml:/config/service.yaml:ro
       - ./powersync/sync-config.yaml:/config/sync-config.yaml:ro
     ports:
-      - "${SERVICE_BIND_ADDRESS:-127.0.0.1}:${PS_PORT:-8081}:8081"
+      - "${SERVICE_BIND_ADDRESS:-127.0.0.1}:${PS_PORT:-8081}:${PS_PORT:-8081}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -103,7 +103,7 @@ services:
         - CMD
         - node
         - -e
-        - "fetch('http://127.0.0.1:8081/probes/liveness').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+        - "fetch('http://127.0.0.1:${PS_PORT:-8081}/probes/liveness').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
       interval: 10s
       timeout: 5s
       retries: 15

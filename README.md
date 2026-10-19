@@ -4,6 +4,32 @@ Sasta POS is a desktop point-of-sale system being built for shops and businesses
 
 The application is intended to support common retail operations such as store management, products, units of measure, tax categories, sales, stock movements, and business settings. The backend already contains domain modules for these areas; the desktop UI and offline data workflow are still under active development.
 
+## Table of Contents
+
+- [Architecture](#architecture)
+- [Repository Structure](#repository-structure)
+- [Getting Started (development)](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [One-time configuration](#one-time-configuration)
+  - [Run everything (3 terminals)](#run-everything-3-terminals)
+  - [Environment configuration](#environment-configuration)
+- [Production Compose](#production-compose)
+  - [Production prerequisites](#production-prerequisites)
+  - [Configure once, start with one command](#configure-once-start-with-one-command)
+  - [Environment variables by service](#environment-variables-by-service)
+  - [Public access and TLS](#public-access-and-tls)
+  - [Persistence, updates, and shutdown](#persistence-updates-and-shutdown)
+  - [Packaged desktop and services on the same machine](#packaged-desktop-and-services-on-the-same-machine)
+  - [First-use flow](#first-use-flow)
+  - [Verify sync without the app](#verify-sync-without-the-app)
+  - [Local SQLite database (desktop)](#local-sqlite-database-desktop)
+  - [Adding a synced table](#adding-a-synced-table)
+  - [Store settings and invoice synchronization](#store-settings-and-invoice-synchronization)
+  - [Build a production desktop bundle](#build-a-production-desktop-bundle)
+- [Component Documentation](#component-documentation)
+- [Development Notes](#development-notes)
+- [Technology References](#technology-references)
+
 ## Architecture
 
 ```text
@@ -115,40 +141,115 @@ not embedded in the packaged app. Never distribute server secrets to clients.
 
 The root [docker-compose.prod.yml](docker-compose.prod.yml) runs the backend,
 PostgreSQL and PowerSync together on one host, without importing the development
-stack or any component `.env` files.
+stack or any component environment files. This starts **server services only**,
+not the desktop app or a TLS reverse proxy.
 
-1. Copy `.env.example` to `.env`, then set all required production values:
-   `POSTGRES_PASSWORD`, `POWERSYNC_DB_PASSWORD`, `JWT_SECRET`, `PS_API_TOKEN` and
-   `CORS_ALLOWED_ORIGINS`. Generate each secret independently with
-   `openssl rand -hex 32`; JWT signing needs at least 32 bytes. For CORS, list only
-   the exact origins used by your clients (desktop origins can be
-   `tauri://localhost`, `http://tauri.localhost`, `https://tauri.localhost`).
-   Restrict permissions with `chmod 600 .env`.
-   If manually choosing passwords with `$` or other interpolation characters,
-   single-quote their values in the Compose env file to preserve them literally.
-2. Validate and start from the repository root:
+### Production prerequisites
+
+- Docker Engine with Docker Compose v2.20+ and permission to run Docker.
+- OpenSSL for generating secrets, a text editor, and this repository on the host.
+- Internet access on first build/pull for container images and Maven dependencies.
+- Available host ports `8090` and `8081`, or overrides in the root environment file.
+- A fresh production database volume for the first deployment.
+
+Java, Maven, Node, Yarn, and Rust do **not** need to be installed on the host:
+Compose builds the backend in Docker. The development prerequisites above apply
+only when running/building components outside Docker.
+
+### Configure once, start with one command
+
+Run these commands from the repository root. Do not overwrite an existing
+production environment file.
+
+1. Copy the template and restrict access (it contains server secrets):
 
    ```bash
-   docker compose -f docker-compose.prod.yml --env-file .env config --quiet
-   docker compose -f docker-compose.prod.yml --env-file .env up -d --build --wait
-   docker compose -f docker-compose.prod.yml --env-file .env ps
+   cp .env.example .env
+   chmod 600 .env
    ```
 
-3. Configure a TLS reverse proxy to the loopback endpoints
-   `http://127.0.0.1:8090` (backend) and `http://127.0.0.1:8081` (PowerSync).
-   Support streaming/WebSockets for PowerSync and restrict its admin/API routes.
-   Ports and bind address can be overridden in the root env file. PostgreSQL has
-   no published port. Do not publish plaintext services on a public interface.
+2. Edit the root `.env`. It is grouped by service, then **REQUIRED** and
+   **NOT REQUIRED**. Replace all four blank secrets:
 
-Shared values are defined once:
+   | Required secret | Generate a fresh value for this field |
+   | --- | --- |
+   | `POSTGRES_PASSWORD` | `openssl rand -hex 32` |
+   | `JWT_SECRET` | `openssl rand -hex 32` |
+   | `POWERSYNC_DB_PASSWORD` | `openssl rand -hex 32` |
+   | `PS_API_TOKEN` | `openssl rand -hex 32` |
 
-| Root variable | Consumers |
-| --- | --- |
-| `POSTGRES_DB` | PostgreSQL, backend JDBC URL, both PowerSync database connections |
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` | PostgreSQL owner and backend JDBC credentials |
-| `POWERSYNC_DB_PASSWORD` | PostgreSQL `powersync_role` initialization and both PowerSync database connections |
-| `JWT_SECRET` | Backend signer and automatically derived PowerSync `PS_JWK_K` |
-| `PS_API_TOKEN` | PowerSync admin authentication only |
+   Run the command separately for each field and paste its output after `=`.
+   Each command generates 32 random bytes represented as 64 hex characters.
+   Use that text as-is; do not decode the JWT secret. Never reuse secrets or
+   distribute this file to desktop clients.
+
+   `CORS_ALLOWED_ORIGINS` is required but already filled with exact packaged
+   Tauri origins: `tauri://localhost,http://tauri.localhost,https://tauri.localhost`.
+   Remove origins your clients do not use; add the exact HTTPS origin of any
+   hosted web UI. No wildcard is needed. All **NOT REQUIRED** settings can stay
+   commented out.
+
+   If manually choosing secrets containing `$` or other interpolation characters,
+   single-quote their values in the Compose env file to preserve them literally.
+   Do not `source` the file; Compose reads it directly. Already-exported shell
+   variables take precedence over this file; unset conflicting overrides.
+
+3. Start all production backend services with **one command**:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml --env-file .env up -d --build --wait
+   ```
+
+   This builds the backend, starts PostgreSQL, initializes its PowerSync role
+   and publication, runs backend migrations/schema validation, and then starts
+   PowerSync. `--wait` returns success only after all three services are healthy;
+   subsequent runs reuse the production data. A first build can take several minutes.
+   Missing or empty required values cause Compose to stop with the variable name.
+
+4. Verify or diagnose startup:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml --env-file .env ps
+   curl --fail http://127.0.0.1:8090/
+   curl --fail http://127.0.0.1:8081/probes/liveness
+   # If startup fails, inspect logs before retrying:
+   docker compose -f docker-compose.prod.yml --env-file .env logs --tail=100 postgres backend powersync
+   ```
+
+   Adjust the curl ports if you override them. The backend API is at
+   <http://127.0.0.1:8090>, with Swagger at
+   <http://127.0.0.1:8090/swagger-ui/index.html>. PowerSync listens at
+   <http://127.0.0.1:8081>. These are loopback endpoints, not public URLs.
+
+### Environment variables by service
+
+The root [.env.example](.env.example) lists **every environment input accepted by
+production Compose**. Optional values below show the defaults used when unset.
+Shared credentials are defined only once, in the service section that owns them.
+
+| Service | Required (set/review) | Not required (defaults) |
+| --- | --- | --- |
+| PostgreSQL | `POSTGRES_PASSWORD` (also backend JDBC password) | `POSTGRES_DB=sastaPos`, `POSTGRES_USER=postgres`, `POSTGRES_IMAGE=postgres:18-alpine` |
+| Backend | `JWT_SECRET` (also PowerSync auth), `CORS_ALLOWED_ORIGINS` (prefilled desktop origins) | `BACKEND_PORT=8090`, `BACKEND_IMAGE=sasta-pos-backend:prod`, `JWT_EXPIRATION_SECONDS=3600`, `PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES=15`, `DEFAULT_CURRENCY_CODE=PKR`, `DEFAULT_TIMEZONE=Asia/Karachi` |
+| PowerSync | `POWERSYNC_DB_PASSWORD` (also PostgreSQL role initialization), `PS_API_TOKEN` | `PS_PORT=8081`, `POWERSYNC_IMAGE` (pinned digest in the template/Compose file) |
+| Shared networking | None | `SERVICE_BIND_ADDRESS=127.0.0.1` |
+
+Compose constructs the backend's `JDBC_DATABASE_URL`, `JDBC_DATABASE_USERNAME`,
+and `JDBC_DATABASE_PASSWORD` from PostgreSQL settings. It fixes
+`SPRING_PROFILES_ACTIVE=prod` and production-safe JPA/Flyway settings.
+`BACKEND_PORT` sets the backend's host port, container `SERVER_PORT`, and health
+check URL together (default `8090`).
+The Docker image supplies `JAVA_TOOL_OPTIONS`; it is not a root env override.
+
+For PowerSync, Compose supplies `POWERSYNC_CONFIG_PATH`, `PS_POSTGRES_DB`,
+`PS_DATABASE_PASSWORD`, and `NODE_OPTIONS`. `PS_PORT` sets PowerSync's host port,
+container listening port, and health check URL together (default `8081`).
+Choose distinct available unprivileged ports (`1024`-`65535`) for both services.
+`POWERSYNC_CONFIG_PATH` points to `/config/service.yaml` inside the container,
+mounted from [powersync/service.prod.yaml](powersync/service.prod.yaml) on the host.
+Do not add duplicate JDBC credentials,
+`PS_DATA_SOURCE_URI`, `PS_STORAGE_SOURCE_URI`, or `PS_JWK_K` to the root file:
+those are standalone/custom-deployment settings, not additional root inputs.
 
 PowerSync's startup command derives the HS256 JWK from the shared JWT secret.
 Its [production config](powersync/service.prod.yaml) uses explicit database
@@ -165,6 +266,20 @@ health checks use the existing public `/` endpoint (not a full dependency-health
 endpoint); PowerSync uses `/probes/liveness`. Production overrides the permissive
 JPA settings in the `prod` YAML and disables SQL logging.
 
+### Public access and TLS
+
+For clients on other machines, configure a TLS reverse proxy to the loopback
+endpoints `http://127.0.0.1:8090` (backend) and `http://127.0.0.1:8081` (PowerSync).
+Support streaming/WebSockets for PowerSync and restrict its admin/API routes.
+Point remote clients at the resulting HTTPS URLs, not `localhost`. CORS controls
+allowed **client origins**, not the server's listening address.
+
+PostgreSQL has no published port. Both HTTP services bind to loopback by default;
+do not publish plaintext services on a public interface. Override
+`SERVICE_BIND_ADDRESS` only when needed for private ingress. A containerized
+reverse proxy needs appropriate private networking; its own `localhost` is not
+the Docker host.
+
 This is a single-host baseline, not high availability. Database connections use
 `sslmode: disable` only within the private Compose network.
 For databases outside that host/network, configure verified TLS in
@@ -173,12 +288,28 @@ plan separate PowerSync storage/worker scaling as load grows. PowerSync is pinne
 to an image digest; approve/test updates before overriding `POWERSYNC_IMAGE`.
 Pin PostgreSQL and backend/base images to approved digests in your release process.
 
+### Persistence, updates, and shutdown
+
 Use a fresh production volume, or review and explicitly baseline an existing
 database before enabling Flyway; do not reuse development data blindly. Init
 scripts run only once: editing a password in `.env` does not change existing DB
-roles. Rotate passwords in PostgreSQL and update the env together. Stop with
-`docker compose -f docker-compose.prod.yml down`; **do not add `-v`** unless you
-intend to delete production data. Take and restore-test backups independently.
+roles. Rotate passwords in PostgreSQL and update the env together; likewise,
+changing `POSTGRES_DB` / `POSTGRES_USER` does not rename existing databases/roles.
+Changing `JWT_SECRET` invalidates existing client tokens; clients must sign in again.
+Take and restore-test backups independently before deployments or credential changes.
+
+After reviewing/pulling a release or changing non-database settings, rerun the
+same startup command to rebuild/recreate affected services. `docker compose restart`
+does **not** reload environment values. Do not change a live database's credentials
+solely by editing the file.
+
+```bash
+# Stop/remove containers and the network, but keep the named database volume.
+docker compose -f docker-compose.prod.yml --env-file .env down
+```
+
+**Do not add `-v`** unless you intend to delete production data. The default
+project name is `sastapos-prod`; keep the project name stable to reuse its volume.
 Compose validates missing required values but cannot judge secret strength.
 
 ### Packaged desktop and services on the same machine
