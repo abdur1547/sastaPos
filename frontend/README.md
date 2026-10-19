@@ -101,6 +101,22 @@ or run the desktop app with Tauri:
 yarn tauri dev
 ```
 
+### Tauri build errors after moving the project
+
+Cargo build outputs can contain absolute paths. If a Tauri build reports
+`failed to read plugin permissions` with a missing file under an old project
+directory, stop the development process and clear the stale Rust build cache.
+Run from `frontend/`:
+
+```sh
+cargo clean --manifest-path src-tauri/Cargo.toml
+yarn tauri dev
+```
+
+This removes generated Rust build artifacts, not source files or application
+data. The next launch rebuilds the native dependencies and may take several
+minutes. Do not copy `src-tauri/target/` when moving the project.
+
 ### Development-only Receipt Preview
 
 Run `yarn tauri dev`, sign in, and select **Receipt Preview (dev)** in the sidebar
