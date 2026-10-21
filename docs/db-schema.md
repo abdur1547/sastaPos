@@ -156,3 +156,10 @@ Customer.balance = 0  → Settled
 - calculationType string, can't be null
 
 - can have many products
+
+### 13. pos_info
+- Single global row (not store scoped) holding the POS-level identity FBR requires; synced read-only to all devices via PowerSync and served by `GET /api/pos-info` to any authenticated user
+- pos_id string (FBR `bposId`), pos_name, registration_number, software_name, software_version, vendor_name, vendor_ntn: all nullable
+- is_active boolean, can't be null
+- date_created, last_updated timestamptz
+- The FBR security token is intentionally not stored here; it stays local to each device

@@ -65,6 +65,19 @@ const unitsOfMeasures = new Table({
   last_updated: column.text,
 });
 
+const posInfo = new Table({
+  pos_id: column.text,
+  pos_name: column.text,
+  registration_number: column.text,
+  software_name: column.text,
+  software_version: column.text,
+  vendor_name: column.text,
+  vendor_ntn: column.text,
+  is_active: column.integer,
+  date_created: column.text,
+  last_updated: column.text,
+});
+
 const taxCategories = new Table({
   name: column.text,
   code: column.text,
@@ -279,6 +292,7 @@ export const AppSchema = new Schema({
   users,
   products,
   units_of_measures: unitsOfMeasures,
+  pos_info: posInfo,
   tax_categories: taxCategories,
   product_tax_categories: productTaxCategories,
   product_unique_keys: productUniqueKeys,
@@ -298,6 +312,7 @@ export type UserRecord = Database['users'];
 export type BusinessSettingsRecord = Database['business_settings'];
 export type ProductRecord = Database['products'];
 export type UnitOfMeasureRecord = Database['units_of_measures'];
+export type PosInfoRecord = Database['pos_info'];
 export type TaxCategoryRecord = Database['tax_categories'];
 export type ProductTaxCategoryRecord = Database['product_tax_categories'];
 export type StockMovementRecord = Database['stock_movements'];

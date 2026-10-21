@@ -30,6 +30,8 @@ streams:
         SELECT product_tax_categories.* FROM product_tax_categories
         WHERE product_id IN (SELECT id FROM products WHERE store_id = auth.parameter('store_id'))
       - SELECT * FROM units_of_measures
+      # POS-level FBR identity: one global, non-secret row shared by every store/device.
+      - SELECT * FROM pos_info
       - SELECT * FROM customers WHERE store_id = auth.parameter('store_id')
       - SELECT * FROM tax_categories WHERE store_id IS NULL OR store_id = auth.parameter('store_id')
       - SELECT * FROM sales WHERE store_id = auth.parameter('store_id')
