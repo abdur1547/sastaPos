@@ -11,8 +11,9 @@ spring:
     hibernate:
       ddl-auto: update
     open-in-view: false
-    show-sql: true
-    format-sql: true
+    # Raw SQL goes to stdout outside the logging system and would corrupt structured JSON logs.
+    show-sql: false
+    format-sql: false
     properties:
       hibernate:
         jdbc:
@@ -44,3 +45,40 @@ error:
 
 springdoc:
   pathsToMatch: /, /api/**
+
+logging:
+  structured:
+    # One JSON object per line for log shippers (Loki, ELK, CloudWatch, ...). Use ecs, logstash or gelf;
+    # set LOG_FORMAT_CONSOLE to an empty value to fall back to plain-text logs.
+    format:
+      console: ${LOG_FORMAT_CONSOLE:ecs}
+      file: ${LOG_FORMAT_FILE:ecs}
+    ecs:
+      service:
+        name: sasta-pos
+        environment: prod
+  # File logging is off unless LOG_FILE is set (e.g. /var/log/sasta-pos/app.log).
+  file:
+    name: ${LOG_FILE:}
+  logback:
+    rollingpolicy:
+      max-file-size: ${LOG_FILE_MAX_SIZE:10MB}
+      max-history: ${LOG_FILE_MAX_HISTORY:14}
+      total-size-cap: ${LOG_FILE_TOTAL_SIZE_CAP:1GB}
+      clean-history-on-start: false
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.sastapos.sasta_pos: ${LOG_LEVEL_APP:INFO}
+    com.sastapos.sasta_pos.http: ${LOG_LEVEL_HTTP:INFO}
+    org.hibernate.SQL: WARN
+    org.springframework.security: WARN
+
+app:
+  logging:
+    http:
+      # Summary line only; bodies may contain customer/sale data and must stay off unless debugging.
+      include-headers: ${HTTP_LOGGING_INCLUDE_HEADERS:false}
+      include-request-body: ${HTTP_LOGGING_INCLUDE_REQUEST_BODY:false}
+      include-response-body: ${HTTP_LOGGING_INCLUDE_RESPONSE_BODY:false}
+      max-payload-length: ${HTTP_LOGGING_MAX_PAYLOAD_LENGTH:2048}
+      slow-request-threshold: ${HTTP_LOGGING_SLOW_REQUEST_THRESHOLD:1s}

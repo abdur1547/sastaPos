@@ -117,6 +117,17 @@ Set `CORS_ALLOWED_ORIGINS` to a comma-separated list of exact origins to allow o
 
 The Compose development database uses host port `5432`, so override `JDBC_DATABASE_URL` as shown above when starting Compose manually. Never commit real credentials. Production should provide all database values through its secret/environment configuration.
 
+### Logging
+
+Every HTTP request produces one access-log line from the `com.sastapos.sasta_pos.http` logger: method, path, status, duration, client IP and user ID (if authenticated). Responses with status 4xx or slower than `slow-request-threshold` are logged at `WARN`, and 5xx responses at `ERROR`. Each request gets a correlation ID. The backend reuses an incoming `X-Request-Id` header or generates one, returns it in the response, and adds it to every log line as `requestId` (MDC).
+
+| Profile | Output |
+| --- | --- |
+| `dev` | Plain text, app at `DEBUG`, request/response headers and bodies (max 10000 chars) |
+| `prod` | ECS JSON on the console (`LOG_FORMAT_CONSOLE`), summary line only, optional rolling file via `LOG_FILE`, SQL echo disabled |
+
+Configure HTTP logging under `app.logging.http.*` in `application*.yml`: `enabled`, `include-headers`, `include-request-body`, `include-response-body`, `max-payload-length`, `slow-request-threshold`, `excluded-paths`, `masked-headers` and `masked-fields`. You can also set them with the environment variables listed in [.env.example](.env.example). Header and JSON-field masking applies even when bodies are enabled, so passwords, tokens and `Authorization` values are never written to the log.
+
 ## Production Build and Run
 
 Build the executable JAR from the backend directory:

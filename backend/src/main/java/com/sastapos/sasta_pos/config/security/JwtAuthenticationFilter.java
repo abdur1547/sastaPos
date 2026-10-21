@@ -1,6 +1,7 @@
 package com.sastapos.sasta_pos.config.security;
 
 import com.sastapos.sasta_pos.auth.JwtService;
+import com.sastapos.sasta_pos.config.logging.HttpLoggingFilter;
 import com.sastapos.sasta_pos.store.RowStatus;
 import com.sastapos.sasta_pos.user.User;
 import com.sastapos.sasta_pos.user.UserRepository;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.MDC;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -64,6 +66,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 new UsernamePasswordAuthenticationToken(user, null, authorities);
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
         SecurityContextHolder.getContext().setAuthentication(authentication);
+        MDC.put(HttpLoggingFilter.MDC_USER_ID, String.valueOf(user.getId()));
     }
 
 }

@@ -44,7 +44,31 @@ error:
 springdoc:
   pathsToMatch: /, /api/**
 
+logging:
+  pattern:
+    # Prefix every log line with the per-request correlation id (see app.logging.http.request-id-header).
+    correlation: "[%X{requestId:-}] "
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.sastapos.sasta_pos: ${LOG_LEVEL_APP:INFO}
+    # Request/response access log; set to OFF to silence it, WARN to keep only 4xx/5xx/slow requests.
+    com.sastapos.sasta_pos.http: ${LOG_LEVEL_HTTP:INFO}
+
 app:
+  logging:
+    http:
+      enabled: ${HTTP_LOGGING_ENABLED:true}
+      request-id-header: X-Request-Id
+      include-query-string: true
+      include-client-info: true
+      include-headers: ${HTTP_LOGGING_INCLUDE_HEADERS:false}
+      include-request-body: ${HTTP_LOGGING_INCLUDE_REQUEST_BODY:false}
+      include-response-body: ${HTTP_LOGGING_INCLUDE_RESPONSE_BODY:false}
+      max-payload-length: ${HTTP_LOGGING_MAX_PAYLOAD_LENGTH:2048}
+      slow-request-threshold: ${HTTP_LOGGING_SLOW_REQUEST_THRESHOLD:2s}
+      excluded-paths: /actuator/**, /swagger-ui/**, /swagger-ui.html, /v3/api-docs/**, /favicon.ico
+      masked-headers: authorization, cookie, set-cookie, proxy-authorization, x-api-key
+      masked-fields: password, currentPassword, newPassword, confirmPassword, token, accessToken, refreshToken, resetToken, secret, apiKey
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:}
   jwt:
