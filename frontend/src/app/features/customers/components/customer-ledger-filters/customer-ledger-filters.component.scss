@@ -1,0 +1,88 @@
+:host {
+  display: block;
+}
+
+.filters {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-field {
+  flex: 1 1 320px;
+}
+
+.period-field {
+  width: 200px;
+}
+
+.range-field {
+  width: 260px;
+}
+
+.select-field {
+  width: 170px;
+}
+
+.quick-row {
+  padding-top: 4px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.quick-label {
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px 5px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-canvas);
+  color: var(--ink-strong);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chip mat-icon {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+}
+
+.chip:hover {
+  border-color: var(--accent-amber);
+}
+
+.chip.is-selected {
+  border-color: var(--accent-amber);
+  background: #fef3c7;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.active-count {
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 700;
+}

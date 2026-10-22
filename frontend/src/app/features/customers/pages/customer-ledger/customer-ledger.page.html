@@ -57,6 +57,54 @@
     <mat-icon>edit</mat-icon> Edit Customer
   </a>
 </section>
+<section class="ledger-section" aria-label="Ledger entries">
+  <div class="ledger-heading">
+    <h2>Transactions</h2>
+    <dl class="ledger-totals">
+      <div>
+        <dt>Debits</dt>
+        <dd>Rs {{ totalDebit() }}</dd>
+      </div>
+      <div>
+        <dt>Credits</dt>
+        <dd>Rs {{ totalCredit() }}</dd>
+      </div>
+    </dl>
+  </div>
+
+  <app-customer-ledger-filters
+    [initialFilters]="filters()"
+    (filtersChange)="onFiltersChange($event)"
+  />
+
+  @if (error()) {
+  <p class="load-error" role="alert">{{ error() }}</p>
+  }
+
+  <app-customer-ledger-table
+    class="ledger-table"
+    [entries]="entries()"
+    [loading]="loading()"
+    [sort]="sort()"
+    (sortChange)="onSortChange($event)"
+    (openSale)="openSale($event)"
+  />
+
+  <footer class="ledger-footer">
+    <span class="result-count"
+      >{{ total() }} entr{{ total() === 1 ? 'y' : 'ies' }}</span
+    >
+    <mat-paginator
+      [length]="total()"
+      [pageIndex]="pageIndex()"
+      [pageSize]="pageSize()"
+      [pageSizeOptions]="pageSizeOptions"
+      showFirstLastButtons
+      aria-label="Select ledger page"
+      (page)="onPage($event)"
+    />
+  </footer>
+</section>
 } @case ('error') {
 <p class="message" role="alert">{{ state.message }}</p>
 } @default {

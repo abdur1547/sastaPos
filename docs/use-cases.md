@@ -724,7 +724,13 @@ Records money received from a customer against their outstanding balance. This i
 - Return the created `ledger_entry` and the updated `customer` (with new `accountBalance`).
 
 ### Desktop flow and offline persistence
-- Selecting a customer opens **Customers → Customer Ledger** directly. The ledger shows the customer's name, phone, NTN, status, and balance on the left with **Edit Customer** on the right; the top-right **Take Payment** action opens the payment form. Transaction history is deferred.
+- Selecting a customer opens **Customers → Customer Ledger** directly. The ledger shows the customer's name, phone, NTN, status, and balance on the left with **Edit Customer** on the right; the top-right **Take Payment** action opens the payment form.
+- Below the customer information, a **Transactions** table lists every ledger entry for that customer, read from the local synced SQLite database through the customer ledger repository (never the backend), so it works offline and updates live as entries are posted or synced.
+  - Columns: date & time, type (Sale, Payment, Sale return, Adjustment), reference number, description (plus void reason when voided), Debit, Credit, running Balance after the entry, and status (Posted/Voided).
+  - Running balance is `sum(DEBIT) - sum(CREDIT)` over the customer's full history in posting order (`date_created`, debits before credits at the same instant, then id), including voided originals and their reversals, so it is independent of the active filters/sort and the latest entry matches `accountBalance`.
+  - Filters: search (reference, description, or amount), period (all time, today, yesterday, last 7 days, this/last month, custom range in local calendar days), entry type, direction (all/debits/credits), and status (any/posted/voided), with **This month**, **Sales**, **Payments**, and **Voided** quick filters and a reset. Default is all time, newest first.
+  - Every column except status is sortable in both directions; ties fall back to posting order. Debit/Credit sorting keeps entries of the other direction last.
+  - Paged (10/25/50/100 per page, default 25), with the filtered entry count and filtered Debit/Credit totals. Entries linked to a sale open that sale's detail.
 - Ledger back navigation returns to Customers. Editing returns to the ledger after save/cancel unless an explicit originating-screen return URL is provided; payment save/cancel returns to the ledger.
 - The payment form shows the current balance and the resulting balance. A resulting customer credit requires explicit confirmation, including when the account was already in credit.
 - Save through the native database gateway, even when online: insert the INCOMING payment and its CREDIT/PAYMENT ledger entry, then update the customer's balance in one local SQLite transaction. Never update an invoice's `remaining` or allocate this settlement to a sale.

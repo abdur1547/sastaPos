@@ -1,0 +1,78 @@
+// Wider than the account forms so the ledger table fits its money columns.
+:host {
+  max-width: 1280px;
+}
+
+.ledger-section {
+  display: grid;
+  gap: 16px;
+}
+
+.ledger-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ledger-heading h2 {
+  margin: 0;
+}
+
+.ledger-totals {
+  display: flex;
+  gap: 24px;
+  margin: 0;
+}
+
+.ledger-totals dt {
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ledger-totals dd {
+  margin: 0;
+  color: var(--ink-strong);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+// The table scrolls inside a bounded area so its sticky header stays visible.
+.ledger-table {
+  height: min(640px, 70dvh);
+  min-height: 240px;
+}
+
+.ledger-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.result-count {
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+.ledger-footer mat-paginator {
+  background: transparent;
+}
+
+.load-error {
+  margin: 0;
+  color: var(--accent-coral);
+  font-weight: 700;
+}
+
+@media (width <= 720px) {
+  .ledger-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

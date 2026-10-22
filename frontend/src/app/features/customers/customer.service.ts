@@ -2,6 +2,14 @@ import { Injectable, inject } from "@angular/core";
 import { Observable } from "rxjs";
 
 import { AuthService } from "../../core/auth/auth.service";
+import { resolveSoldAtRange } from "../sales/domain/sale-date-range";
+import {
+  CustomerLedgerFilters,
+  CustomerLedgerPage,
+  LedgerPageRequest,
+  LedgerSort,
+} from "./customer-ledger.model";
+import { CustomerLedgerRepository } from "./customer-ledger.repository";
 import {
   CreateCustomerInput,
   UpdateCustomerInput,
@@ -26,6 +34,7 @@ export class CustomerService {
   private readonly auth = inject(AuthService);
   private readonly repository = inject(CustomerRepository);
   private readonly payments = inject(CustomerPaymentRepository);
+  private readonly ledger = inject(CustomerLedgerRepository);
 
   list(search = ""): Promise<readonly Customer[]> {
     return this.repository.list(this.requireStoreId(), normalizeSearch(search));
@@ -56,6 +65,29 @@ export class CustomerService {
     return this.repository.watchById(
       requireUuid(id, "id"),
       this.requireStoreId(),
+    );
+  }
+
+  /** A page of the customer's ledger entries from the local database, re-emitting on change. */
+  watchLedger(
+    id: string,
+    filters: CustomerLedgerFilters,
+    sort: LedgerSort,
+    request: LedgerPageRequest,
+  ): Observable<CustomerLedgerPage> {
+    return this.ledger.watchPage(
+      {
+        customerId: requireUuid(id, "id"),
+        storeId: this.requireStoreId(),
+        filters,
+        range: resolveSoldAtRange(
+          filters.datePreset,
+          filters.customFrom,
+          filters.customTo,
+        ),
+      },
+      sort,
+      request,
     );
   }
 

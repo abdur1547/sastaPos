@@ -1,6 +1,7 @@
 import { TestBed } from "@angular/core/testing";
 
 import { AuthService } from "../../core/auth/auth.service";
+import { CustomerLedgerRepository } from "./customer-ledger.repository";
 import { CustomerPaymentRepository } from "./customer-payment.repository";
 import { CustomerRepository } from "./customer.repository";
 import { CustomerService } from "./customer.service";
@@ -26,6 +27,7 @@ describe("CustomerService.takePayment", () => {
         { provide: AuthService, useValue: { user } },
         { provide: CustomerRepository, useValue: {} },
         { provide: CustomerPaymentRepository, useValue: { takePayment } },
+        { provide: CustomerLedgerRepository, useValue: {} },
       ],
     });
     service = TestBed.inject(CustomerService);
