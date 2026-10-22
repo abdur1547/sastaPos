@@ -1,5 +1,7 @@
 # FBR Pakistan POS Integration — Transaction Workflow Requirements
 
+> These scenarios use the [backend-owned FBR DI design](./fbr-integration-plan.md): API v1.12, local-first intent capture, backend Java mapping/HTTPS/audit and backend-only secrets. Offline upload may trigger the first attempt later; subsequent attempts require a user command. Off-period exclusion remains frozen. Ordinary purchases retain supplier evidence; the 2023 model is obsolete. Note reason/sign rules remain verification gates.
+
 ## General Rules
 
 1. Never delete an FBR-accepted invoice from the transaction history.
@@ -15,18 +17,18 @@
 
 1. Create the sales invoice.
 2. Calculate applicable sales tax.
-3. Submit the invoice through the required FBR integration.
-4. Save the FBR response and invoice identifier.
-5. Record payment and update inventory and accounting.
-6. Print or deliver the invoice with required verification details.
+3. Commit the invoice, actual payment, inventory/accounting effects and fiscal snapshot/intent in one local SQLite transaction.
+4. Upload financial operation/fiscal intent atomically when connected. After backend commit, one durable initial job maps/sends to FBR and persists request before HTTPS/response afterward. Offline upload later may trigger that first attempt, never a duplicate upload retry.
+5. Keep the sale committed on FBR failure; show pending/needs-attention/unknown and require a user action for a safe retry.
+6. Print or deliver the invoice with accepted verification details, or an explicitly marked provisional/off-period receipt subject to the approved receipt policy.
 
 ## Scenario 2: Credit Sale (Customer Pays Later)
 
 1. Create the sales invoice when required under FBR's time-of-supply rules.
-2. Submit it through the required FBR integration.
-3. Save the FBR response and invoice identifier.
-4. Record the customer's outstanding balance.
-5. Reduce inventory.
+2. Commit the invoice, customer's outstanding balance, inventory effects and fiscal snapshot/intent together locally.
+3. Upload the committed operation/intent when connected; backend durably schedules one initial attempt after its commit. Never wait for backend/FBR to commit the local credit sale.
+4. Backend saves FBR response/identifier/failure in PG and replicates only safe status/issued ID/timestamps/actionable diagnostics to desktop; cached status can lag. Raw requests/responses have no frontend endpoint/export or sync copy in V1.
+5. Require a user action for subsequent safe submission/retry; never resend blindly after a timeout.
 6. When payment is received later, record a receipt against the original invoice.
 7. Do not generate a second sales invoice for the payment.
 
@@ -35,7 +37,7 @@
 1. Find the original sales invoice.
 2. Create a sales-return document linked to it.
 3. Record returned items, quantities, reason, values, and applicable tax adjustments.
-4. Issue and submit the required electronic credit note or other prescribed adjustment.
+4. Commit the return's stock/refund/account effects locally, then submit only the verified adjustment with original FBR reference. Do not assume the API accepts Credit Note because legal guidance uses that term; unverified reason/sign rules stay Needs attention.
 5. Restore saleable returned goods to inventory.
 6. Record the refund or customer credit.
 7. Preserve the original invoice and the complete audit trail.
@@ -45,7 +47,7 @@
 1. Find the original credit sales invoice.
 2. Create a linked sales-return document.
 3. Calculate the returned goods' taxable value and applicable tax adjustment.
-4. Issue and submit the required credit note or prescribed adjustment.
+4. Commit return effects locally, then submit only a verified adjustment linked to the original FBR ID; unverified note/reason/sign rules stay Needs attention, never a guessed Credit Note payload.
 5. Restore saleable returned goods to inventory.
 6. Reduce the customer's outstanding balance by the return amount.
 7. If the customer already paid, record a refund or customer credit instead.
@@ -59,6 +61,7 @@
 4. Record the payment against the supplier invoice.
 5. Apply input-tax treatment only when permitted and supported by the required documentation.
 6. Do not submit the purchase as your own sales invoice.
+7. Mark ordinary purchase fiscal handling EVIDENCE_ONLY with supplier invoice/FBR identity and RECORDED_UNVERIFIED status unless actually verified. Special sector purchases require separate supported-profile certification.
 
 ## Scenario 6: Credit Purchase From a Supplier
 
@@ -68,6 +71,7 @@
 4. Apply eligible input-tax treatment according to applicable rules.
 5. When payment is made, reduce accounts payable and record the payment.
 6. Do not create a new purchase invoice when paying the supplier.
+7. Retain supplier FBR evidence without generic purchase POST; paying later does not change that rule.
 
 ## Scenario 7: Return Goods to a Supplier After a Cash Purchase
 
@@ -79,6 +83,7 @@
 6. Record the refund due or credit available from the supplier.
 7. Apply permitted input-tax adjustments.
 8. Do not assume the purchase return automatically cancels the supplier's FBR invoice.
+9. Ordinary purchase return/void is evidence-only, not an outbound Debit Note issued under the store's seller identity.
 
 ## Scenario 8: Return Goods to a Supplier After a Credit Purchase
 
@@ -118,6 +123,8 @@
 5. Save the FBR response and audit history.
 6. Never silently overwrite an accepted invoice.
 7. If FBR rejects the adjustment, retain the error and follow the prescribed resolution process.
+8. An accepted invoice's local void requires a separately linked, verified fiscal reversal. Until the reversal contract is verified, block that void. Sending/unknown originals require reconciliation first; a never-accepted original may instead be cancelled before submission alongside the valid local void.
+9. Fiscal-managed void first requires online backend reservation against canonical state, preventing dispatch races. Offline may save a request draft, not reverse business effects from stale state. Consume the reservation with the atomic void upload; no timeout-based reservation expiry that could restart dispatch while local void is pending.
 
 ## Scenario 12: Retry After FBR Submission Failure
 
@@ -127,6 +134,7 @@
 4. If not accepted, retry according to the integration's prescribed idempotency and retry rules.
 5. Do not create duplicate invoices.
 6. Reconcile local invoices against FBR records.
+7. No automatic second FBR attempt after failure/unknown. Backend may recover never-started initial jobs; durable orphaned starts become unknown. User Retry creates an idempotent command/one backend attempt, never repeats stock/payment effects or invokes a desktop fallback.
 
 ## Required Data Model
 

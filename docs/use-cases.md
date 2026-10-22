@@ -556,12 +556,14 @@ Hard-deleting a `sale` row (and cascading to `sale_items`/`payments`/`stock_move
 2. Sale must not already be `VOIDED` (voiding twice is rejected).
 3. `voidReason` is required and must not be blank — reject with 400 if missing/empty, since it's the only durable explanation of why the reversal happened.
 4. Only OWNER may void. Reject drafts/already-voided sales and sales with actual returns. Refund settlements must sum exactly to valid original receipts; KEEP_AS_ADVANCE requires a customer, and VOID_RECORDING requires an explicit recording-error reason.
+5. Apply the planned [FBR void/reversal gate](./fbr-integration-plan.md#66-returns-and-void-reversals): accepted fiscal invoices require a verified, separately linked reversal; sending/unknown originals require reconciliation first. A local void alone never cancels an FBR invoice.
+6. Fiscal-managed source void is online-gated: obtain backend one-use reservation against canonical state before local stock/payment/ledger reversal. Offline may save a request draft only; cached READY/absence of an FBR ID does not prove backend never sent. Excluded sources retain ordinary offline rules with backend validation.
 
 ### Response
 - Return the voided `sale` (including `voidReason`, `voidedAt`, `voidedBy`) plus the generated reversing `stock_movements`/`ledger_entries`, and updated `customer.accountBalance` if applicable.
 
 ### Offline void (desktop app)
-The planned void writes every reversal, payment treatment, aggregate, and audit field in one local SQLite transaction, then uploads it atomically. OWNER authorization is enforced both locally and on authenticated upload; UI checks alone are insufficient.
+For a proven excluded/non-fiscal source, the planned void writes reversals, payment treatment and aggregates in one native SQLite transaction, then uploads atomically. A fiscal-managed source first needs an online backend reservation against authoritative status, even if the local cached state says never sent; offline permits a request draft only. Once reserved, commit the same atomic local void and upload reservation/operation identity. OWNER authorization is enforced locally and on authenticated backend processing; UI checks alone are insufficient.
 
 ### Database guard (`V7__sales_register_integrity`)
 The existing guard protects posted sales from financial edits. The planned purchase/return/sync work must extend equivalent integrity checks to every posted surface and permit only validated system-managed return/refund aggregates. A failed business operation rejects the whole operation, not individual rows with partial stock/ledger effects.
@@ -1078,6 +1080,7 @@ Same reason/payment-treatment shape as sale void: KEEP_AS_ADVANCE, REFUND, or VO
 2. Require reason and OWNER. For each product there must be enough stock and the original purchase must be its latest quantity/value-affecting event (12). Otherwise reject with `409` and explain that an actual purchase return is needed.
 3. KEEP_AS_ADVANCE requires a vendor. REFUND payments must equal original valid payments, use CASH/BANK, and be INCOMING. VOID_RECORDING requires an actual recording-error explanation.
 4. Anonymous paid purchases require REFUND or VOID_RECORDING; no unowned account credit.
+5. Ordinary vendor purchases use EVIDENCE_ONLY: a local void does not cancel the vendor's FBR invoice and makes no outbound call. Only an explicitly supported special purchase profile applies the [FBR void/reversal gate](./fbr-integration-plan.md#66-returns-and-void-reversals); preserve vendor evidence separately.
 
 ### Transactional write steps
 1. Mark purchase VOIDED with audit fields.
@@ -1169,7 +1172,7 @@ Sources consulted for this design:
 - [FBR: Sales tax to be recovered only if the supplier is registered](https://www.fbr.gov.pk/sales-tax--to-be-recovered-only-if-the-supplier-is-registered/132123) distinguishes STRN from NTN and explains manufacturer/importer tax on Third Schedule goods bearing printed retail price and tax.
 - [FBR: Sales Tax Act archive](https://www.fbr.gov.pk/categ/sales-tax-act/301) is the official legislation reference. The version directly exposed during this research was amended through 7 May 2024, not a verified October 2026 consolidation. Confirm subsequent Finance Acts/SROs and the applicable sections on input tax, invoices and payment conditions with a Pakistani tax adviser before compliance implementation.
 
-Purchase entry is not submission of the store's own sales invoice to FBR. Retain supplier/FBR invoice evidence when available; live validation, input-tax return filing, current-law eligibility automation, provincial service taxes, further/extra tax rules, withholding, and import duties require separate compliance work.
+Purchase entry is not submission of the store's own sales invoice to FBR. Under the [current direct DI design](./fbr-integration-plan.md), ordinary purchases and purchase returns retain supplier FBR invoice/adjustment evidence as EVIDENCE_ONLY; no generic purchase POST or guessed sales payload. The documented cotton-ginner/sector exceptions require separately certified issuer/credential/payload rules. Live validation, input-tax return filing, current-law eligibility automation, provincial service taxes, further/extra tax rules, withholding, and import duties require separate compliance work.
 
 ## 10. Return sold/purchased goods (require auth)
 
@@ -1385,3 +1388,50 @@ Valuation audit and updated product. Product inventory detail includes the valua
 6. Verify the complete offline flow: create vendor → purchase → sale → return → account settlement → reconnect; retry after a lost acknowledgement and confirm identical IDs/counts/balances/stock/value.
 7. Force a child-row validation failure and confirm no partial local/backend document, sequence, stock/value or ledger effect. Verify cross-store IDs/unauthorized voids are rejected on upload.
 8. Verify all Inventory types/filters/sorts/summaries/export results against SQLite and API fixtures, including inactive products, void reversals, valuation-only audits and mixed units.
+
+## 14. FBR configuration, posting, and manual reporting (planned)
+
+Full implementation contract: [FBR integration design and milestones](./fbr-integration-plan.md). The existing Java/Spring backend alone calls current DI v1.12 and owns credentials/mapping/audit/jobs. Angular captures offline intents/commands and reads canonical results; Rust provides native DB/PowerSync/printing only. This supersedes frontend TS mapping/dispatch and native FBR credentials. Historical 2023 attachments are not payload/reference seeds; official-contract gaps remain gates.
+
+### 14a. Store setup and onboarding
+1. No global POS metadata/setup dependency in FBR integration. Existing legacy runtime cleanup is separate from this planned feature.
+2. Store OWNER saves integration registration, reporting toggle and nonsecret fiscal defaults offline in store_fbr_settings, then syncs. No settings-history/audit table in V1.
+3. Registration differs from legal sales-tax/STRN status. All taxpayer/environment secrets are provisioned centrally in backend vault/restricted encrypted storage; no customer/native FBR token/IP/endpoint setup.
+4. Public settings/defaults are offline-editable; server certification/readiness/generation is read-only. Off locally freezes new sources as REPORTING_OFF. Backend only pauses remote work after receiving disable; show confirmation pending. Re-enable never drains paused old-generation work automatically.
+5. Provide resumable OWNER FBR onboarding: confirm legal name/identity/address/province/legal tax status and conditional STRN -> supported activity/sector/profile -> catalog HS/unit/treatment/rate and conditional special fields -> buyer particulars/capture -> backend sandbox checks -> explicit approved production activation. Reuse existing store details; do not restart basic POS onboarding or require non-FBR stores to finish this flow.
+6. Required data/checks persist in backend setup/master data, with safe check timestamps/config versions and invalidation on relevant changes. Current address is optional and province/STRN/buyer-address/tax-status/FBR product mapping are missing; see [gap inventory](./fbr-integration-plan.md#35-required-data-and-fbr-onboarding). No fabricated walk-in particulars; invoice-specific checks continue after onboarding.
+
+### 14b. Posting a business document
+1. Sales/purchases/actual returns still post locally if backend/FBR is unavailable. One native SQLite transaction writes financial effects, ordered upload envelope and immutable fbr_reporting_intent with fiscal source/config snapshot, never a forged canonical result.
+2. Upload the same stable operation when connected. Backend atomically validates financial source/intent, creates canonical document and one initial job when eligible, commits, then acknowledges. Missing fiscal metadata produces NEEDS_ATTENTION without undoing a valid business operation.
+3. After commit, backend runner performs one delayed initial attempt; automatic first processing after offline upload is allowed, **automatic retry after an attempt is not**. Ordinary purchases/returns retain supplier evidence, no generic outbound calls. Desktop shows Awaiting upload/backend, then downloaded canonical state.
+4. Drafts, stock adjustments and customer/vendor payments/refunds do not generate another invoice. Provider/tax-owner review must resolve any advance/time-of-supply obligations.
+
+### 14c. Submission and audit
+1. Backend transactionally claims durable job/document, rechecks gate/version/account, Java-maps exact request and persists immutable attempt start before HTTP; no DB transaction spans the call.
+2. Backend HTTPS sends once to matching FBR environment using backend-resolved secrets. Java response mapper persists raw response/error/item results/event/status/source summary atomically in PG; only allowlisted status/ID/timestamps/actionable diagnostics replicate down to SQLite.
+3. Accepted requires invoiceNumber and consistent valid top-level/item validationResponse evidence, not HTTP 200/top-level code alone. An optional Validate call never means accepted and cannot check an unknown earlier POST. FBR ID is fiscal registration, not proof of payment/tax remittance.
+4. FBR failure never repeats or rolls back financial effects. Backend may accept while desktop is disconnected; show cached freshness until download. Client cannot upload ACCEPTED/FBR ID/attempt results; backend is authoritative.
+5. OWNER reference refresh/optional validation is a backend action with PG-only raw audit and normalized read-only reference cache downloads. Exact contextual reference values remain available offline without checkout network calls.
+6. Use a PG transactional outbox plus bounded Spring poller, with interface-based services/ports and database claim/uniqueness/state-version checks. No volatile-only queue or automatic second HTTP attempt. A storage failure retries storing the same response, not sending again.
+7. Enforce [durability/restore requirements](./fbr-integration-plan.md#67-background-jobs-durability-and-the-unavoidable-uncertainty-window): durable local commits and upload retention, synchronous PG durability for acknowledged commits, backups/WAL/restore drills, dispatch disabled after restore, and actionable unknown-outcome records. A crash before persisting an HTTP response cannot guarantee retention of those raw bytes; this remains an explicit production acceptance gate.
+
+### 14d. Manual retry, correction, and reconciliation
+1. No automatic second FBR attempt/backoff after failure/unknown. Backend restart may process PENDING jobs never durably started; orphaned durable starts become OUTCOME_UNKNOWN, never a worker resend.
+2. OWNER/CASHIER Send/Retry creates stable command ID/expected canonical version/target attempt. Offline queues the command, not an FBR call; backend revalidates current role/state and creates one job. Duplicate upload/HTTP/lost ack reuses receipt, distinct stale commands conflict.
+3. OWNER correction is a typed backend command yielding a new immutable revision after definitive nonacceptance; never edit monetary data. Backend rejection/stale version remains visible locally.
+4. Unknown resolution requires online OWNER command/evidence/CAS; retain existing accepted ID if confirmed. Optional Validate is not old-invoice lookup. Backend replica/desktop fallback never resends unknown work.
+5. No app role, including OWNER, can inspect/export raw FBR payloads in V1. No raw-data API or sync/SQLite copy; restricted backend PG only. App exposes safe workflow/error summaries, never whole parsed responses or internal evidence. Credentials never enter audit/logs.
+
+### 14e. Returns, voids, and receipts
+1. Reuse shared return records and exact stock/account/tax rules. Sales adjustment references our original FBR invoice and gets separate status/ID; ordinary purchase return keeps supplier-issued adjustment evidence, not our outbound acceptance.
+2. Current API advertises Debit Note/invoiceRefNo, while legal guidance mentions debit/credit notes. Missing reason-field names, signs and partial-adjustment rules require verification. Until then mark NEEDS_ATTENTION; never send numeric old types, guessed Credit Note, negative lines or invented fields.
+3. Fiscal-managed void requires online backend preparation/reservation, serialized with dispatcher. Unknown/sending blocks; never-accepted reservation prevents send; accepted requires certified reversal. Only then commit local void effects and upload same reservation/operation atomically. No fiscal-managed offline stock/refund reversal based on stale cache; reservation stays blocked until consumed/explicitly resolved.
+4. Keep original ACCEPTED evidence after local void and show reversal pending/failed independently. Never equate a local stock reversal with FBR cancellation.
+5. Receipts use immutable fiscal addenda/revisions for accepted ID/approved QR; pre-acceptance output says pending/needs attention/off. Current specification requires DI logo and 1-inch/version-2 QR; encoding/provisional-copy legality still need approval, never invent a verification URL.
+
+### Acceptance
+- Offline posting makes zero calls; one later eligible upload creates one backend initial attempt. Duplicate upload/command produces zero extra calls. After failed/unknown attempt, restart/reconnect/time passing produces zero automatic second calls.
+- Backend raw audit stays PG-only; safe original/adjustment IDs/status survive restart and replicate without changing money/stock/payment counts. Raw audit and secret material are inaccessible to desktop/replication role.
+- Re-enabling never reports off-period history; paused work requires a click. Unknown outcomes cannot be blindly retried.
+- See [milestones](./fbr-integration-plan.md#10-milestones-implementation-sized-dependency-ordered) and [verification matrix](./fbr-integration-plan.md#11-verification-and-rollout-checklist) for implementation order and failure tests.

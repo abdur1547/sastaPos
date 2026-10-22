@@ -1,5 +1,7 @@
 # mock-fbr-api
 
+> Historical mock only: this implements the obsolete 2023 contract, **not current FBR DI v1.12**. The [integration design](../docs/fbr-integration-plan.md) now has the Spring backend alone call remote FBR with backend-only credentials. Replace submit/validate/reference fixtures and add item failures, ambiguous delivery, environment and multi-worker/idempotent-command checks before validating that design. Do not use real FBR credentials or customer data here.
+
 Dev-only mock of the FBR Digital Invoicing `PostInvoiceData_v1` API (see `docs/Technical-Specification-Digital-Invoicing.txt` §2.3–2.6). It **validates nothing**: every POST returns a success response with a freshly generated tracking number. Do not use outside development.
 
 ## Run
@@ -28,4 +30,4 @@ Response (HTTP 200), matching spec §2.6:
 }
 ```
 
-The real Windows local-service host, port and path are not documented (plan milestone M1), so these paths and port are placeholders for development.
+These paths and port are historical development fixtures, not evidence of an installed FBR service. Current DI uses the official remote sandbox/production endpoints documented in the [integration plan](../docs/fbr-integration-plan.md#32-current-contract-and-exact-endpoints).
