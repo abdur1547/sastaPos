@@ -16,6 +16,9 @@ import com.sastapos.sasta_pos.ledger_entry.LedgerEntryMapper;
 import com.sastapos.sasta_pos.ledger_entry.LedgerEntryRepository;
 import com.sastapos.sasta_pos.ledger_entry.LedgerEntryType;
 import com.sastapos.sasta_pos.product.dto.PageResponse;
+import com.sastapos.sasta_pos.payment.Payment;
+import com.sastapos.sasta_pos.payment.PaymentMethod;
+import com.sastapos.sasta_pos.payment.PaymentRepository;
 import com.sastapos.sasta_pos.sale.SaleRepository;
 import com.sastapos.sasta_pos.store.RowStatus;
 import com.sastapos.sasta_pos.store.StoreRepository;
@@ -28,6 +31,7 @@ import com.sastapos.sasta_pos.util.MoneyLimits;
 import com.sastapos.sasta_pos.util.NotFoundException;
 import com.sastapos.sasta_pos.util.ReferencedException;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -70,6 +74,9 @@ public class CustomerService {
     private final SaleRepository saleRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final LedgerEntryMapper ledgerEntryMapper;
+    private final PaymentRepository paymentRepository;
+    private final CustomerPaymentPosting paymentPosting;
+    private final EntityManager entityManager;
 
     public record CustomerFilter(String search, RowStatus status, Boolean hasBalance, BigDecimal minBalance,
                                  BigDecimal maxBalance) {
@@ -189,17 +196,18 @@ public class CustomerService {
         final BigDecimal newBalance = customer.getAccountBalance().subtract(amount);
         requireBalanceInRange(newBalance);
 
-        final LedgerEntry entry = new LedgerEntry();
-        entry.setDirection(LedgerDirection.CREDIT);
-        entry.setType(LedgerEntryType.PAYMENT);
-        entry.setAmount(amount);
-        entry.setReferenceNumber(trimToNull(request.getReferenceNumber()));
-        entry.setDescription(trimToNull(request.getDescription()));
-        entry.setCustomer(customer);
-        ledgerEntryRepository.saveAndFlush(entry);
-
-        customer.setAccountBalance(newBalance);
-        customerRepository.saveAndFlush(customer);
+        final Payment payment = new Payment();
+        payment.setAmount(amount);
+        payment.setMethod(PaymentMethod.valueOf(request.getMethod().name()));
+        payment.setReferenceNumber(trimToNull(request.getReferenceNumber()));
+        payment.setDescription(trimToNull(request.getDescription()));
+        payment.setCustomer(customer);
+        payment.setStore(user.getStore());
+        payment.setUser(user);
+        paymentRepository.saveAndFlush(payment);
+        paymentPosting.post(requireStoreId(user), List.of(payment.getId()));
+        entityManager.refresh(customer);
+        final LedgerEntry entry = ledgerEntryRepository.findById(payment.getId()).orElseThrow();
         return new CustomerPaymentResponse(mapEntry(entry), mapToDTO(customer));
     }
 

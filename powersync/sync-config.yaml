@@ -39,10 +39,11 @@ streams:
       - |
         SELECT sale_items.* FROM sale_items
         WHERE sale_id IN (SELECT id FROM sales WHERE store_id = auth.parameter('store_id'))
-      # payments and ledger_entries have no store_id either; scope them via their sale / customer.
+      # Include standalone customer settlements as well as legacy sale-linked payments.
       - |
         SELECT payments.* FROM payments
         WHERE sale_id IN (SELECT id FROM sales WHERE store_id = auth.parameter('store_id'))
+      - SELECT * FROM payments WHERE store_id = auth.parameter('store_id') AND sale_id IS NULL
       - |
         SELECT ledger_entries.* FROM ledger_entries
         WHERE customer_id IN (SELECT id FROM customers WHERE store_id = auth.parameter('store_id'))

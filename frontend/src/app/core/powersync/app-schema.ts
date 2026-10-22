@@ -239,17 +239,22 @@ const saleItems = new Table(
 
 const payments = new Table(
   {
+    direction: column.text,
     amount: column.text,
     method: column.text,
     reference_number: column.text,
     description: column.text,
     sale_id: column.text,
+    customer_id: column.text,
+    store_id: column.text,
+    user_id: column.text,
     date_created: column.text,
     last_updated: column.text,
   },
   {
     indexes: {
       payments_sale: ['sale_id'],
+      payments_customer: ['customer_id'],
     },
   },
 );
@@ -267,6 +272,9 @@ const ledgerEntries = new Table(
     voided_by: column.text,
     customer_id: column.text,
     sale_id: column.text,
+    payment_id: column.text,
+    store_id: column.text,
+    user_id: column.text,
     date_created: column.text,
     last_updated: column.text,
   },

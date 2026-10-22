@@ -19,7 +19,7 @@
           [style.cursor]="selectable() ? null : 'default'"
           [attr.tabindex]="selectable() ? 0 : null"
           [attr.role]="selectable() ? 'link' : null"
-          [attr.aria-label]="selectable() ? 'Edit ' + customer.name : null"
+          [attr.aria-label]="selectable() ? 'Open ledger for ' + customer.name : null"
           (click)="selectable() && selectCustomer.emit(customer)"
           (keydown.enter)="selectable() && selectCustomer.emit(customer)"
           (keydown.space)="selectable() && $event.preventDefault(); selectable() && selectCustomer.emit(customer)"

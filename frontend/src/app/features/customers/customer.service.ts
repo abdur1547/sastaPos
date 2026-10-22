@@ -9,6 +9,8 @@ import {
 import { CustomerValidationError } from "./customer.errors";
 import { Customer, CustomerStatus } from "./customer.model";
 import { CustomerChanges, CustomerRepository } from "./customer.repository";
+import { CustomerPaymentRepository } from "./customer-payment.repository";
+import { CustomerPaymentInput, paymentAmount } from "./customer-payment.model";
 import {
   CustomerFilters,
   CustomerPage,
@@ -23,6 +25,7 @@ const ROW_STATUSES = new Set<CustomerStatus>(["ACTIVE", "INACTIVE"]);
 export class CustomerService {
   private readonly auth = inject(AuthService);
   private readonly repository = inject(CustomerRepository);
+  private readonly payments = inject(CustomerPaymentRepository);
 
   list(search = ""): Promise<readonly Customer[]> {
     return this.repository.list(this.requireStoreId(), normalizeSearch(search));
@@ -47,6 +50,38 @@ export class CustomerService {
       requireUuid(id, "id"),
       this.requireStoreId(),
     );
+  }
+
+  watchById(id: string): Observable<Customer | null> {
+    return this.repository.watchById(
+      requireUuid(id, "id"),
+      this.requireStoreId(),
+    );
+  }
+
+  takePayment(id: string, input: CustomerPaymentInput): Promise<string> {
+    requireObject(input, "payment");
+    const storeId = this.requireStoreId();
+    const userId = requireUuid(this.auth.user()?.id ?? "", "user");
+    if (input.method !== "CASH" && input.method !== "BANK") {
+      throw new CustomerValidationError("Payment method must be CASH or BANK.");
+    }
+    return this.payments.takePayment({
+      id: globalThis.crypto.randomUUID(),
+      customerId: requireUuid(id, "id"),
+      storeId,
+      userId,
+      amount: paymentAmount(input.amount),
+      method: input.method,
+      referenceNumber: paymentText(
+        input.referenceNumber,
+        "referenceNumber",
+        255,
+      ),
+      description: paymentText(input.description, "description", 1000),
+      allowCredit: input.allowCredit === true,
+      createdAt: new Date().toISOString(),
+    });
   }
 
   async create(input: CreateCustomerInput): Promise<Customer> {
@@ -118,6 +153,20 @@ function normalizeSearch(search: string): string {
     throw new CustomerValidationError("search must be text.");
   }
   return search.trim();
+}
+
+function paymentText(
+  value: string | null | undefined,
+  field: string,
+  max: number,
+): string | null {
+  if (
+    value === null ||
+    value === undefined ||
+    (typeof value === "string" && !value.trim())
+  )
+    return null;
+  return requiredText(value, field, max);
 }
 
 function requireObject(value: unknown, field: string): void {

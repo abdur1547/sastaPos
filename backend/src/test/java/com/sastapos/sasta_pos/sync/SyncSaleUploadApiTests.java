@@ -204,6 +204,10 @@ class SyncSaleUploadApiTests extends ProductApiTestBase {
         final UUID paymentReversal = UUID.randomUUID();
         final UUID standalonePayment = UUID.randomUUID();
         assertAccepted(upload(f.owner().token(), List.of(
+                op("payments", "PUT", standalonePayment, """
+                        {"direction":"INCOMING","amount":"5.00","method":"CASH","sale_id":null,
+                        "customer_id":"%s","store_id":"%s","user_id":"%s"}
+                        """.formatted(f.customer(), f.owner().storeId(), f.user())),
                 op("ledger_entries", "PUT", saleReversal, """
                         {"direction":"CREDIT","amount":"100.00","type":"ADJUSTMENT",
                         "customer_id":"%s","sale_id":"%s"}""".formatted(f.customer(), f.sale())),
@@ -212,7 +216,8 @@ class SyncSaleUploadApiTests extends ProductApiTestBase {
                         "customer_id":"%s","sale_id":"%s"}""".formatted(f.customer(), f.sale())),
                 op("ledger_entries", "PUT", standalonePayment, """
                         {"direction":"CREDIT","amount":"5.00","type":"PAYMENT",
-                        "customer_id":"%s","sale_id":null}""".formatted(f.customer())))), 3);
+                        "customer_id":"%s","sale_id":null,"payment_id":"%s"}"""
+                        .formatted(f.customer(), standalonePayment)))), 4);
         for (final UUID id : List.of(saleReversal, paymentReversal)) {
             assertThat(jdbc.queryForObject("SELECT sale_id FROM ledger_entries WHERE id = ?", UUID.class, id))
                     .isEqualTo(f.sale());

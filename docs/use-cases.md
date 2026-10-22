@@ -723,6 +723,16 @@ Records money received from a customer against their outstanding balance. This i
 ### Response
 - Return the created `ledger_entry` and the updated `customer` (with new `accountBalance`).
 
+### Desktop flow and offline persistence
+- Selecting a customer opens **Customers → Customer Ledger** directly. The ledger shows the customer's name, phone, NTN, status, and balance on the left with **Edit Customer** on the right; the top-right **Take Payment** action opens the payment form. Transaction history is deferred.
+- Ledger back navigation returns to Customers. Editing returns to the ledger after save/cancel unless an explicit originating-screen return URL is provided; payment save/cancel returns to the ledger.
+- The payment form shows the current balance and the resulting balance. A resulting customer credit requires explicit confirmation, including when the account was already in credit.
+- Save through the native database gateway, even when online: insert the INCOMING payment and its CREDIT/PAYMENT ledger entry, then update the customer's balance in one local SQLite transaction. Never update an invoice's `remaining` or allocate this settlement to a sale.
+- The payment ID and its ledger entry ID are the same UUID (in separate tables); `ledger_entries.payment_id` links the two. This is specific to standalone customer settlements.
+- PowerSync queues these writes for `POST /api/sync/upload`. The customer-payment bulk service validates the context and creates the canonical ledger entry plus balance effect atomically when accepting the payment, even if its ledger copy arrives in a later upload batch. Both the REST endpoint and uploads use the same posting service.
+- Retried uploads acknowledge the original posting without applying its balance effect again or undoing a subsequent void. Client balance patches are ignored by the server. Standalone payment amounts are immutable; deleting them is rejected.
+- Deploy migration `V9__customer_account_payments.sql` before the updated desktop client, and reload/restart PowerSync with the updated sync rules so standalone payments download to other store devices.
+
 ## 6e. Void customer payment (require auth)
 
 ### Design decision: void via reversing entry, same pattern as sale voiding (5b) — never delete or mutate

@@ -1,5 +1,5 @@
 <header class="page-heading">
-  <a [routerLink]="backUrl()" class="back-link">
+  <a [routerLink]="backLink()" class="back-link">
     <mat-icon>arrow_back</mat-icon>
     {{ backLabel() }}
   </a>
@@ -7,6 +7,15 @@
     {{ customer() ? 'Edit customer' : 'New customer' }}
   </p>
   <h1>{{ title() }}</h1>
+  @if (customer(); as customer) {
+  <a
+    mat-stroked-button
+    [routerLink]="['/customers', customer.id, 'ledger']"
+    class="ledger-link"
+  >
+    <mat-icon>account_balance_wallet</mat-icon> Ledger
+  </a>
+  }
 </header>
 
 @switch (state().status) { @case ('loading') {

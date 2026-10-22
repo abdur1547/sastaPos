@@ -1,0 +1,108 @@
+@if (state(); as state) { @switch (state.status) { @case ('ready') {
+<header class="page-heading">
+  <a
+    [routerLink]="['/customers', state.customer.id, 'ledger']"
+    class="back-link"
+  >
+    <mat-icon>arrow_back</mat-icon> Customer Ledger
+  </a>
+  <p class="section-label">{{ state.customer.name }}</p>
+  <h1>Take Payment</h1>
+</header>
+
+<form [formGroup]="form" (ngSubmit)="submit()" class="payment-form" novalidate>
+  @if (saveError()) { <app-form-alert>{{ saveError() }}</app-form-alert> } @if
+  (saved()) {
+  <p role="status">
+    Payment saved.
+    <a [routerLink]="['/customers', state.customer.id, 'ledger']"
+      >Return to ledger</a
+    >
+  </p>
+  }
+  <section class="form-section">
+    <h2>Payment details</h2>
+    <p class="balance">{{ balanceLabel(state.customer.accountBalance) }}</p>
+    <p class="hint">
+      This payment settles the customer's account, not an individual invoice.
+    </p>
+    <div class="payment-grid">
+      <mat-form-field appearance="outline">
+        <mat-label>Amount received (Rs)</mat-label>
+        <input
+          matInput
+          formControlName="amount"
+          inputmode="decimal"
+          autocomplete="off"
+          required
+        />
+        <mat-error
+          >Enter an amount greater than zero, with at most 16 whole digits and 2
+          decimal places.</mat-error
+        >
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Payment method</mat-label>
+        <mat-select formControlName="method" required>
+          <mat-option value="CASH">Cash</mat-option>
+          <mat-option value="BANK">Bank</mat-option>
+        </mat-select>
+        <mat-error>Select a payment method.</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Reference number (optional)</mat-label>
+        <input
+          matInput
+          formControlName="referenceNumber"
+          maxlength="255"
+          autocomplete="off"
+        />
+        <mat-error>Reference number must be at most 255 characters.</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Description (optional)</mat-label>
+        <textarea
+          matInput
+          formControlName="description"
+          maxlength="1000"
+          rows="3"
+        ></textarea>
+        <mat-error>Description must be at most 1000 characters.</mat-error>
+      </mat-form-field>
+    </div>
+    @if (!saved()) { @if (preview(); as preview) { @if (preview.error) {
+    <p role="alert" class="hint">{{ preview.error }}</p>
+    } @else {
+    <p class="balance" aria-live="polite">After payment: {{ preview.label }}</p>
+    @if (preview.credit) {
+    <mat-checkbox
+      [checked]="confirmedCredit()"
+      [disabled]="saving() || saved()"
+      (change)="confirmedCredit.set($event.checked)"
+    >
+      I confirm this payment leaves the customer in credit.
+    </mat-checkbox>
+    } } } }
+  </section>
+  <div class="actions">
+    <a
+      mat-stroked-button
+      [routerLink]="['/customers', state.customer.id, 'ledger']"
+      [disabled]="saving()"
+      >Cancel</a
+    >
+    <button
+      mat-flat-button
+      type="submit"
+      class="primary-button"
+      [disabled]="saving() || saved()"
+    >
+      @if (saving()) { <mat-spinner diameter="18" /> } Save Payment
+    </button>
+  </div>
+</form>
+} @case ('error') {
+<p class="message" role="alert">{{ state.message }}</p>
+} @default {
+<p class="message" role="status">Loading customer...</p>
+} } }

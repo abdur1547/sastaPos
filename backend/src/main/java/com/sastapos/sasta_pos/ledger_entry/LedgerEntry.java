@@ -3,6 +3,8 @@ package com.sastapos.sasta_pos.ledger_entry;
 import com.sastapos.sasta_pos.customer.Customer;
 import com.sastapos.sasta_pos.sale.Sale;
 import com.sastapos.sasta_pos.user.User;
+import com.sastapos.sasta_pos.payment.Payment;
+import com.sastapos.sasta_pos.store.Store;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
@@ -74,6 +76,18 @@ public class LedgerEntry {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sale_id")
     private Sale sale;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "payment_id")
+    private Payment payment;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
+    private Store store;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)

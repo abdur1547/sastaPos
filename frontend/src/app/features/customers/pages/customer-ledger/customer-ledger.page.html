@@ -1,0 +1,64 @@
+@if (state(); as state) { @switch (state.status) { @case ('ready') {
+<header class="page-heading">
+  <a routerLink="/customers" class="back-link">
+    <mat-icon>arrow_back</mat-icon> Customers
+  </a>
+  <div class="heading-row">
+    <div>
+      <p class="section-label">{{ state.customer.name }}</p>
+      <h1>Customer Ledger</h1>
+    </div>
+    <a
+      mat-flat-button
+      class="primary-button"
+      [routerLink]="['/customers', state.customer.id, 'payments', 'new']"
+    >
+      <mat-icon>payments</mat-icon> Take Payment
+    </a>
+  </div>
+</header>
+<section
+  class="flex flex-wrap items-start justify-between gap-4 border-b border-(--border-subtle) pb-6"
+  aria-label="Customer information"
+>
+  <div class="min-w-0">
+    <h2>{{ state.customer.name }}</h2>
+    <dl
+      class="m-0 grid gap-3 text-sm text-(--ink-muted) sm:grid-cols-3 sm:gap-x-8"
+    >
+      <div>
+        <dt class="font-bold">Phone number</dt>
+        <dd class="m-0 break-words">
+          {{ state.customer.phoneNumber ?? 'Not provided' }}
+        </dd>
+      </div>
+      <div>
+        <dt class="font-bold">NTN</dt>
+        <dd class="m-0 break-words">
+          {{ state.customer.ntn ?? 'Not provided' }}
+        </dd>
+      </div>
+      <div>
+        <dt class="font-bold">Status</dt>
+        <dd class="m-0">
+          {{ state.customer.status === 'ACTIVE' ? 'Active' : 'Inactive' }}
+        </dd>
+      </div>
+    </dl>
+    <p class="balance mb-0">
+      {{ balanceLabel(state.customer.accountBalance) }}
+    </p>
+  </div>
+  <a
+    mat-stroked-button
+    class="edit-customer-link shrink-0"
+    [routerLink]="['/customers', state.customer.id]"
+  >
+    <mat-icon>edit</mat-icon> Edit Customer
+  </a>
+</section>
+} @case ('error') {
+<p class="message" role="alert">{{ state.message }}</p>
+} @default {
+<p class="message" role="status">Loading customer...</p>
+} } }

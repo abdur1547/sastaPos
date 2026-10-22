@@ -94,10 +94,18 @@ export class CustomerRepository {
     return row ? this.mapCustomerRow(row) : null;
   }
 
+  watchById(id: string, storeId: string): Observable<Customer | null> {
+    return this.database
+      .watch(
+        `SELECT ${CUSTOMER_COLUMNS} FROM customers WHERE id = ? AND store_id = ?`,
+        [id, storeId],
+      )
+      .pipe(map((rows) => (rows[0] ? this.mapCustomerRow(rows[0]) : null)));
+  }
+
   async list(storeId: string, search = ""): Promise<readonly Customer[]> {
     const { sql, parameters } = this.listQuery(storeId, search);
-    const rows = await this.database
-      .getAll<SqliteRecord>(sql, parameters);
+    const rows = await this.database.getAll<SqliteRecord>(sql, parameters);
     return rows.map((row) => this.mapCustomerRow(row));
   }
 
@@ -314,7 +322,10 @@ export class CustomerRepository {
       name: requiredText(row["name"], "name"),
       phoneNumber: nullableText(row["phone_number"], "phone_number"),
       ntn: nullableText(row["ntn"], "ntn"),
-      accountBalance: requiredBalance(row["account_balance"], "account_balance"),
+      accountBalance: requiredBalance(
+        row["account_balance"],
+        "account_balance",
+      ),
       status,
       storeId: requiredText(row["store_id"], "store_id"),
       dateCreated: requiredText(row["date_created"], "date_created"),

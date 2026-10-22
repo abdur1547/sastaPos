@@ -8,6 +8,7 @@ import {
 import { toSignal } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import { MatIconModule } from "@angular/material/icon";
+import { MatButtonModule } from "@angular/material/button";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import {
   RETURN_TO_PARAM,
@@ -29,7 +30,7 @@ type LoadState =
 /** Hosts the shared customer form for both `/customers/new` and `/customers/:id`. */
 @Component({
   selector: "app-customer-editor-page",
-  imports: [MatIconModule, RouterLink, CustomerFormComponent],
+  imports: [MatIconModule, MatButtonModule, RouterLink, CustomerFormComponent],
   templateUrl: "./customer-editor.page.html",
   styleUrl: "./customer-editor.page.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -48,9 +49,23 @@ export class CustomerEditorPage {
     ),
     { initialValue: null },
   );
-  protected readonly backUrl = computed(() => this.returnTo() ?? "/customers");
+  private readonly customerId = toSignal(
+    this.route.paramMap.pipe(map((params) => params.get("id"))),
+    { initialValue: null },
+  );
+  protected readonly backUrl = computed(() => {
+    const id = this.customerId();
+    return this.returnTo() ?? (id ? `/customers/${id}/ledger` : "/customers");
+  });
   protected readonly backLabel = computed(() =>
-    this.returnTo() ? "Back" : "Customers",
+    this.returnTo()
+      ? "Back"
+      : this.customerId()
+        ? "Customer Ledger"
+        : "Customers",
+  );
+  protected readonly backLink = computed(() =>
+    this.router.parseUrl(this.backUrl()),
   );
 
   protected readonly saving = signal(false);
@@ -112,7 +127,7 @@ export class CustomerEditorPage {
     if (returnTo) {
       return this.router.navigateByUrl(withCreatedId(returnTo, createdId));
     }
-    return this.router.navigate(["/customers"]);
+    return this.router.navigateByUrl(this.backUrl());
   }
 
   private load(id: string | null) {

@@ -35,7 +35,7 @@ public class SyncTableConfig {
                 .register("sales", 20, sales)
                 .register("sale_items", 30, saleItems)
                 .register("payments", 30, payments)
-                .register("ledger_entries", 30, ledgerEntries)
+                .register("ledger_entries", 35, ledgerEntries)
                 .register("stock_movements", 40, stockMovements);
     }
 

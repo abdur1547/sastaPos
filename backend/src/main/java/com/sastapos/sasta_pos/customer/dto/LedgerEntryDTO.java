@@ -25,6 +25,7 @@ public class LedgerEntryDTO {
     private UUID voidedBy;
     private UUID customerId;
     private UUID saleId;
+    private UUID paymentId;
     private OffsetDateTime createdAt;
 
 }

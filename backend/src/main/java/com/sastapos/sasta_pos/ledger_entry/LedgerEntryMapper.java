@@ -20,6 +20,7 @@ public class LedgerEntryMapper {
         dto.setVoidedBy(entry.getVoidedBy() == null ? null : entry.getVoidedBy().getId());
         dto.setCustomerId(entry.getCustomer().getId());
         dto.setSaleId(entry.getSale() == null ? null : entry.getSale().getId());
+        dto.setPaymentId(entry.getPayment() == null ? null : entry.getPayment().getId());
         dto.setCreatedAt(entry.getDateCreated());
         return dto;
     }

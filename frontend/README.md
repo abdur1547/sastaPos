@@ -32,6 +32,29 @@ create and next/skip controls. Product units come from the backend; tax assignme
 is deferred to the normal product editor because there is no tax-category lookup
 endpoint in the current API. Existing offline-first management pages are unchanged.
 
+## Customer account payments
+
+Select a customer in **Customers** to open their **Ledger** directly. The ledger
+shows customer information on the left, **Edit Customer** on the right, and a
+**Take Payment** action alongside its heading. The transaction table is deferred.
+Editing returns to the ledger after saving or cancelling; the ledger links back
+to Customers. Explicit return links from other workflows are preserved.
+The form accepts Cash/Bank, an amount, and optional reference/description, previews
+the resulting account balance, and requires confirmation when the customer will
+have credit. Inactive customers can still settle their accounts.
+
+Saving writes the payment, its linked credit ledger entry, and the updated customer
+balance in a single transaction through the native PowerSync database gateway.
+No HTTP call is required to save, and no invoice balance is changed. PowerSync
+uploads the queued writes to `/api/sync/upload` when online. A saved payment cannot
+be submitted again while navigation completes.
+
+Deploy backend migration `V9__customer_account_payments.sql` and reload the
+[PowerSync sync rules](../powersync/sync-config.yaml) before deploying this client.
+Jest covers the rendered navigation/form, money validation, and transaction
+orchestration; backend PostgreSQL integration tests cover atomic posting,
+retries, tenant isolation, and existing sale-upload behavior.
+
 ## Stack
 
 - Angular 22

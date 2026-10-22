@@ -17,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import com.sastapos.sasta_pos.ledger_entry.LedgerDirection;
 import com.sastapos.sasta_pos.ledger_entry.LedgerEntry;
 import com.sastapos.sasta_pos.ledger_entry.LedgerEntryType;
+import com.sastapos.sasta_pos.payment.PaymentDirection;
 import com.sastapos.sasta_pos.store.RowStatus;
 import com.sastapos.sasta_pos.user.UserRole;
 import java.util.concurrent.Callable;
@@ -51,6 +52,17 @@ class CustomerPaymentApiTests extends CustomerApiTestBase {
         assertDecimal(response.getBody(), "$.customer.accountBalance", "599.75");
         assertThat(requireCustomerById(id).getAccountBalance()).isEqualByComparingTo("599.75");
         assertThat(ledgerEntryRepository.count()).isEqualTo(1);
+        final UUID paymentId = UUID.fromString(JsonPath.read(response.getBody(), "$.ledgerEntry.paymentId"));
+        assertThat(paymentRepository.count()).isEqualTo(1);
+        final var payment = paymentRepository.findById(paymentId).orElseThrow();
+        assertThat(payment.getAmount()).isEqualByComparingTo("400.25");
+        assertThat(payment.getMethod().name()).isEqualTo("BANK");
+        assertThat(payment.getDirection()).isEqualTo(PaymentDirection.INCOMING);
+        assertThat(payment.getCustomer().getId()).isEqualTo(id);
+        assertThat(payment.getStore().getId()).isEqualTo(owner.storeId());
+        assertThat(payment.getUser()).isNotNull();
+        assertThat(payment.getSale()).isNull();
+        assertThat(ledgerEntryRepository.findById(paymentId).orElseThrow().getPayment().getId()).isEqualTo(paymentId);
     }
 
     @Test
@@ -121,6 +133,7 @@ class CustomerPaymentApiTests extends CustomerApiTestBase {
 
         assertErrorResponse(postJson(paymentsUrl(id), body, owner.token()), HttpStatus.BAD_REQUEST);
         assertThat(ledgerEntryRepository.count()).isZero();
+        assertThat(paymentRepository.count()).isZero();
         assertThat(requireCustomerById(id).getAccountBalance()).isEqualByComparingTo("0");
     }
 

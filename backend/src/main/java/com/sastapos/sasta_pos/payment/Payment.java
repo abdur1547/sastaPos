@@ -1,6 +1,9 @@
 package com.sastapos.sasta_pos.payment;
 
 import com.sastapos.sasta_pos.sale.Sale;
+import com.sastapos.sasta_pos.customer.Customer;
+import com.sastapos.sasta_pos.store.Store;
+import com.sastapos.sasta_pos.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
@@ -49,8 +52,24 @@ public class Payment {
     private String description;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "sale_id", nullable = false)
+    @JoinColumn(name = "sale_id")
     private Sale sale;
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private PaymentDirection direction = PaymentDirection.INCOMING;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
+    private Customer customer;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
+    private Store store;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)

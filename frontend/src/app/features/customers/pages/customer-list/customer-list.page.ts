@@ -105,7 +105,7 @@ export class CustomerListPage {
   }
 
   protected open(customer: CustomerListItem): void {
-    void this.router.navigate(["/customers", customer.id]);
+    void this.router.navigate(["/customers", customer.id, "ledger"]);
   }
 
   protected add(): void {
