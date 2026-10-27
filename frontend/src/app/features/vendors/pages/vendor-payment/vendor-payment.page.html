@@ -1,0 +1,153 @@
+@if (vendor(); as v) {
+  <header class="page-heading">
+    <a [routerLink]="['/vendors', v.id, 'ledger']" class="back-link">
+      <mat-icon>arrow_back</mat-icon> Vendor Ledger
+    </a>
+    <p class="section-label">Vendor Settlement</p>
+    <h1>Record Payment — {{ v.name }}</h1>
+  </header>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="payment-form" novalidate>
+    @if (saveError()) {
+      <app-form-alert>{{ saveError() }}</app-form-alert>
+    }
+
+    <section class="form-section current-account-card">
+      <span class="card-label">Current Balance</span>
+      <p class="current-balance">{{ currentBalanceLabel() }}</p>
+      <p class="current-words">{{ currentBalanceInWords() }}</p>
+    </section>
+
+    <section class="form-section">
+      <h2>Payment Parameters</h2>
+
+      <div class="direction-field">
+        <span class="field-label">Transaction Direction</span>
+        <mat-button-toggle-group formControlName="direction" aria-label="Transaction Direction">
+          <mat-button-toggle value="OUTGOING">
+            <mat-icon>arrow_upward</mat-icon>
+            Pay Vendor (Outgoing)
+          </mat-button-toggle>
+          <mat-button-toggle value="INCOMING">
+            <mat-icon>arrow_downward</mat-icon>
+            Receive Refund (Incoming)
+          </mat-button-toggle>
+        </mat-button-toggle-group>
+        <p class="direction-hint">
+          @if (form.controls.direction.value === 'OUTGOING') {
+            Outgoing payment from store to vendor (settles debts or pays advance).
+          } @else {
+            Incoming payment received from vendor (e.g. refund of advance).
+          }
+        </p>
+      </div>
+
+      <div class="payment-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Amount (Rs)</mat-label>
+          <input
+            matInput
+            formControlName="amount"
+            inputmode="decimal"
+            autocomplete="off"
+            placeholder="0.00"
+            required
+          />
+          <mat-error>Enter an amount greater than zero, with at most 2 decimal places.</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Payment Method</mat-label>
+          <mat-select formControlName="method" required>
+            <mat-option value="CASH">Cash</mat-option>
+            <mat-option value="BANK">Bank Transfer / Cheque</mat-option>
+          </mat-select>
+          <mat-error>Select a payment method.</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Reference Number (optional)</mat-label>
+          <input
+            matInput
+            formControlName="referenceNumber"
+            maxlength="255"
+            placeholder="e.g. Cheque #12345, Bank Ref #890"
+            autocomplete="off"
+          />
+          <mat-error>Reference number must be at most 255 characters.</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Description / Notes (optional)</mat-label>
+          <textarea
+            matInput
+            formControlName="description"
+            maxlength="1000"
+            rows="2"
+            placeholder="Settlement notes or explanations"
+          ></textarea>
+          <mat-error>Description must be at most 1000 characters.</mat-error>
+        </mat-form-field>
+      </div>
+
+      @if (preview(); as p) {
+        @if ("error" in p && p.error) {
+          <p class="preview-error">{{ p.error }}</p>
+        } @else if ("balance" in p) {
+          <div class="balance-preview-box" [class.warning]="p.crossesZero">
+            <div class="preview-header">
+              <span class="preview-title">Resulting Account Balance After Settlement</span>
+              <span class="preview-val">{{ p.label }}</span>
+            </div>
+            <p class="preview-words">{{ p.inWords }}</p>
+
+            @if (p.crossesZero) {
+              <div class="zero-cross-alert">
+                <mat-icon color="warn">warning</mat-icon>
+                <div class="alert-content">
+                  <p class="alert-msg">{{ p.zeroCrossWarning }}</p>
+                  <mat-checkbox
+                    color="primary"
+                    [checked]="confirmedZeroCross()"
+                    (change)="confirmedZeroCross.set($event.checked)"
+                  >
+                    I confirm and acknowledge that this payment crosses the account balance.
+                  </mat-checkbox>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      }
+    </section>
+
+    <div class="actions">
+      <a
+        mat-stroked-button
+        [routerLink]="['/vendors', v.id, 'ledger']"
+        [disabled]="saving()"
+      >
+        Cancel
+      </a>
+      <button
+        mat-flat-button
+        type="submit"
+        class="primary-button"
+        [disabled]="saving() || saved()"
+      >
+        @if (saving()) {
+          <mat-spinner diameter="18" />
+        }
+        Save Settlement
+      </button>
+    </div>
+  </form>
+} @else if (state().status === 'loading') {
+  <p class="status-msg">Loading vendor...</p>
+} @else {
+  <div class="status-box error">
+    <p>Vendor not found.</p>
+    <a mat-button routerLink="/vendors">Return to Vendors</a>
+  </div>
+}
+

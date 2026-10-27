@@ -43,6 +43,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class CustomerResource {
 
     private final CustomerService customerService;
+    private final com.sastapos.sasta_pos.ledger_entry.LedgerEntryService ledgerEntryService;
 
     @GetMapping
     @Operation(summary = "List customers of the user's store (filters, pagination, sorting)",
@@ -142,6 +143,56 @@ public class CustomerResource {
             @PathVariable(name = "ledgerEntryId") final UUID ledgerEntryId,
             @RequestBody @Valid final VoidCustomerPaymentRequestDTO request) {
         return ResponseEntity.ok(customerService.voidPayment(user, customerId, ledgerEntryId, request));
+    }
+
+    @GetMapping("/{id}/ledger")
+    @Operation(summary = "Get customer account ledger with filters and pagination")
+    public ResponseEntity<PageResponse<com.sastapos.sasta_pos.customer.dto.LedgerEntryDTO>> getLedger(
+            @AuthenticationPrincipal final User user,
+            @PathVariable(name = "id") final UUID id,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) final java.time.OffsetDateTime from,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) final java.time.OffsetDateTime to,
+            @RequestParam(required = false) final com.sastapos.sasta_pos.ledger_entry.LedgerDirection direction,
+            @RequestParam(required = false) final java.util.List<com.sastapos.sasta_pos.ledger_entry.LedgerEntryType> type,
+            @RequestParam(required = false) final UUID saleId,
+            @RequestParam(required = false) final UUID paymentId,
+            @RequestParam(required = false) final Boolean voided,
+            @RequestParam(required = false) final Boolean isReversal,
+            @RequestParam(required = false) final String referenceNumber,
+            @RequestParam(required = false) final String search,
+            @RequestParam(required = false) final BigDecimal minAmount,
+            @RequestParam(required = false) final BigDecimal maxAmount,
+            @RequestParam(defaultValue = "0") final int page,
+            @RequestParam(defaultValue = "20") final int size,
+            @RequestParam(defaultValue = "occurredAt") final String sortBy,
+            @RequestParam(defaultValue = "desc") final String sortDir) {
+        final com.sastapos.sasta_pos.ledger_entry.LedgerEntryService.LedgerFilter filter =
+                new com.sastapos.sasta_pos.ledger_entry.LedgerEntryService.LedgerFilter(
+                        from, to, direction, type, saleId, paymentId, voided, isReversal, referenceNumber, search, minAmount, maxAmount);
+        return ResponseEntity.ok(ledgerEntryService.getLedger(user, id, false, filter, page, size, sortBy, sortDir));
+    }
+
+    @GetMapping("/{id}/ledger/summary")
+    @Operation(summary = "Get customer ledger summary (opening, closing, debit/credit totals)")
+    public ResponseEntity<com.sastapos.sasta_pos.ledger_entry.dto.LedgerSummaryDTO> getLedgerSummary(
+            @AuthenticationPrincipal final User user,
+            @PathVariable(name = "id") final UUID id,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) final java.time.OffsetDateTime from,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) final java.time.OffsetDateTime to,
+            @RequestParam(required = false) final com.sastapos.sasta_pos.ledger_entry.LedgerDirection direction,
+            @RequestParam(required = false) final java.util.List<com.sastapos.sasta_pos.ledger_entry.LedgerEntryType> type,
+            @RequestParam(required = false) final UUID saleId,
+            @RequestParam(required = false) final UUID paymentId,
+            @RequestParam(required = false) final Boolean voided,
+            @RequestParam(required = false) final Boolean isReversal,
+            @RequestParam(required = false) final String referenceNumber,
+            @RequestParam(required = false) final String search,
+            @RequestParam(required = false) final BigDecimal minAmount,
+            @RequestParam(required = false) final BigDecimal maxAmount) {
+        final com.sastapos.sasta_pos.ledger_entry.LedgerEntryService.LedgerFilter filter =
+                new com.sastapos.sasta_pos.ledger_entry.LedgerEntryService.LedgerFilter(
+                        from, to, direction, type, saleId, paymentId, voided, isReversal, referenceNumber, search, minAmount, maxAmount);
+        return ResponseEntity.ok(ledgerEntryService.getLedgerSummary(user, id, false, filter));
     }
 
 }

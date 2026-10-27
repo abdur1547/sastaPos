@@ -1,0 +1,56 @@
+<header class="page-heading">
+  <div class="heading-row">
+    <div>
+      <p class="section-label">Procurement & Accounts</p>
+      <h1>Vendors</h1>
+      <p class="subtitle">Manage suppliers, purchase ledgers, and settlement payments.</p>
+    </div>
+    <button mat-flat-button type="button" class="primary-button" (click)="add()">
+      <mat-icon>add</mat-icon>
+      Add Vendor
+    </button>
+  </div>
+</header>
+
+<section class="stats-strip" aria-label="Vendors account summary">
+  <div class="stat-card">
+    <p class="stat-label">Total Suppliers</p>
+    <p class="stat-value">{{ stats().totalCount }}</p>
+  </div>
+  <div class="stat-card payable">
+    <p class="stat-label">Total You Owe (Payable)</p>
+    <p class="stat-value">Rs {{ stats().totalPayable }}</p>
+  </div>
+  <div class="stat-card advance">
+    <p class="stat-label">Total Advances Paid (Receivable)</p>
+    <p class="stat-value">Rs {{ stats().totalAdvance }}</p>
+  </div>
+</section>
+
+<app-vendor-filters (filtersChange)="onFiltersChange($event)" />
+
+@if (error()) {
+  <p class="load-error" role="alert">{{ error() }}</p>
+}
+
+<app-vendor-table
+  class="table"
+  [vendors]="items()"
+  [loading]="loading()"
+  (selectVendor)="open($event)"
+  (deleteVendor)="onDelete($event)"
+/>
+
+<footer class="footer">
+  <span class="count-label">{{ total() }} vendor{{ total() === 1 ? '' : 's' }}</span>
+  <mat-paginator
+    [length]="total()"
+    [pageIndex]="pageIndex()"
+    [pageSize]="pageSize()"
+    [pageSizeOptions]="pageSizeOptions"
+    showFirstLastButtons
+    aria-label="Select vendors page"
+    (page)="onPage($event)"
+  />
+</footer>
+

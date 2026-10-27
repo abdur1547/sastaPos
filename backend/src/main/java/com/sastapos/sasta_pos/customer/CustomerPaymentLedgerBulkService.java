@@ -15,12 +15,13 @@ public class CustomerPaymentLedgerBulkService extends AbstractBulkEntityService 
 
     private static final BulkTable TABLE = BulkTable.scopedBy("ledger_entries",
             "ledger_entries.store_id = CAST(:store_id AS uuid) AND ledger_entries.payment_id = ledger_entries.id",
-            BulkColumn.text("direction").required().immutable().oneOf(Set.of("CREDIT")),
+            BulkColumn.text("direction").required().immutable().oneOf(Set.of("CREDIT", "DEBIT")),
             BulkColumn.text("type").required().immutable().oneOf(Set.of("PAYMENT")),
             BulkColumn.numeric("amount", 2).required().immutable().nonNegative(),
-            BulkColumn.uuid("customer_id").required().immutable().refersToStoreRow("customers"),
+            BulkColumn.uuid("customer_id").immutable().refersToStoreRow("customers"),
+            BulkColumn.uuid("vendor_id").immutable().refersToStoreRow("vendors"),
             BulkColumn.uuid("payment_id").required().immutable().refersToStoreRow("payments",
-                    "ref.store_id = CAST(:store_id AS uuid) AND ref.customer_id = CAST(:customer_id AS uuid) "
+                    "ref.store_id = CAST(:store_id AS uuid) "
                     + "AND ref.id = CAST(:id AS uuid) AND ref.sale_id IS NULL AND ref.amount = CAST(:amount AS numeric) "
                     + "AND EXISTS (SELECT 1 FROM ledger_entries l WHERE l.id = ref.id AND l.payment_id = ref.id)"),
             BulkColumn.bool("voided").serverOwned(false),

@@ -1,0 +1,192 @@
+<header class="page-heading">
+  <a routerLink="/vendors" class="back-link">
+    <mat-icon>arrow_back</mat-icon> Vendors
+  </a>
+  <div class="heading-row">
+    <div>
+      <p class="section-label">Vendor Account & Ledger</p>
+      <h1>{{ vendor() ? vendor()!.name : 'Vendor Ledger' }}</h1>
+    </div>
+    @if (vendor(); as v) {
+      <div class="heading-actions">
+        <a
+          mat-flat-button
+          class="primary-button"
+          [routerLink]="['/vendors', v.id, 'payments', 'new']"
+        >
+          <mat-icon>payments</mat-icon>
+          Record Payment
+        </a>
+      </div>
+    }
+  </div>
+</header>
+
+@if (error()) {
+  <p class="load-error" role="alert">{{ error() }}</p>
+}
+
+@if (vendor(); as v) {
+  <section class="vendor-card" aria-label="Vendor profile">
+    <div class="vendor-profile-row">
+      <div class="vendor-details">
+        <div class="vendor-badges">
+          <span class="status-badge" [class.is-inactive]="v.status === 'INACTIVE'">
+            {{ v.status === 'ACTIVE' ? 'Active' : 'Inactive' }}
+          </span>
+          @if (v.salesTaxRegistrationStatus === 'REGISTERED') {
+            <span class="tax-badge registered">Sales Tax Registered</span>
+          } @else {
+            <span class="tax-badge unregistered">Unregistered</span>
+          }
+        </div>
+
+        <div class="meta-grid">
+          <div>
+            <span class="meta-label">Phone</span>
+            <span class="meta-value">{{ v.phoneNumber ?? 'Not provided' }}</span>
+          </div>
+          <div>
+            <span class="meta-label">NTN</span>
+            <span class="meta-value">{{ v.ntn ?? 'Not provided' }}</span>
+          </div>
+          @if (v.strn) {
+            <div>
+              <span class="meta-label">STRN</span>
+              <span class="meta-value">{{ v.strn }}</span>
+            </div>
+          }
+          @if (v.address) {
+            <div class="address-col">
+              <span class="meta-label">Address</span>
+              <span class="meta-value">{{ v.address }}</span>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="vendor-balance-box">
+        <p class="box-label">Current Account Balance</p>
+        <p
+          class="balance-value"
+          [class.balance-owe]="balanceState(v.accountBalance) === 'STORE_OWES_PARTY'"
+          [class.balance-advance]="balanceState(v.accountBalance) === 'PARTY_OWES_STORE'"
+          [class.balance-settled]="balanceState(v.accountBalance) === 'SETTLED'"
+        >
+          {{ balanceLabel(v.accountBalance) }}
+        </p>
+        <p class="balance-words">{{ balanceInWords(v.accountBalance) }}</p>
+        <a mat-stroked-button [routerLink]="['/vendors', v.id]" class="edit-link">
+          <mat-icon>edit</mat-icon>
+          Edit Details
+        </a>
+      </div>
+    </div>
+  </section>
+
+  @if (summary(); as s) {
+    <section class="summary-metrics" aria-label="Ledger summary metrics">
+      <div class="metric-card">
+        <span class="metric-label">Opening Balance</span>
+        <span class="metric-val">Rs {{ s.openingBalance }}</span>
+      </div>
+      <div class="metric-card debit">
+        <span class="metric-label">Total Paid (+ Debits)</span>
+        <span class="metric-val">Rs {{ s.debitTotal }}</span>
+      </div>
+      <div class="metric-card credit">
+        <span class="metric-label">Total Billed (- Credits)</span>
+        <span class="metric-val">Rs {{ s.creditTotal }}</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Period Closing Balance</span>
+        <span class="metric-val">Rs {{ s.closingBalance }}</span>
+      </div>
+    </section>
+  }
+
+  <section class="ledger-transactions">
+    <div class="section-header">
+      <h2>Transaction History</h2>
+    </div>
+
+    <app-vendor-ledger-filters
+      [initialFilters]="filters()"
+      (filtersChange)="onFiltersChange($event)"
+    />
+
+    <app-vendor-ledger-table
+      [entries]="items()"
+      [loading]="loading()"
+      [sort]="sort()"
+      (sortChange)="onSortChange($event)"
+      (voidEntry)="openVoidDialog($event)"
+    />
+
+    <footer class="ledger-footer">
+      <span class="count-label">{{ total() }} entr{{ total() === 1 ? 'y' : 'ies' }}</span>
+      <mat-paginator
+        [length]="total()"
+        [pageIndex]="pageIndex()"
+        [pageSize]="pageSize()"
+        [pageSizeOptions]="pageSizeOptions"
+        showFirstLastButtons
+        aria-label="Select vendor ledger page"
+        (page)="onPage($event)"
+      />
+    </footer>
+  </section>
+}
+
+@if (voidingEntry(); as entry) {
+  <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="void-modal-title">
+    <button type="button" class="backdrop-dismiss" aria-label="Close dialog" (click)="closeVoidDialog()"></button>
+    <div class="modal-card">
+      <div class="modal-header">
+        <mat-icon color="warn">warning</mat-icon>
+        <h3 id="void-modal-title">Void Standalone Settlement</h3>
+      </div>
+      <p class="modal-intro">
+        Voiding is a permanent audit action for recording errors. A compensating reversal
+        ledger entry will be posted and the vendor's balance adjusted.
+      </p>
+      <div class="modal-summary">
+        <div><strong>Amount:</strong> Rs {{ entry.amount }}</div>
+        <div><strong>Direction:</strong> {{ entry.direction === 'DEBIT' ? 'Outgoing Payment (We paid vendor)' : 'Incoming Refund (Vendor returned)' }}</div>
+        <div><strong>Date:</strong> {{ entry.occurredAt | date:'medium' }}</div>
+      </div>
+
+      @if (voidError()) {
+        <p class="modal-error">{{ voidError() }}</p>
+      }
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Void reason (explains recording error)</mat-label>
+        <textarea
+          matInput
+          rows="3"
+          [ngModel]="voidReason()"
+          (ngModelChange)="voidReason.set($event)"
+          placeholder="e.g. Wrong amount entered; cheque bounced; recorded under wrong supplier"
+          required
+        ></textarea>
+      </mat-form-field>
+
+      <div class="modal-actions">
+        <button mat-stroked-button type="button" [disabled]="isVoiding()" (click)="closeVoidDialog()">
+          Cancel
+        </button>
+        <button
+          mat-flat-button
+          color="warn"
+          type="button"
+          [disabled]="isVoiding() || !voidReason().trim()"
+          (click)="confirmVoid()"
+        >
+          Confirm Void
+        </button>
+      </div>
+    </div>
+  </div>
+}
+

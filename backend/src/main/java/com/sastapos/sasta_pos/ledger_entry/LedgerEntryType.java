@@ -6,6 +6,9 @@ public enum LedgerEntryType {
     SALE,
     PAYMENT,
     RETURN,
-    ADJUSTMENT
+    ADJUSTMENT,
+    PURCHASE,
+    PURCHASE_RETURN,
+    SALE_RETURN
 
 }

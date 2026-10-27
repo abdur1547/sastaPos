@@ -23,13 +23,15 @@ public class SyncTableConfig {
 
     @Bean
     public SyncTableRegistry syncTableRegistry(final ProductBulkService products,
-            final CustomerBulkService customers, final ProductTaxCategoryBulkService productTaxCategories,
+            final CustomerBulkService customers, final com.sastapos.sasta_pos.vendor.VendorBulkService vendors,
+            final ProductTaxCategoryBulkService productTaxCategories,
             final StockMovementBulkService stockMovements, final BusinessSettingBulkService businessSettings,
             final SaleBulkService sales, final SaleItemBulkService saleItems, final PaymentBulkService payments,
             final LedgerEntryBulkService ledgerEntries) {
         return new SyncTableRegistry()
                 .register("business_settings", 0, businessSettings)
                 .register("customers", 10, customers)
+                .register("vendors", 10, vendors)
                 .register("products", 10, products)
                 .register("product_tax_categories", 20, productTaxCategories)
                 .register("sales", 20, sales)

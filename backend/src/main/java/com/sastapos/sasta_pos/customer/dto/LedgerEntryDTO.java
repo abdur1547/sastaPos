@@ -24,8 +24,15 @@ public class LedgerEntryDTO {
     private OffsetDateTime voidedAt;
     private UUID voidedBy;
     private UUID customerId;
+    private UUID vendorId;
     private UUID saleId;
     private UUID paymentId;
+    private UUID reversalOfEntryId;
+    @com.fasterxml.jackson.annotation.JsonProperty("isReversal")
+    private boolean isReversal;
+    private UUID storeId;
+    private UUID userId;
     private OffsetDateTime createdAt;
+    private OffsetDateTime lastUpdated;
 
 }

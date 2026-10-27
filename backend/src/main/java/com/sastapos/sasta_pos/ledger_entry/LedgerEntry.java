@@ -70,8 +70,16 @@ public class LedgerEntry {
     private User voidedBy;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id", nullable = false)
+    @JoinColumn(name = "customer_id")
     private Customer customer;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vendor_id")
+    private com.sastapos.sasta_pos.vendor.Vendor vendor;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reversal_of_entry_id")
+    private LedgerEntry reversalOfEntry;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sale_id")

@@ -120,6 +120,9 @@ public abstract class AuthApiTestBase {
     protected CustomerRepository customerRepository;
 
     @Autowired
+    protected com.sastapos.sasta_pos.vendor.VendorRepository vendorRepository;
+
+    @Autowired
     protected LedgerEntryRepository ledgerEntryRepository;
 
     @Autowired
@@ -148,6 +151,7 @@ public abstract class AuthApiTestBase {
         unitsOfMeasureRepository.deleteAll();
         saleRepository.deleteAll();
         customerRepository.deleteAll();
+        vendorRepository.deleteAll();
         userRepository.deleteAll();
         storeRepository.deleteAll();
         passwordResetNotifier.reset();

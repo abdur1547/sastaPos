@@ -1,0 +1,105 @@
+<div class="table-scroll">
+  @if (loading()) {
+    <mat-progress-bar class="loading-bar" mode="indeterminate" />
+  }
+  <table class="vendors-table">
+    <thead>
+      <tr>
+        <th class="col-name">Vendor</th>
+        <th>Phone</th>
+        <th>Tax Info</th>
+        <th class="col-number">Balance</th>
+        <th>Status</th>
+        <th>Updated</th>
+        <th class="col-actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (vendor of vendors(); track vendor.id) {
+        <tr
+          [style.cursor]="selectable() ? 'pointer' : 'default'"
+          [attr.tabindex]="selectable() ? 0 : null"
+          [attr.role]="selectable() ? 'link' : null"
+          [attr.aria-label]="selectable() ? 'Open ledger for ' + vendor.name : null"
+          (click)="selectable() && selectVendor.emit(vendor)"
+          (keydown.enter)="selectable() && selectVendor.emit(vendor)"
+          (keydown.space)="selectable() && $event.preventDefault(); selectable() && selectVendor.emit(vendor)"
+        >
+          <td class="col-name">
+            <span class="vendor-name">{{ vendor.name }}</span>
+            @if (vendor.address) {
+              <span class="vendor-address">{{ vendor.address }}</span>
+            }
+          </td>
+          <td>{{ vendor.phoneNumber ?? '—' }}</td>
+          <td>
+            <div class="tax-info">
+              @if (vendor.salesTaxRegistrationStatus === 'REGISTERED') {
+                <span class="reg-pill registered" title="Sales Tax Registered">Registered</span>
+                <span class="tax-numbers">STRN: {{ vendor.strn }}</span>
+              } @else {
+                <span class="reg-pill unregistered" title="Unregistered">Unregistered</span>
+              }
+              @if (vendor.ntn) {
+                <span class="tax-numbers">NTN: {{ vendor.ntn }}</span>
+              }
+            </div>
+          </td>
+          <td class="col-number">
+            <span
+              class="balance"
+              [class.balance-owe]="balanceState(vendor) === 'STORE_OWES_PARTY'"
+              [class.balance-advance]="balanceState(vendor) === 'PARTY_OWES_STORE'"
+              [class.balance-settled]="balanceState(vendor) === 'SETTLED'"
+              [matTooltip]="balanceInWords(vendor)"
+            >
+              {{ balanceLabel(vendor) }}
+            </span>
+            <span class="balance-words-preview">{{ balanceInWords(vendor) }}</span>
+          </td>
+          <td>
+            <span class="status" [class.is-inactive]="vendor.status === 'INACTIVE'">
+              {{ vendor.status === 'ACTIVE' ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
+          <td>{{ vendor.lastUpdated | date: 'mediumDate' }}</td>
+          <td class="col-actions" (click)="$event.stopPropagation()">
+            <button
+              mat-icon-button
+              type="button"
+              [matMenuTriggerFor]="menu"
+              aria-label="Vendor actions"
+            >
+              <mat-icon>more_vert</mat-icon>
+            </button>
+            <mat-menu #menu="matMenu">
+              <a mat-menu-item [routerLink]="['/vendors', vendor.id, 'ledger']">
+                <mat-icon>receipt_long</mat-icon>
+                <span>View Ledger</span>
+              </a>
+              <a mat-menu-item [routerLink]="['/vendors', vendor.id, 'payments', 'new']">
+                <mat-icon>payments</mat-icon>
+                <span>Record Payment</span>
+              </a>
+              <a mat-menu-item [routerLink]="['/vendors', vendor.id]">
+                <mat-icon>edit</mat-icon>
+                <span>Edit Details</span>
+              </a>
+              <button mat-menu-item (click)="deleteVendor.emit(vendor)">
+                <mat-icon color="warn">delete</mat-icon>
+                <span class="text-warn">Delete Vendor</span>
+              </button>
+            </mat-menu>
+          </td>
+        </tr>
+      } @empty {
+        @if (!loading()) {
+          <tr class="empty-row">
+            <td colspan="7">No vendors match the current filters.</td>
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+</div>
+

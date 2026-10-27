@@ -1,0 +1,99 @@
+<form class="filters" [formGroup]="form" (submit)="$event.preventDefault()">
+  <div class="filters-row">
+    <mat-form-field appearance="outline" class="search-field" subscriptSizing="dynamic">
+      <mat-label>Search entries</mat-label>
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput type="search" formControlName="search" placeholder="Reference, description or amount" />
+    </mat-form-field>
+
+    <mat-button-toggle-group formControlName="direction" aria-label="Entry direction" hideSingleSelectionIndicator>
+      <mat-button-toggle value="ALL">All</mat-button-toggle>
+      <mat-button-toggle value="DEBIT">Debits (+)</mat-button-toggle>
+      <mat-button-toggle value="CREDIT">Credits (-)</mat-button-toggle>
+    </mat-button-toggle-group>
+  </div>
+
+  <div class="filters-row">
+    <mat-form-field appearance="outline" class="period-field" subscriptSizing="dynamic">
+      <mat-label>Period</mat-label>
+      <mat-icon matPrefix>calendar_month</mat-icon>
+      <mat-select formControlName="datePreset">
+        @for (preset of presets; track preset[0]) {
+          <mat-option [value]="preset[0]">{{ preset[1] }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    @if (isCustom()) {
+      <mat-form-field appearance="outline" class="range-field" subscriptSizing="dynamic">
+        <mat-label>From – To</mat-label>
+        <mat-date-range-input [formGroup]="customRange" [rangePicker]="rangePicker">
+          <input matStartDate formControlName="start" placeholder="From" />
+          <input matEndDate formControlName="end" placeholder="To" />
+        </mat-date-range-input>
+        <mat-datepicker-toggle matIconSuffix [for]="rangePicker" />
+        <mat-date-range-picker #rangePicker />
+      </mat-form-field>
+    }
+
+    <mat-form-field appearance="outline" class="select-field" subscriptSizing="dynamic">
+      <mat-label>Entry type</mat-label>
+      <mat-select formControlName="type">
+        <mat-option value="ALL">Any type</mat-option>
+        @for (type of types; track type[0]) {
+          <mat-option [value]="type[0]">{{ type[1] }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="select-field" subscriptSizing="dynamic">
+      <mat-label>Status</mat-label>
+      <mat-select formControlName="status">
+        <mat-option value="ALL">Any status</mat-option>
+        <mat-option value="ACTIVE">Posted</mat-option>
+        <mat-option value="VOIDED">Voided</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <div class="filters-row quick-row">
+    <span class="quick-label">Quick filters:</span>
+    <button
+      type="button"
+      class="chip"
+      [class.is-selected]="form.controls.datePreset.value === 'thisMonth'"
+      (click)="toggleThisMonth()"
+    >
+      <mat-icon>calendar_today</mat-icon>
+      This month
+    </button>
+    <button
+      type="button"
+      class="chip"
+      [class.is-selected]="form.controls.type.value === 'PURCHASE'"
+      (click)="toggleType('PURCHASE')"
+    >
+      <mat-icon>shopping_cart</mat-icon>
+      Purchases
+    </button>
+    <button
+      type="button"
+      class="chip"
+      [class.is-selected]="form.controls.type.value === 'PAYMENT'"
+      (click)="toggleType('PAYMENT')"
+    >
+      <mat-icon>payments</mat-icon>
+      Payments
+    </button>
+    <button
+      type="button"
+      class="chip"
+      [class.is-selected]="form.controls.status.value === 'VOIDED'"
+      (click)="toggleVoided()"
+    >
+      <mat-icon>block</mat-icon>
+      Voided
+    </button>
+  </div>
+</form>
+

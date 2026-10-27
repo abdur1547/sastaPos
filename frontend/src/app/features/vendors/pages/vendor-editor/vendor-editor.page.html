@@ -1,0 +1,33 @@
+<header class="page-heading">
+  <a [routerLink]="backUrl()" class="back-link">
+    <mat-icon>arrow_back</mat-icon> {{ backLabel() }}
+  </a>
+  <p class="section-label">Vendor Management</p>
+  <h1>{{ title() }}</h1>
+</header>
+
+@switch (state().status) {
+  @case ('loading') {
+    <p class="status-msg">Loading vendor details...</p>
+  }
+  @case ('missing') {
+    <div class="status-box error">
+      <p>Vendor not found in current store.</p>
+      <a mat-button [routerLink]="backUrl()">Back to Vendors</a>
+    </div>
+  }
+  @case ('error') {
+    <div class="status-box error">
+      <p>{{ errorMessage() }}</p>
+    </div>
+  }
+  @case ('ready') {
+    <app-vendor-form
+      [vendor]="vendor()"
+      [saving]="saving()"
+      [errorMessage]="saveError()"
+      (saved)="save($event)"
+      (cancelled)="goBack()"
+    />
+  }
+}

@@ -180,6 +180,43 @@ const customerUniqueKeys = new Table(
   },
 );
 
+const vendors = new Table(
+  {
+    name: column.text,
+    phone_number: column.text,
+    ntn: column.text,
+    strn: column.text,
+    sales_tax_registration_status: column.text,
+    address: column.text,
+    account_balance: column.text,
+    status: column.text,
+    store_id: column.text,
+    date_created: column.text,
+    last_updated: column.text,
+  },
+  {
+    indexes: {
+      vendors_store_name: ['store_id', 'name'],
+      vendors_store_phone: ['store_id', 'phone_number'],
+    },
+  },
+);
+
+const vendorUniqueKeys = new Table(
+  {
+    vendor_id: column.text,
+    store_id: column.text,
+    key_type: column.text,
+    normalized_value: column.text,
+  },
+  {
+    localOnly: true,
+    indexes: {
+      vendor_unique_keys_vendor: ['vendor_id'],
+    },
+  },
+);
+
 // Money and quantities are NUMERIC(18,2) on the backend, so they are stored as
 // decimal text to avoid floating-point loss.
 const sales = new Table(
@@ -244,8 +281,13 @@ const payments = new Table(
     method: column.text,
     reference_number: column.text,
     description: column.text,
+    voided: column.integer,
+    void_reason: column.text,
+    voided_at: column.text,
+    voided_by: column.text,
     sale_id: column.text,
     customer_id: column.text,
+    vendor_id: column.text,
     store_id: column.text,
     user_id: column.text,
     date_created: column.text,
@@ -255,6 +297,7 @@ const payments = new Table(
     indexes: {
       payments_sale: ['sale_id'],
       payments_customer: ['customer_id'],
+      payments_vendor: ['vendor_id'],
     },
   },
 );
@@ -271,6 +314,8 @@ const ledgerEntries = new Table(
     voided_at: column.text,
     voided_by: column.text,
     customer_id: column.text,
+    vendor_id: column.text,
+    reversal_of_entry_id: column.text,
     sale_id: column.text,
     payment_id: column.text,
     store_id: column.text,
@@ -281,6 +326,8 @@ const ledgerEntries = new Table(
   {
     indexes: {
       ledger_entries_customer: ['customer_id'],
+      ledger_entries_vendor: ['vendor_id'],
+      ledger_entries_reversal_of: ['reversal_of_entry_id'],
     },
   },
 );
@@ -307,6 +354,8 @@ export const AppSchema = new Schema({
   stock_movements: stockMovements,
   customers,
   customer_unique_keys: customerUniqueKeys,
+  vendors,
+  vendor_unique_keys: vendorUniqueKeys,
   sales,
   sale_items: saleItems,
   payments,
@@ -325,6 +374,7 @@ export type TaxCategoryRecord = Database['tax_categories'];
 export type ProductTaxCategoryRecord = Database['product_tax_categories'];
 export type StockMovementRecord = Database['stock_movements'];
 export type CustomerRecord = Database['customers'];
+export type VendorRecord = Database['vendors'];
 export type SaleRecord = Database['sales'];
 export type SaleItemRecord = Database['sale_items'];
 export type PaymentRecord = Database['payments'];

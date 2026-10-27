@@ -33,6 +33,7 @@ streams:
       # POS-level FBR identity: one global, non-secret row shared by every store/device.
       - SELECT * FROM pos_info
       - SELECT * FROM customers WHERE store_id = auth.parameter('store_id')
+      - SELECT * FROM vendors WHERE store_id = auth.parameter('store_id')
       - SELECT * FROM tax_categories WHERE store_id IS NULL OR store_id = auth.parameter('store_id')
       - SELECT * FROM sales WHERE store_id = auth.parameter('store_id')
       # sale_items has no store_id column directly, so scope it via its parent sale.
@@ -46,7 +47,9 @@ streams:
       - SELECT * FROM payments WHERE store_id = auth.parameter('store_id') AND sale_id IS NULL
       - |
         SELECT ledger_entries.* FROM ledger_entries
-        WHERE customer_id IN (SELECT id FROM customers WHERE store_id = auth.parameter('store_id'))
+        WHERE store_id = auth.parameter('store_id')
+           OR customer_id IN (SELECT id FROM customers WHERE store_id = auth.parameter('store_id'))
+           OR vendor_id IN (SELECT id FROM vendors WHERE store_id = auth.parameter('store_id'))
       # Invoice numbering settings of the signed-in store (stores.store_settings_id).
       - |
         SELECT * FROM business_settings

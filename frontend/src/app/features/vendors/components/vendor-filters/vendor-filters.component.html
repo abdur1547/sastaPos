@@ -1,0 +1,45 @@
+<form class="filters-bar" [formGroup]="form">
+  <mat-form-field appearance="outline" class="search-field" subscriptSizing="dynamic">
+    <mat-label>Search vendors</mat-label>
+    <mat-icon matPrefix>search</mat-icon>
+    <input
+      matInput
+      type="search"
+      formControlName="search"
+      placeholder="Search by name, phone, NTN, STRN"
+    />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="select-field" subscriptSizing="dynamic">
+    <mat-label>Status</mat-label>
+    <mat-select formControlName="status">
+      <mat-option value="ALL">All statuses</mat-option>
+      <mat-option value="ACTIVE">Active</mat-option>
+      <mat-option value="INACTIVE">Inactive</mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="select-field" subscriptSizing="dynamic">
+    <mat-label>Tax Registration</mat-label>
+    <mat-select formControlName="salesTaxRegistrationStatus">
+      <mat-option value="ALL">All registration types</mat-option>
+      <mat-option value="REGISTERED">Sales Tax Registered</mat-option>
+      <mat-option value="UNREGISTERED">Unregistered</mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="select-field" subscriptSizing="dynamic">
+    <mat-label>Balance</mat-label>
+    <mat-select formControlName="balanceState">
+      <mat-option value="ALL">All accounts</mat-option>
+      <mat-option value="STORE_OWES_PARTY">We owe vendor</mat-option>
+      <mat-option value="PARTY_OWES_STORE">Vendor owes us (Advance)</mat-option>
+      <mat-option value="SETTLED">Settled</mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <button mat-stroked-button type="button" class="reset-button" (click)="reset()">
+    Reset
+  </button>
+</form>
+

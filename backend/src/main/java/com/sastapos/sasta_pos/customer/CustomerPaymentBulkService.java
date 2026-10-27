@@ -6,6 +6,7 @@ import com.sastapos.sasta_pos.bulk.BulkRejection;
 import com.sastapos.sasta_pos.bulk.BulkTable;
 import com.sastapos.sasta_pos.bulk.BulkValidationException;
 import com.sastapos.sasta_pos.bulk.BulkWriter;
+import com.sastapos.sasta_pos.payment.PaymentDirection;
 import com.sastapos.sasta_pos.payment.PaymentMethod;
 import java.math.BigDecimal;
 import java.util.List;
@@ -25,11 +26,16 @@ public class CustomerPaymentBulkService extends AbstractBulkEntityService {
             BulkColumn.text("method").required().immutable().oneOf(Set.of(PaymentMethod.CASH.name(), PaymentMethod.BANK.name())),
             BulkColumn.text("reference_number").immutable(),
             BulkColumn.text("description").immutable(),
-            BulkColumn.text("direction").required().immutable().defaultTo("INCOMING").oneOf(Set.of("INCOMING")),
+            BulkColumn.text("direction").required().immutable().defaultTo("INCOMING").oneOf(Set.of(PaymentDirection.INCOMING.name(), PaymentDirection.OUTGOING.name())),
             BulkColumn.uuid("sale_id").immutable().refersToStoreRow("sales"),
-            BulkColumn.uuid("customer_id").required().immutable().refersToStoreRow("customers"),
+            BulkColumn.uuid("customer_id").immutable().refersToStoreRow("customers"),
+            BulkColumn.uuid("vendor_id").immutable().refersToStoreRow("vendors"),
             BulkColumn.uuid("store_id").required().immutable().refersToStoreRow("stores", "ref.id = CAST(:store_id AS uuid)"),
             BulkColumn.uuid("user_id").required().immutable().refersToStoreRow("users"),
+            BulkColumn.bool("voided").defaultTo(false),
+            BulkColumn.text("void_reason"),
+            BulkColumn.timestamp("voided_at"),
+            BulkColumn.uuid("voided_by").refersToStoreRow("users"),
             BulkColumn.timestamp("date_created").required().immutable().defaultToNow(),
             BulkColumn.timestamp("last_updated").required().defaultToNow());
 
@@ -47,7 +53,12 @@ public class CustomerPaymentBulkService extends AbstractBulkEntityService {
             return;
         }
         if (values.get("sale_id") != null) {
-            throw new BulkValidationException("A customer account payment cannot be allocated to a sale");
+            throw new BulkValidationException("A standalone payment cannot be allocated to a sale");
+        }
+        final boolean hasCustomer = values.get("customer_id") != null;
+        final boolean hasVendor = values.get("vendor_id") != null;
+        if (hasCustomer == hasVendor) {
+            throw new BulkValidationException("A standalone payment must belong to exactly one customer or vendor");
         }
         if (((BigDecimal) values.get("amount")).signum() <= 0) {
             throw new BulkValidationException("amount must be > 0");

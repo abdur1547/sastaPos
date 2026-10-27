@@ -64,12 +64,28 @@ public class Payment {
     private Customer customer;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vendor_id")
+    private com.sastapos.sasta_pos.vendor.Vendor vendor;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id")
     private Store store;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
+
+    @Column(nullable = false)
+    private boolean voided = false;
+
+    @Column(columnDefinition = "text")
+    private String voidReason;
+
+    private OffsetDateTime voidedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "voided_by")
+    private User voidedBy;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)

@@ -1,0 +1,102 @@
+.vendor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-section {
+  padding: 24px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: #fff;
+
+  h2 {
+    margin: 0 0 16px;
+    color: var(--ink-muted);
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.span-2 {
+  grid-column: span 2;
+}
+
+.span-3 {
+  grid-column: 1 / -1;
+}
+
+.tax-status-selection {
+  margin-bottom: 20px;
+
+  .field-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-strong);
+  }
+}
+
+.account-card {
+  background: #f8fafc;
+  border-left: 4px solid var(--accent-teal, #0d9488);
+}
+
+.account-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.balance-display {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+
+.balance-words {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--ink-muted);
+}
+
+.account-card-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.primary-button {
+  background: var(--accent-teal, #0d9488) !important;
+  color: #fff !important;
+}
+
+@media (width <= 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .span-2,
+  .span-3 {
+    grid-column: auto;
+  }
+}
+

@@ -246,6 +246,9 @@ public class CustomerService {
         reversal.setDescription("Reversal of PAYMENT voided: " + reason);
         reversal.setCustomer(customer);
         reversal.setSale(original.getSale());
+        reversal.setStore(user.getStore());
+        reversal.setUser(user);
+        reversal.setReversalOfEntry(original);
         ledgerEntryRepository.saveAndFlush(reversal);
 
         customer.setAccountBalance(newBalance);

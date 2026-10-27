@@ -1,0 +1,128 @@
+<ng-template #sortHeader let-field="field" let-label="label">
+  <button type="button" class="sort-button" (click)="toggleSort(field)">
+    {{ label }}
+    <mat-icon class="sort-icon" [class.is-active]="sort().field === field" aria-hidden="true">
+      {{ sortIcon(field) }}
+    </mat-icon>
+  </button>
+</ng-template>
+
+<div class="table-scroll">
+  @if (loading()) {
+    <mat-progress-bar class="loading-bar" mode="indeterminate" />
+  }
+  <table class="ledger-table">
+    <thead>
+      <tr>
+        <th [attr.aria-sort]="ariaSort('occurredAt')">
+          <ng-container *ngTemplateOutlet="sortHeader; context: { field: 'occurredAt', label: 'Date & time' }" />
+        </th>
+        <th [attr.aria-sort]="ariaSort('type')">
+          <ng-container *ngTemplateOutlet="sortHeader; context: { field: 'type', label: 'Type' }" />
+        </th>
+        <th [attr.aria-sort]="ariaSort('referenceNumber')">
+          <ng-container *ngTemplateOutlet="sortHeader; context: { field: 'referenceNumber', label: 'Reference' }" />
+        </th>
+        <th class="col-wide" [attr.aria-sort]="ariaSort('description')">
+          <ng-container *ngTemplateOutlet="sortHeader; context: { field: 'description', label: 'Description' }" />
+        </th>
+        <th class="col-number" [attr.aria-sort]="ariaSort('debit')">
+          <ng-container *ngTemplateOutlet="sortHeader; context: { field: 'debit', label: 'Debit (+)' }" />
+        </th>
+        <th class="col-number" [attr.aria-sort]="ariaSort('credit')">
+          <ng-container *ngTemplateOutlet="sortHeader; context: { field: 'credit', label: 'Credit (-)' }" />
+        </th>
+        <th class="col-number" [attr.aria-sort]="ariaSort('balance')">
+          <ng-container *ngTemplateOutlet="sortHeader; context: { field: 'balance', label: 'Balance' }" />
+        </th>
+        <th>Status</th>
+        <th class="col-actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (entry of entries(); track entry.id) {
+        <tr [class.is-voided]="entry.voided">
+          <td>
+            <span class="primary">{{ entry.occurredAt | date: 'mediumDate' }}</span>
+            <span class="secondary">{{ entry.occurredAt | date: 'shortTime' }}</span>
+          </td>
+          <td>
+            <span class="pill pill-type" [class]="'type-' + entry.type.toLowerCase()">
+              {{ typeLabel(entry.type) }}
+            </span>
+            @if (entry.reversalOfEntryId) {
+              <span class="pill pill-reversal">Reversal</span>
+            }
+          </td>
+          <td>
+            @if (entry.referenceNumber) {
+              <span class="reference">{{ entry.referenceNumber }}</span>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+          <td class="col-wide">
+            <span class="primary">{{ entry.description ?? '—' }}</span>
+            @if (entry.voided && entry.voidReason) {
+              <span class="secondary void-reason">Voided: {{ entry.voidReason }}</span>
+            }
+          </td>
+          <td class="col-number amount">
+            @if (entry.direction === 'DEBIT') {
+              <span class="strong text-debit">+ Rs {{ entry.amount }}</span>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+          <td class="col-number amount">
+            @if (entry.direction === 'CREDIT') {
+              <span class="strong text-credit">- Rs {{ entry.amount }}</span>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+          <td class="col-number">
+            <span
+              class="primary balance-value"
+              [class.balance-owe]="isStoreOwes(entry)"
+              [class.balance-advance]="!isStoreOwes(entry) && entry.balanceAfter !== '0.00'"
+              [matTooltip]="balanceInWords(entry)"
+            >
+              Rs {{ absolute(entry.balanceAfter) }}
+            </span>
+            <span class="secondary">{{ balanceNote(entry) }}</span>
+          </td>
+          <td>
+            @if (entry.voided) {
+              <span class="pill pill-voided">Voided</span>
+            } @else {
+              <span class="pill pill-completed">Posted</span>
+            }
+          </td>
+          <td class="col-actions">
+            @if (!entry.voided && entry.type === 'PAYMENT' && entry.paymentId) {
+              <button
+                mat-stroked-button
+                color="warn"
+                class="void-btn"
+                type="button"
+                (click)="voidEntry.emit(entry)"
+                title="Void this payment settlement"
+              >
+                <mat-icon>block</mat-icon>
+                Void
+              </button>
+            }
+          </td>
+        </tr>
+      } @empty {
+        @if (!loading()) {
+          <tr class="empty-row">
+            <td [attr.colspan]="columnCount">No ledger entries match the current filters.</td>
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+</div>
+

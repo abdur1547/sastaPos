@@ -1,0 +1,29 @@
+.filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.search-field {
+  flex: 1;
+  min-width: 240px;
+}
+
+.select-field {
+  width: 180px;
+}
+
+.reset-button {
+  height: 48px;
+}
+
+@media (width <= 768px) {
+  .search-field,
+  .select-field {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
