@@ -89,12 +89,21 @@ public class AuthService {
         return buildAuthResponse(user);
     }
 
+    @Transactional(readOnly = true)
     public AuthenticatedUserDTO getCurrentUser(final User user) {
-        return toAuthenticatedUserDTO(user);
+        final User freshUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new UnauthorizedException("User not found"));
+        return toAuthenticatedUserDTO(freshUser);
     }
 
+    @Transactional(readOnly = true)
     public AuthResponse refreshToken(final User user) {
-        return buildAuthResponse(user);
+        final User freshUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new UnauthorizedException("User not found"));
+        if (freshUser.getStatus() != RowStatus.ACTIVE) {
+            throw new UnauthorizedException("User is not active");
+        }
+        return buildAuthResponse(freshUser);
     }
 
     @Transactional

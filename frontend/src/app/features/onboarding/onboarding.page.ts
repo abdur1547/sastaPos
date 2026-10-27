@@ -243,7 +243,7 @@ export class OnboardingPage implements OnInit {
     if (!store) return false;
     this.progress.save(0);
     await this.auth.refreshUser();
-    this.auth.refreshToken?.().catch(() => undefined);
+    await this.auth.refreshToken?.().catch(() => undefined);
     this.storeCreated.set(true);
     return true;
   }

@@ -36,10 +36,8 @@ export class AuthService {
       const restored = await this.gateway.restore();
       if (restored.state === 'valid') {
         this.setSession(restored.session);
-        // If the user already has a store attached, refresh claims so store_id is present
-        if (restored.session.user.storeId) {
-          this.refreshToken().catch(() => undefined);
-        }
+        // Refresh claims on startup so store_id and user status are up-to-date
+        this.refreshToken().catch(() => undefined);
       } else if (restored.state === 'expired') {
         this.noticeState.set('expired');
       }

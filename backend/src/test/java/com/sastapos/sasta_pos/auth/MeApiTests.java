@@ -65,6 +65,32 @@ class MeApiTests extends AuthApiTestBase {
     }
 
     @Test
+    void shouldRefreshTokenForUserWithStoreAndIncludeStoreIdClaim() {
+        final String email = TestDataFactory.uniqueEmail();
+        final String token = signupAndGetToken(TestDataFactory.personName(), email, TestDataFactory.validPassword());
+
+        final String storeName = TestDataFactory.storeName();
+        final String ntn = TestDataFactory.uniqueNtn();
+        final ResponseEntity<String> storeResponse = postJson("/api/store", """
+                {"name": "%s", "ntn": "%s"}""".formatted(storeName, ntn), token);
+        assertThat(storeResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        final String storeId = JsonPath.read(storeResponse.getBody(), "$.store.id");
+
+        final ResponseEntity<String> response = postJson("/api/auth/refresh", "{}", token);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        final String refreshedToken = JsonPath.read(response.getBody(), "$.accessToken");
+        assertThat(refreshedToken).isNotBlank();
+        final String returnedStoreId = JsonPath.read(response.getBody(), "$.user.storeId");
+        assertThat(returnedStoreId).isEqualTo(storeId);
+
+        final SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+        final String jwtStoreId = Jwts.parser().verifyWith(key).build()
+                .parseSignedClaims(refreshedToken).getPayload().get("store_id", String.class);
+        assertThat(jwtStoreId).isEqualTo(storeId);
+    }
+
+    @Test
     void shouldRejectRequestWithoutToken() {
         final ResponseEntity<String> response = restTemplate.getForEntity(ME_URL, String.class);
 
