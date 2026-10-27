@@ -36,6 +36,10 @@ export class AuthService {
       const restored = await this.gateway.restore();
       if (restored.state === 'valid') {
         this.setSession(restored.session);
+        // If the user already has a store attached, refresh claims so store_id is present
+        if (restored.session.user.storeId) {
+          this.refreshToken().catch(() => undefined);
+        }
       } else if (restored.state === 'expired') {
         this.noticeState.set('expired');
       }
@@ -76,16 +80,21 @@ export class AuthService {
     await this.updateUser(await firstValueFrom(this.api.getCurrentUser()));
   }
 
-  async updateUser(user: AuthenticatedUser): Promise<void> {
+  async refreshToken(): Promise<void> {
+    await this.establishSession(await firstValueFrom(this.api.refresh()));
+  }
+
+  async updateUser(user: AuthenticatedUser, tokens?: { accessToken: string; expiresIn: number }): Promise<void> {
     const session = this.session();
-    const accessToken = await this.gateway.getAccessToken();
+    const accessToken = tokens?.accessToken ?? (await this.gateway.getAccessToken());
+    const expiresIn = tokens?.expiresIn ?? (session ? Math.floor((session.expiresAt - Date.now()) / 1000) : 0);
     if (!session || !accessToken || session.expiresAt <= Date.now()) {
       throw new Error('Your session expired. Sign in again to continue setup.');
     }
     try {
       const updated = await this.gateway.save({
         accessToken,
-        expiresIn: Math.floor((session.expiresAt - Date.now()) / 1000),
+        expiresIn,
         user,
       });
       this.setSession(updated);

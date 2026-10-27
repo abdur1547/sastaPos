@@ -94,7 +94,10 @@ fn resolve_expiry(input: &SaveSessionInput) -> Result<i64, String> {
 }
 
 #[tauri::command]
-pub fn auth_save_session(input: SaveSessionInput) -> Result<SessionInfo, String> {
+pub async fn auth_save_session<R: tauri::Runtime>(
+  app: tauri::AppHandle<R>,
+  input: SaveSessionInput,
+) -> Result<SessionInfo, String> {
   if input.access_token.trim().is_empty() {
     return Err("access token is empty".to_string());
   }
@@ -112,6 +115,8 @@ pub fn auth_save_session(input: SaveSessionInput) -> Result<SessionInfo, String>
   entry()?
     .set_password(&raw)
     .map_err(|e| format!("failed to write credential store: {e}"))?;
+
+  crate::reconnect_powersync(&app).await;
 
   Ok(SessionInfo { user: stored.user, expires_at })
 }
@@ -148,8 +153,12 @@ pub fn current_access_token() -> Option<String> {
 }
 
 #[tauri::command]
-pub fn auth_clear_session() -> Result<(), String> {
-  clear()
+pub async fn auth_clear_session<R: tauri::Runtime>(
+  app: tauri::AppHandle<R>,
+) -> Result<(), String> {
+  clear()?;
+  crate::disconnect_powersync(&app).await;
+  Ok(())
 }
 
 #[cfg(test)]

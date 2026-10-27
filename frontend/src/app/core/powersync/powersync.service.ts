@@ -45,4 +45,12 @@ export class PowerSyncService {
       },
     });
   }
+
+  async reconnect(): Promise<void> {
+    await invoke('powersync_reconnect');
+  }
+
+  async disconnect(): Promise<void> {
+    await invoke('powersync_disconnect');
+  }
 }

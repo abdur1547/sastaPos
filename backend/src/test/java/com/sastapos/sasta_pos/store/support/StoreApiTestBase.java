@@ -76,7 +76,8 @@ public abstract class StoreApiTestBase extends AuthApiTestBase {
                 createStoreJson(TestDataFactory.storeName(), TestDataFactory.uniqueNtn()), token);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         final String storeId = JsonPath.read(response.getBody(), "$.store.id");
-        return new StoreOwner(token, UUID.fromString(storeId));
+        final String freshToken = JsonPath.read(response.getBody(), "$.accessToken");
+        return new StoreOwner(freshToken != null ? freshToken : token, UUID.fromString(storeId));
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.sastapos.sasta_pos.store;
 
 import com.sastapos.sasta_pos.auth.AuthService;
+import com.sastapos.sasta_pos.auth.JwtService;
 import com.sastapos.sasta_pos.business_setting.BusinessSetting;
 import com.sastapos.sasta_pos.business_setting.BusinessSettingRepository;
 import com.sastapos.sasta_pos.sale.SaleRepository;
@@ -36,6 +37,7 @@ public class StoreService {
     private final UserRepository userRepository;
     private final SaleRepository saleRepository;
     private final AuthService authService;
+    private final JwtService jwtService;
 
     @Transactional
     public CreateStoreResponse createStore(final User user, final CreateStoreRequest request) {
@@ -68,7 +70,9 @@ public class StoreService {
         user.setRole(UserRole.OWNER);
         userRepository.save(user);
 
-        return new CreateStoreResponse(mapToDTO(store), authService.getCurrentUser(user));
+        final String accessToken = jwtService.generateToken(user);
+        return new CreateStoreResponse(mapToDTO(store), authService.getCurrentUser(user),
+                accessToken, jwtService.getExpirationSeconds());
     }
 
     public StoreDTO getStoreForCurrentUser(final User user) {

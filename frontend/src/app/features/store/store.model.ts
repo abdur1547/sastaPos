@@ -42,6 +42,8 @@ export interface CreateStoreRequest {
 export interface CreateStoreResponse {
   readonly store: Store;
   readonly user: AuthenticatedUser;
+  readonly accessToken?: string;
+  readonly expiresIn?: number;
 }
 
 export interface UpdateStoreSettingsRequest {

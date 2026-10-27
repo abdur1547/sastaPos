@@ -51,6 +51,12 @@ class CreateStoreApiTests extends StoreApiTestBase {
                 .containsEntry("email", email)
                 .containsEntry("role", "OWNER")
                 .containsEntry("storeId", store.get("id"));
+
+        final String accessToken = JsonPath.read(response.getBody(), "$.accessToken");
+        assertThat(accessToken).isNotBlank();
+        final Number expiresIn = JsonPath.read(response.getBody(), "$.expiresIn");
+        assertThat(expiresIn.longValue()).isPositive();
+
         assertNoSensitiveData(response.getBody());
     }
 

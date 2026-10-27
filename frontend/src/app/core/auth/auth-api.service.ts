@@ -19,6 +19,10 @@ export class AuthApiService extends BaseApiService {
     return this.get<AuthenticatedUser>('/api/auth/me');
   }
 
+  refresh(): Observable<AuthResponse> {
+    return this.post<AuthResponse>('/api/auth/refresh');
+  }
+
   login(request: LoginRequest): Observable<AuthResponse> {
     return this.post<AuthResponse, LoginRequest>('/api/auth/login', request);
   }

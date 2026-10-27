@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use futures::TryStreamExt;
 use powersync::error::PowerSyncError;
 use powersync::{BackendConnector, PowerSyncCredentials, PowerSyncDatabase, SyncOptions};
+use tauri::Manager;
 use tauri_plugin_powersync::PowerSyncExt;
 
 const DEFAULT_POWERSYNC_ENDPOINT: &str = "http://localhost:8081";
@@ -79,6 +80,9 @@ impl BackendConnector for AppBackendConnector {
   }
 }
 
+#[derive(Default, Clone)]
+pub struct PowerSyncDatabaseState(pub std::sync::Arc<tokio::sync::Mutex<Option<PowerSyncDatabase>>>);
+
 // Sync state must be owned by Rust so it's shared across all windows.
 #[tauri::command]
 async fn connect<R: tauri::Runtime>(
@@ -88,6 +92,12 @@ async fn connect<R: tauri::Runtime>(
   let database = app.powersync().database_from_javascript_handle(handle)?;
   printing::initialize(&app, database.clone()).await
     .map_err(|error| powersync::error::PowerSyncError::upload_error(std::io::Error::other(error)))?;
+
+  let state = app.state::<PowerSyncDatabaseState>();
+  {
+    let mut lock = state.0.lock().await;
+    *lock = Some(database.clone());
+  }
 
   let options = SyncOptions::new(AppBackendConnector {
     db: database.clone(),
@@ -99,12 +109,58 @@ async fn connect<R: tauri::Runtime>(
   Ok(())
 }
 
+pub async fn reconnect_powersync<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+  let state = app.state::<PowerSyncDatabaseState>();
+  let db_opt = {
+    let lock = state.0.lock().await;
+    lock.clone()
+  };
+  if let Some(database) = db_opt {
+    database.disconnect().await;
+    let options = SyncOptions::new(AppBackendConnector {
+      db: database.clone(),
+      endpoint: powersync_endpoint_from_env(),
+      http: reqwest::Client::new(),
+      api_base_url: upload::api_base_url_from_env(),
+    });
+    database.connect(options).await;
+  }
+}
+
+pub async fn disconnect_powersync<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+  let state = app.state::<PowerSyncDatabaseState>();
+  let db_opt = {
+    let lock = state.0.lock().await;
+    lock.clone()
+  };
+  if let Some(database) = db_opt {
+    database.disconnect().await;
+  }
+}
+
+#[tauri::command]
+async fn powersync_reconnect<R: tauri::Runtime>(
+  app: tauri::AppHandle<R>,
+) -> Result<(), String> {
+  reconnect_powersync(&app).await;
+  Ok(())
+}
+
+#[tauri::command]
+async fn powersync_disconnect<R: tauri::Runtime>(
+  app: tauri::AppHandle<R>,
+) -> Result<(), String> {
+  disconnect_powersync(&app).await;
+  Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   dotenvy::dotenv().ok();
 
   let builder = tauri::Builder::default()
     .manage(printing::PrintQueue::default())
+    .manage(PowerSyncDatabaseState::default())
     .plugin(tauri_plugin_powersync::init());
 
   #[cfg(debug_assertions)]
@@ -113,6 +169,8 @@ pub fn run() {
     .on_window_event(scanner::on_window_event)
     .invoke_handler(tauri::generate_handler![
       connect,
+      powersync_reconnect,
+      powersync_disconnect,
       auth::auth_save_session,
       auth::auth_restore_session,
       auth::auth_get_access_token,
@@ -131,6 +189,8 @@ pub fn run() {
   #[cfg(not(debug_assertions))]
   let builder = builder.invoke_handler(tauri::generate_handler![
     connect,
+    powersync_reconnect,
+    powersync_disconnect,
     auth::auth_save_session,
     auth::auth_restore_session,
     auth::auth_get_access_token,

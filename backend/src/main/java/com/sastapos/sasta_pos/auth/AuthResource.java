@@ -54,6 +54,13 @@ public class AuthResource {
         return ResponseEntity.ok(authService.getCurrentUser(user));
     }
 
+    @PostMapping("/refresh")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Refresh the current user's access token with latest claims")
+    public ResponseEntity<AuthResponse> refresh(@AuthenticationPrincipal final User user) {
+        return ResponseEntity.ok(authService.refreshToken(user));
+    }
+
     @PostMapping("/logout")
     @ApiResponse(responseCode = "204")
     @SecurityRequirement(name = "bearerAuth")

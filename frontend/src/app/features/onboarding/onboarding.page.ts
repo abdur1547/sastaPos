@@ -108,6 +108,8 @@ export class OnboardingPage implements OnInit {
   private readonly settingsPage = viewChild(StoreSettingsPage);
   private pendingStoreUser: Parameters<AuthService["updateUser"]>[0] | null =
     null;
+  private pendingAccessToken?: string;
+  private pendingExpiresIn?: number;
 
   protected readonly storeForm = inject(FormBuilder).nonNullable.group({
     name: [
@@ -189,6 +191,8 @@ export class OnboardingPage implements OnInit {
           }),
         );
         this.pendingStoreUser = response.user;
+        this.pendingAccessToken = response.accessToken;
+        this.pendingExpiresIn = response.expiresIn;
         this.storeCreated.set(true);
         this.storeForm.markAsPristine();
       }
@@ -207,8 +211,17 @@ export class OnboardingPage implements OnInit {
   private async resumeAfterStore(): Promise<void> {
     if (this.pendingStoreUser) {
       this.progress.save(0);
-      await this.auth.updateUser(this.pendingStoreUser);
+      if (this.pendingAccessToken && this.pendingExpiresIn) {
+        await this.auth.updateUser(this.pendingStoreUser, {
+          accessToken: this.pendingAccessToken,
+          expiresIn: this.pendingExpiresIn,
+        });
+      } else {
+        await this.auth.updateUser(this.pendingStoreUser);
+      }
       this.pendingStoreUser = null;
+      this.pendingAccessToken = undefined;
+      this.pendingExpiresIn = undefined;
     }
     this.progress.save(1);
     this.step.set(1);
@@ -230,6 +243,7 @@ export class OnboardingPage implements OnInit {
     if (!store) return false;
     this.progress.save(0);
     await this.auth.refreshUser();
+    this.auth.refreshToken?.().catch(() => undefined);
     this.storeCreated.set(true);
     return true;
   }

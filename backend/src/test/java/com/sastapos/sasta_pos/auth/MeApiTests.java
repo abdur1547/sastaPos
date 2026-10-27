@@ -49,6 +49,22 @@ class MeApiTests extends AuthApiTestBase {
     }
 
     @Test
+    void shouldRefreshTokenForAuthenticatedUser() {
+        final String name = TestDataFactory.personName();
+        final String email = TestDataFactory.uniqueEmail();
+        final String token = signupAndGetToken(name, email, TestDataFactory.validPassword());
+
+        final ResponseEntity<String> response = postJson("/api/auth/refresh", "{}", token);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        final String refreshedToken = JsonPath.read(response.getBody(), "$.accessToken");
+        assertThat(refreshedToken).isNotBlank();
+        final String returnedEmail = JsonPath.read(response.getBody(), "$.user.email");
+        assertThat(returnedEmail).isEqualTo(email);
+        assertNoSensitiveData(response.getBody());
+    }
+
+    @Test
     void shouldRejectRequestWithoutToken() {
         final ResponseEntity<String> response = restTemplate.getForEntity(ME_URL, String.class);
 

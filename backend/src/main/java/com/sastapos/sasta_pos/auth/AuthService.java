@@ -93,6 +93,10 @@ public class AuthService {
         return toAuthenticatedUserDTO(user);
     }
 
+    public AuthResponse refreshToken(final User user) {
+        return buildAuthResponse(user);
+    }
+
     @Transactional
     public void changePassword(final User user, final ChangePasswordRequest request) {
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
