@@ -373,7 +373,15 @@ The file is `powersync.db` in Tauri's app data dir for the identifier `com.sasta
 
 Inspect it with `sqlite3 ~/.local/share/com.sastapos/powersync.db '.tables'` (read-only use only, while the app is closed or idle).
 
-**Reset the local DB** (it is only a replica; synced data is re-downloaded on next login): close the app, then
+**Reset the local DB** (it is only a replica; synced data is re-downloaded on next login): close the app, then run in the `frontend` directory:
+
+```bash
+yarn clean:db
+# or to reset and restart dev mode fresh:
+yarn tauri:dev:clean
+```
+
+Alternatively, delete the files manually:
 
 ```bash
 rm ~/.local/share/com.sastapos/powersync.db*

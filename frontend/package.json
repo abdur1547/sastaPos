@@ -45,6 +45,9 @@
     "prestorybook": "yarn env:generate",
     "prebuild-storybook": "yarn env:generate",
     "test:env": "node --test scripts/tests/generate-environment.test.mjs",
+    "test:scripts": "node --test scripts/tests/*.test.mjs",
+    "clean:db": "node scripts/clean-db.mjs",
+    "db:clean": "yarn clean:db",
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
@@ -68,7 +71,9 @@
     "docs:json": "compodoc -p ./tsconfig.json -e json -d .",
     "storybook": "ng run angular-starter:storybook",
     "build-storybook": "ng run angular-starter:build-storybook",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:dev:clean": "yarn clean:db && tauri dev"
   },
   "private": false,
   "dependencies": {
