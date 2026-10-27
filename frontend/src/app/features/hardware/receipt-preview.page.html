@@ -44,13 +44,22 @@
         <textarea matInput formControlName="footer" rows="3"></textarea>
         <mat-hint>ASCII text, maximum 1000 characters.</mat-hint>
       </mat-form-field>
-      <mat-checkbox formControlName="showSku" (change)="settingsChanged()"
+      <mat-checkbox
+        color="primary"
+        formControlName="showSku"
+        (change)="settingsChanged()"
         >Show SKU</mat-checkbox
       >
-      <mat-checkbox formControlName="showBarcode" (change)="settingsChanged()"
+      <mat-checkbox
+        color="primary"
+        formControlName="showBarcode"
+        (change)="settingsChanged()"
         >Show barcode</mat-checkbox
       >
-      <mat-checkbox formControlName="showCustomer" (change)="settingsChanged()"
+      <mat-checkbox
+        color="primary"
+        formControlName="showCustomer"
+        (change)="settingsChanged()"
         >Show customer</mat-checkbox
       >
       <button

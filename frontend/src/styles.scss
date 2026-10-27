@@ -16,6 +16,92 @@
   --accent-coral: #ef6b5a;
 }
 
+// Global form control theming: match checkboxes and interactive controls
+// with the primary brand button color (--accent-teal)
+:root,
+html,
+body {
+  accent-color: var(--accent-teal);
+}
+
+// Angular Material Checkbox - brand primary teal theme
+:root,
+html,
+.mat-mdc-checkbox,
+.mat-mdc-checkbox.mat-accent,
+.mat-mdc-checkbox.mat-primary,
+.mat-mdc-list-option.mat-accent,
+.mat-mdc-list-option.mat-primary {
+  --mat-checkbox-selected-icon-color: var(--accent-teal);
+  --mat-checkbox-selected-hover-icon-color: #0d9488;
+  --mat-checkbox-selected-focus-icon-color: #0d9488;
+  --mat-checkbox-selected-pressed-icon-color: #0f766e;
+  --mat-checkbox-selected-checkmark-color: #fff;
+  --mat-checkbox-selected-focus-state-layer-color: var(--accent-teal);
+  --mat-checkbox-selected-hover-state-layer-color: var(--accent-teal);
+  --mat-checkbox-selected-pressed-state-layer-color: var(--accent-teal);
+  --mat-checkbox-unselected-icon-color: var(--ink-muted);
+  --mat-checkbox-unselected-hover-icon-color: var(--ink-strong);
+  --mat-checkbox-unselected-focus-icon-color: var(--ink-strong);
+  --mat-checkbox-label-text-font: var(--font-body);
+  --mat-checkbox-label-text-color: var(--ink-strong);
+
+  /* stylelint-disable-next-line selector-class-pattern */
+  .mdc-checkbox__background {
+    border-radius: 4px;
+  }
+}
+
+// Angular Material Pseudo-checkbox (select options / lists)
+:root,
+html,
+.mat-pseudo-checkbox,
+.mat-pseudo-checkbox-full,
+.mat-pseudo-checkbox-minimal {
+  --mat-pseudo-checkbox-full-selected-icon-color: var(--accent-teal);
+  --mat-pseudo-checkbox-minimal-selected-checkmark-color: var(--accent-teal);
+}
+
+// Angular Material Slide-Toggle (active toggles in forms)
+:root,
+html,
+.mat-mdc-slide-toggle,
+.mat-mdc-slide-toggle.mat-accent,
+.mat-mdc-slide-toggle.mat-primary {
+  --mat-slide-toggle-selected-handle-color: var(--accent-teal);
+  --mat-slide-toggle-selected-focus-handle-color: var(--accent-teal);
+  --mat-slide-toggle-selected-hover-handle-color: var(--accent-teal);
+  --mat-slide-toggle-selected-pressed-handle-color: var(--accent-teal);
+  --mat-slide-toggle-selected-track-color: #5eead4;
+  --mat-slide-toggle-selected-focus-track-color: #5eead4;
+  --mat-slide-toggle-selected-hover-track-color: #5eead4;
+  --mat-slide-toggle-selected-pressed-track-color: #5eead4;
+  --mat-slide-toggle-selected-focus-state-layer-color: var(--accent-teal);
+  --mat-slide-toggle-selected-hover-state-layer-color: var(--accent-teal);
+  --mat-slide-toggle-selected-pressed-state-layer-color: var(--accent-teal);
+}
+
+// Angular Material Radio Buttons
+:root,
+html,
+.mat-mdc-radio-button,
+.mat-mdc-radio-button.mat-accent,
+.mat-mdc-radio-button.mat-primary {
+  --mat-radio-checked-ripple-color: var(--accent-teal);
+  --mat-radio-selected-focus-icon-color: var(--accent-teal);
+  --mat-radio-selected-hover-icon-color: var(--accent-teal);
+  --mat-radio-selected-icon-color: var(--accent-teal);
+  --mat-radio-selected-pressed-icon-color: var(--accent-teal);
+}
+
+// Angular Material Option selected state (dropdown options)
+:root,
+html,
+.mat-mdc-option.mat-accent,
+.mat-mdc-option.mat-primary {
+  --mat-option-selected-state-label-text-color: var(--accent-teal);
+}
+
 html,
 body {
   height: 100%;

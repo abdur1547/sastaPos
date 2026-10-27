@@ -76,6 +76,7 @@
     <p class="balance" aria-live="polite">After payment: {{ preview.label }}</p>
     @if (preview.credit) {
     <mat-checkbox
+      color="primary"
       [checked]="confirmedCredit()"
       [disabled]="saving() || saved()"
       (change)="confirmedCredit.set($event.checked)"
