@@ -95,7 +95,11 @@
       } @empty {
         @if (!loading()) {
           <tr class="empty-row">
-            <td colspan="7">No vendors match the current filters.</td>
+            <td colspan="7">
+              <mat-icon>store</mat-icon>
+              <span>No vendors match the current filters.</span>
+              <span class="secondary">Try adjusting your search or filters.</span>
+            </td>
           </tr>
         }
       }

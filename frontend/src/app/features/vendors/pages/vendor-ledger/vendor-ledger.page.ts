@@ -18,6 +18,7 @@ import { MatInputModule } from "@angular/material/input";
 import {
   catchError,
   combineLatest,
+  from,
   map,
   of,
   switchMap,
@@ -146,13 +147,39 @@ export class VendorLedgerPage {
               .watchLedger(id, filters, sort, { pageIndex, pageSize })
               .pipe(
                 switchMap((page) =>
-                  this.vendors.getLedgerSummary(id, filters).then((summary) => ({
+                  from(this.vendors.getLedgerSummary(id, filters)).pipe(
+                    map((summary) => ({
+                      vendor,
+                      page,
+                      summary,
+                      loading: false,
+                      error: "",
+                    })),
+                    catchError((summaryErr: unknown) =>
+                      of<LedgerState>({
+                        vendor,
+                        page,
+                        summary: EMPTY_SUMMARY,
+                        loading: false,
+                        error:
+                          summaryErr instanceof Error
+                            ? summaryErr.message
+                            : "Failed to load ledger summary.",
+                      }),
+                    ),
+                  ),
+                ),
+                catchError((ledgerErr: unknown) =>
+                  of<LedgerState>({
                     vendor,
-                    page,
-                    summary,
+                    page: EMPTY_VENDOR_LEDGER_PAGE,
+                    summary: EMPTY_SUMMARY,
                     loading: false,
-                    error: "",
-                  })),
+                    error:
+                      ledgerErr instanceof Error
+                        ? ledgerErr.message
+                        : "Failed to load ledger.",
+                  }),
                 ),
               );
           }),
@@ -162,7 +189,7 @@ export class VendorLedgerPage {
               page: EMPTY_VENDOR_LEDGER_PAGE,
               summary: EMPTY_SUMMARY,
               loading: false,
-              error: err instanceof Error ? err.message : "Failed to load ledger.",
+              error: err instanceof Error ? err.message : "Failed to load vendor.",
             }),
           ),
         );
@@ -187,6 +214,8 @@ export class VendorLedgerPage {
 
   protected readonly items = computed(() => this.page().items);
   protected readonly total = computed(() => this.page().total);
+  protected readonly totalDebit = computed(() => this.page().totalDebit);
+  protected readonly totalCredit = computed(() => this.page().totalCredit);
   protected readonly isOwner = computed(() => this.auth.user()?.role === "OWNER");
 
   protected balanceLabel(balance: string): string {

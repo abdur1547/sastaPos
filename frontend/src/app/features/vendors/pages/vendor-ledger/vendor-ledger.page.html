@@ -1,13 +1,21 @@
-<header class="page-heading">
-  <a routerLink="/vendors" class="back-link">
-    <mat-icon>arrow_back</mat-icon> Vendors
-  </a>
-  <div class="heading-row">
-    <div>
-      <p class="section-label">Vendor Account & Ledger</p>
-      <h1>{{ vendor() ? vendor()!.name : 'Vendor Ledger' }}</h1>
-    </div>
-    @if (vendor(); as v) {
+@if (!vendor() && error()) {
+  <p class="load-error" role="alert">{{ error() }}</p>
+}
+
+@if (loading() && !vendor() && !error()) {
+  <p class="message" role="status">Loading vendor...</p>
+}
+
+@if (vendor(); as v) {
+  <header class="page-heading">
+    <a routerLink="/vendors" class="back-link">
+      <mat-icon>arrow_back</mat-icon> Vendors
+    </a>
+    <div class="heading-row">
+      <div>
+        <p class="section-label">{{ v.name }}</p>
+        <h1>Vendor Ledger</h1>
+      </div>
       <div class="heading-actions">
         <a
           mat-flat-button
@@ -18,96 +26,76 @@
           Record Payment
         </a>
       </div>
-    }
-  </div>
-</header>
-
-@if (error()) {
-  <p class="load-error" role="alert">{{ error() }}</p>
-}
-
-@if (vendor(); as v) {
-  <section class="vendor-card" aria-label="Vendor profile">
-    <div class="vendor-profile-row">
-      <div class="vendor-details">
-        <div class="vendor-badges">
-          <span class="status-badge" [class.is-inactive]="v.status === 'INACTIVE'">
-            {{ v.status === 'ACTIVE' ? 'Active' : 'Inactive' }}
-          </span>
-          @if (v.salesTaxRegistrationStatus === 'REGISTERED') {
-            <span class="tax-badge registered">Sales Tax Registered</span>
-          } @else {
-            <span class="tax-badge unregistered">Unregistered</span>
-          }
-        </div>
-
-        <div class="meta-grid">
-          <div>
-            <span class="meta-label">Phone</span>
-            <span class="meta-value">{{ v.phoneNumber ?? 'Not provided' }}</span>
-          </div>
-          <div>
-            <span class="meta-label">NTN</span>
-            <span class="meta-value">{{ v.ntn ?? 'Not provided' }}</span>
-          </div>
-          @if (v.strn) {
-            <div>
-              <span class="meta-label">STRN</span>
-              <span class="meta-value">{{ v.strn }}</span>
-            </div>
-          }
-          @if (v.address) {
-            <div class="address-col">
-              <span class="meta-label">Address</span>
-              <span class="meta-value">{{ v.address }}</span>
-            </div>
-          }
-        </div>
-      </div>
-
-      <div class="vendor-balance-box">
-        <p class="box-label">Current Account Balance</p>
-        <p
-          class="balance-value"
-          [class.balance-owe]="balanceState(v.accountBalance) === 'STORE_OWES_PARTY'"
-          [class.balance-advance]="balanceState(v.accountBalance) === 'PARTY_OWES_STORE'"
-          [class.balance-settled]="balanceState(v.accountBalance) === 'SETTLED'"
-        >
-          {{ balanceLabel(v.accountBalance) }}
-        </p>
-        <p class="balance-words">{{ balanceInWords(v.accountBalance) }}</p>
-        <a mat-stroked-button [routerLink]="['/vendors', v.id]" class="edit-link">
-          <mat-icon>edit</mat-icon>
-          Edit Details
-        </a>
-      </div>
     </div>
+  </header>
+
+  <section
+    class="flex flex-wrap items-start justify-between gap-4 border-b border-(--border-subtle) pb-6"
+    aria-label="Vendor information"
+  >
+    <div class="min-w-0">
+      <h2>{{ v.name }}</h2>
+      <dl
+        class="m-0 grid gap-3 text-sm text-(--ink-muted) sm:grid-cols-3 sm:gap-x-8"
+      >
+        <div>
+          <dt class="font-bold">Phone number</dt>
+          <dd class="m-0 break-words">
+            {{ v.phoneNumber ?? 'Not provided' }}
+          </dd>
+        </div>
+        <div>
+          <dt class="font-bold">NTN</dt>
+          <dd class="m-0 break-words">
+            {{ v.ntn ?? 'Not provided' }}
+          </dd>
+        </div>
+        <div>
+          <dt class="font-bold">Status</dt>
+          <dd class="m-0">
+            {{ v.status === 'ACTIVE' ? 'Active' : 'Inactive' }}
+          </dd>
+        </div>
+        @if (v.strn) {
+          <div>
+            <dt class="font-bold">STRN</dt>
+            <dd class="m-0 break-words">{{ v.strn }}</dd>
+          </div>
+        }
+        @if (v.address) {
+          <div>
+            <dt class="font-bold">Address</dt>
+            <dd class="m-0 break-words">{{ v.address }}</dd>
+          </div>
+        }
+      </dl>
+      <p class="balance mb-0">
+        {{ balanceLabel(v.accountBalance) }}
+      </p>
+    </div>
+    <a
+      mat-stroked-button
+      class="edit-vendor-link shrink-0"
+      [routerLink]="['/vendors', v.id]"
+    >
+      <mat-icon>edit</mat-icon>
+      Edit Vendor
+    </a>
   </section>
 
-  @if (summary(); as s) {
-    <section class="summary-metrics" aria-label="Ledger summary metrics">
-      <div class="metric-card">
-        <span class="metric-label">Opening Balance</span>
-        <span class="metric-val">Rs {{ s.openingBalance }}</span>
-      </div>
-      <div class="metric-card debit">
-        <span class="metric-label">Total Paid (+ Debits)</span>
-        <span class="metric-val">Rs {{ s.debitTotal }}</span>
-      </div>
-      <div class="metric-card credit">
-        <span class="metric-label">Total Billed (- Credits)</span>
-        <span class="metric-val">Rs {{ s.creditTotal }}</span>
-      </div>
-      <div class="metric-card">
-        <span class="metric-label">Period Closing Balance</span>
-        <span class="metric-val">Rs {{ s.closingBalance }}</span>
-      </div>
-    </section>
-  }
-
-  <section class="ledger-transactions">
-    <div class="section-header">
-      <h2>Transaction History</h2>
+  <section class="ledger-section" aria-label="Ledger entries">
+    <div class="ledger-heading">
+      <h2>Transactions</h2>
+      <dl class="ledger-totals">
+        <div>
+          <dt>Debits</dt>
+          <dd>Rs {{ totalDebit() }}</dd>
+        </div>
+        <div>
+          <dt>Credits</dt>
+          <dd>Rs {{ totalCredit() }}</dd>
+        </div>
+      </dl>
     </div>
 
     <app-vendor-ledger-filters
@@ -115,7 +103,12 @@
       (filtersChange)="onFiltersChange($event)"
     />
 
+    @if (error()) {
+      <p class="load-error" role="alert">{{ error() }}</p>
+    }
+
     <app-vendor-ledger-table
+      class="ledger-table"
       [entries]="items()"
       [loading]="loading()"
       [sort]="sort()"
@@ -124,7 +117,7 @@
     />
 
     <footer class="ledger-footer">
-      <span class="count-label">{{ total() }} entr{{ total() === 1 ? 'y' : 'ies' }}</span>
+      <span class="result-count">{{ total() }} entr{{ total() === 1 ? 'y' : 'ies' }}</span>
       <mat-paginator
         [length]="total()"
         [pageIndex]="pageIndex()"

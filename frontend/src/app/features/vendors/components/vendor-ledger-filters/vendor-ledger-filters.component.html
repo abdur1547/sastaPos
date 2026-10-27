@@ -8,8 +8,8 @@
 
     <mat-button-toggle-group formControlName="direction" aria-label="Entry direction" hideSingleSelectionIndicator>
       <mat-button-toggle value="ALL">All</mat-button-toggle>
-      <mat-button-toggle value="DEBIT">Debits (+)</mat-button-toggle>
-      <mat-button-toggle value="CREDIT">Credits (-)</mat-button-toggle>
+      <mat-button-toggle value="DEBIT">Debits</mat-button-toggle>
+      <mat-button-toggle value="CREDIT">Credits</mat-button-toggle>
     </mat-button-toggle-group>
   </div>
 
@@ -57,7 +57,7 @@
   </div>
 
   <div class="filters-row quick-row">
-    <span class="quick-label">Quick filters:</span>
+    <span class="quick-label">Quick filters</span>
     <button
       type="button"
       class="chip"
@@ -93,6 +93,14 @@
     >
       <mat-icon>block</mat-icon>
       Voided
+    </button>
+    <span class="spacer"></span>
+    @if (activeFilterCount() > 0) {
+      <span class="active-count">{{ activeFilterCount() }} filter{{ activeFilterCount() === 1 ? '' : 's' }} changed</span>
+    }
+    <button mat-button type="button" (click)="reset()">
+      <mat-icon>restart_alt</mat-icon>
+      Reset
     </button>
   </div>
 </form>

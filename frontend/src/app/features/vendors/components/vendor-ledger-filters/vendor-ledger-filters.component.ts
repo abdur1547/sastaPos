@@ -2,12 +2,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   OnInit,
+  computed,
   inject,
   input,
   output,
   signal,
 } from "@angular/core";
 import { FormBuilder, ReactiveFormsModule } from "@angular/forms";
+import { MatButtonModule } from "@angular/material/button";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
 import { MatSelectModule } from "@angular/material/select";
@@ -35,6 +37,7 @@ import {
   selector: "app-vendor-ledger-filters",
   imports: [
     ReactiveFormsModule,
+    MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
@@ -77,6 +80,23 @@ export class VendorLedgerFiltersComponent implements OnInit {
     start: [null as Date | null],
     end: [null as Date | null],
   });
+
+  protected readonly activeFilterCount = computed(() => {
+    const val = this.form.getRawValue();
+    const defaults = DEFAULT_VENDOR_LEDGER_FILTERS;
+    return [
+      val.datePreset !== defaults.datePreset,
+      val.type !== defaults.type,
+      val.direction !== defaults.direction,
+      val.status !== defaults.status,
+    ].filter(Boolean).length;
+  });
+
+  protected reset(): void {
+    this.form.reset(DEFAULT_VENDOR_LEDGER_FILTERS);
+    this.customRange.reset({ start: null, end: null });
+    this.emitFilters();
+  }
 
   ngOnInit(): void {
     const init = this.initialFilters();

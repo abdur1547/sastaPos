@@ -93,8 +93,10 @@ export class VendorLedgerRepository {
     let openingCents = 0;
     if (range.from) {
       const openRow = await this.database.getOptional<{ balance: number }>(
-        `SELECT COALESCE(SUM(CASE WHEN direction = 'DEBIT' THEN ${AMOUNT_CENTS} ELSE -${AMOUNT_CENTS} END), 0) AS balance
-         FROM ledger_entries WHERE vendor_id = ? AND store_id = ? AND ${OCCURRED_AT} < ?`,
+        `SELECT COALESCE(SUM(CASE WHEN l.direction = 'DEBIT' THEN ${AMOUNT_CENTS} ELSE -${AMOUNT_CENTS} END), 0) AS balance
+         FROM ledger_entries l
+         JOIN vendors v ON v.id = l.vendor_id
+         WHERE l.vendor_id = ? AND v.store_id = ? AND ${OCCURRED_AT} < ?`,
         [vendorId, storeId, range.from],
       );
       openingCents = openRow?.balance ?? 0;
@@ -103,8 +105,10 @@ export class VendorLedgerRepository {
     let closingCents = 0;
     if (range.to) {
       const closeRow = await this.database.getOptional<{ balance: number }>(
-        `SELECT COALESCE(SUM(CASE WHEN direction = 'DEBIT' THEN ${AMOUNT_CENTS} ELSE -${AMOUNT_CENTS} END), 0) AS balance
-         FROM ledger_entries WHERE vendor_id = ? AND store_id = ? AND ${OCCURRED_AT} < ?`,
+        `SELECT COALESCE(SUM(CASE WHEN l.direction = 'DEBIT' THEN ${AMOUNT_CENTS} ELSE -${AMOUNT_CENTS} END), 0) AS balance
+         FROM ledger_entries l
+         JOIN vendors v ON v.id = l.vendor_id
+         WHERE l.vendor_id = ? AND v.store_id = ? AND ${OCCURRED_AT} < ?`,
         [vendorId, storeId, range.to],
       );
       closingCents = closeRow?.balance ?? 0;
@@ -115,9 +119,11 @@ export class VendorLedgerRepository {
     const { whereSql, parameters } = buildVendorLedgerWhere(query);
     const totalsRow = await this.database.getOptional<{ debit: number; credit: number }>(
       `WITH ledger AS (
-         SELECT direction, ${OCCURRED_AT} AS occurred_at, ${AMOUNT_CENTS} AS amount_cents,
-                reference_number, description, amount, type, voided
-         FROM ledger_entries WHERE vendor_id = ? AND store_id = ?
+         SELECT l.direction, ${OCCURRED_AT} AS occurred_at, ${AMOUNT_CENTS} AS amount_cents,
+                l.reference_number, l.description, l.amount, l.type, l.voided
+         FROM ledger_entries l
+         JOIN vendors v ON v.id = l.vendor_id
+         WHERE l.vendor_id = ? AND v.store_id = ?
        )
        SELECT
          COALESCE(SUM(CASE WHEN direction = 'DEBIT' THEN amount_cents ELSE 0 END), 0) AS debit,

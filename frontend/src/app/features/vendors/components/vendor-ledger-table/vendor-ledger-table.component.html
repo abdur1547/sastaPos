@@ -27,10 +27,10 @@
           <ng-container *ngTemplateOutlet="sortHeader; context: { field: 'description', label: 'Description' }" />
         </th>
         <th class="col-number" [attr.aria-sort]="ariaSort('debit')">
-          <ng-container *ngTemplateOutlet="sortHeader; context: { field: 'debit', label: 'Debit (+)' }" />
+          <ng-container *ngTemplateOutlet="sortHeader; context: { field: 'debit', label: 'Debit' }" />
         </th>
         <th class="col-number" [attr.aria-sort]="ariaSort('credit')">
-          <ng-container *ngTemplateOutlet="sortHeader; context: { field: 'credit', label: 'Credit (-)' }" />
+          <ng-container *ngTemplateOutlet="sortHeader; context: { field: 'credit', label: 'Credit' }" />
         </th>
         <th class="col-number" [attr.aria-sort]="ariaSort('balance')">
           <ng-container *ngTemplateOutlet="sortHeader; context: { field: 'balance', label: 'Balance' }" />
@@ -118,7 +118,11 @@
       } @empty {
         @if (!loading()) {
           <tr class="empty-row">
-            <td [attr.colspan]="columnCount">No ledger entries match the current filters.</td>
+            <td [attr.colspan]="columnCount">
+              <mat-icon>account_balance_wallet</mat-icon>
+              <span>No ledger entries match the current filters.</span>
+              <span class="secondary">Try a wider period or reset the filters.</span>
+            </td>
           </tr>
         }
       }

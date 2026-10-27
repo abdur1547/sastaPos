@@ -115,6 +115,29 @@ describe("VendorLedgerRepository", () => {
       expect(summary.closingBalance).toBe("-1500.00");
       expect(summary.debitTotal).toBe("1000.00");
       expect(summary.creditTotal).toBe("2000.00");
+
+      expect(getOptional).toHaveBeenCalledTimes(4);
+
+      const [openSql, openParams] = getOptional.mock.calls[1];
+      expect(openSql).toContain("FROM ledger_entries l");
+      expect(openSql).toContain("JOIN vendors v ON v.id = l.vendor_id");
+      expect(openSql).toContain("WHERE l.vendor_id = ? AND v.store_id = ?");
+      expect(placeholders(openSql)).toBe(openParams.length);
+      expect(openParams).toEqual(["v-1", "store-1", "2026-10-01"]);
+
+      const [closeSql, closeParams] = getOptional.mock.calls[2];
+      expect(closeSql).toContain("FROM ledger_entries l");
+      expect(closeSql).toContain("JOIN vendors v ON v.id = l.vendor_id");
+      expect(closeSql).toContain("WHERE l.vendor_id = ? AND v.store_id = ?");
+      expect(placeholders(closeSql)).toBe(closeParams.length);
+      expect(closeParams).toEqual(["v-1", "store-1", "2026-10-31"]);
+
+      const [totalsSql, totalsParams] = getOptional.mock.calls[3];
+      expect(totalsSql).toContain("FROM ledger_entries l");
+      expect(totalsSql).toContain("JOIN vendors v ON v.id = l.vendor_id");
+      expect(totalsSql).toContain("WHERE l.vendor_id = ? AND v.store_id = ?");
+      expect(placeholders(totalsSql)).toBe(totalsParams.length);
+      expect(totalsParams).toEqual(["v-1", "store-1", "2026-10-01", "2026-10-31"]);
     });
   });
 });
